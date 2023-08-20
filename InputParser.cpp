@@ -188,7 +188,7 @@ int loadInput(int nargs, char** args)
     if (!bSuccess)
     {
         PARAM_KERNEL_EMBED_D = PARAM_DATA_D;
-        cout << "Default number of kernel embedded dimensions = numDim" << PARAM_KERNEL_EMBED_D << endl;
+        cout << "Default number of kernel embedded dimensions = numDim = " << PARAM_KERNEL_EMBED_D << endl;
     }
 
     // Random projection
@@ -206,8 +206,8 @@ int loadInput(int nargs, char** args)
 
     if (!bSuccess)
     {
-        cout << "Default number of projections = 512" << endl;
         PARAM_NUM_PROJECTION = 512;
+        cout << "Default number of projections: " << PARAM_NUM_PROJECTION << endl;
     }
 
     // Top-K close/far random vectors
@@ -225,8 +225,8 @@ int loadInput(int nargs, char** args)
 
     if (!bSuccess)
     {
-        cout << "Default top-k closest/furthest vectors: 20" << endl;
         PARAM_PROJECTION_TOP_K = 20;
+        cout << "Default top-k closest/furthest vectors: " << PARAM_PROJECTION_TOP_K << endl;
     }
 
     // Distance measurement
@@ -291,12 +291,12 @@ int loadInput(int nargs, char** args)
         if (PARAM_DISTANCE == 1)
         {
             PARAM_KERNEL_SIGMA = PARAM_DBSCAN_EPS;
-            cout << "Default sigma = eps for L1" << PARAM_KERNEL_SIGMA << endl;
+            cout << "Default sigma = eps for L1: " << PARAM_KERNEL_SIGMA << endl;
         }
         else if (PARAM_DISTANCE == 2)
         {
             PARAM_KERNEL_SIGMA = 2 * PARAM_DBSCAN_EPS;
-            cout << "Default sigma = 2*eps for L2" << PARAM_KERNEL_SIGMA << endl;
+            cout << "Default sigma = 2*eps for L2: " << PARAM_KERNEL_SIGMA << endl;
         }
     }
 
@@ -315,8 +315,8 @@ int loadInput(int nargs, char** args)
 
     if (!bSuccess && ((PARAM_DISTANCE == 3) || (PARAM_DISTANCE == 4)))
     {
-        cout << "Default sampling ratio for divergence distance: 0.4" << endl;
         PARAM_KERNEL_INTERVAL_SAMPLING = 0.4;
+        cout << "Default sampling ratio for divergence distance: " << PARAM_KERNEL_INTERVAL_SAMPLING << endl;
     }
 
     // Output
