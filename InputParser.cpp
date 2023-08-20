@@ -140,7 +140,7 @@ int loadInput(int nargs, char** args)
     {
         if (strcmp(args[i], "--eps") == 0)
         {
-            PARAM_DBSCAN_EPS = atoi(args[i + 1]);
+            PARAM_DBSCAN_EPS = atof(args[i + 1]);
             cout << "Radius eps: " << PARAM_DBSCAN_EPS << endl;
             bSuccess = true;
             break;
@@ -206,8 +206,8 @@ int loadInput(int nargs, char** args)
 
     if (!bSuccess)
     {
-        cout << "Default sigma = d" << endl;
-        PARAM_KERNEL_SIGMA = PARAM_DATA_D;
+        cout << "Default sigma = 2*eps" << endl;
+        PARAM_KERNEL_SIGMA = 2 * PARAM_DBSCAN_EPS;
     }
 
     // Random projection

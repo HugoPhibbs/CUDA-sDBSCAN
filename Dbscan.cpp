@@ -1624,8 +1624,7 @@ void fastDbscan()
                         "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
                         "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
                         "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
-                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K) +
-                        ".txt";
+                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
 
         outputDbscan(vecLabels, sFileName);
 	}
@@ -1657,8 +1656,7 @@ void memoryDbscan()
                         "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
                         "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
                         "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
-                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K) +
-                        ".txt";
+                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
 
         outputDbscan(vecLabels, sFileName);
 	}
@@ -2361,8 +2359,7 @@ void fastOptics()
                         "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
                         "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
                         "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
-                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K) +
-                        ".txt";
+                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
 
         outputOptics(vecOrder, vecReachDist, vecLabels, sFileName);
 	}
@@ -2400,8 +2397,7 @@ void memoryOptics()
                         "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
                         "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
                         "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
-                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K) +
-                        ".txt";
+                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
 
         outputOptics(vecOrder, vecReachDist, vecLabels, sFileName);
 	}
