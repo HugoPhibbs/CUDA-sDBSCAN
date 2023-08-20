@@ -187,27 +187,8 @@ int loadInput(int nargs, char** args)
 
     if (!bSuccess)
     {
-        cout << "Default number of kernel embedded dimensions = numDim" << endl;
         PARAM_KERNEL_EMBED_D = PARAM_DATA_D;
-    }
-
-    // Scale gamma of kernel L2 and L1
-    bSuccess = false;
-    for (int i = 1; i < nargs; i++)
-    {
-        if (strcmp(args[i], "--sigma") == 0)
-        {
-            PARAM_KERNEL_SIGMA = atof(args[i + 1]);
-            cout << "Sigma: " << PARAM_KERNEL_SIGMA << endl;
-            bSuccess = true;
-            break;
-        }
-    }
-
-    if (!bSuccess)
-    {
-        cout << "Default sigma = 2*eps" << endl;
-        PARAM_KERNEL_SIGMA = 2 * PARAM_DBSCAN_EPS;
+        cout << "Default number of kernel embedded dimensions = numDim" << PARAM_KERNEL_EMBED_D << endl;
     }
 
     // Random projection
@@ -241,6 +222,7 @@ int loadInput(int nargs, char** args)
             break;
         }
     }
+
     if (!bSuccess)
     {
         cout << "Default top-k closest/furthest vectors: 20" << endl;
@@ -289,6 +271,33 @@ int loadInput(int nargs, char** args)
     {
         cout << "Default L2 distance" << endl;
         PARAM_DISTANCE = 2;
+    }
+
+    // Scale gamma of kernel L2 and L1
+    bSuccess = false;
+    for (int i = 1; i < nargs; i++)
+    {
+        if (strcmp(args[i], "--sigma") == 0)
+        {
+            PARAM_KERNEL_SIGMA = atof(args[i + 1]);
+            cout << "Sigma: " << PARAM_KERNEL_SIGMA << endl;
+            bSuccess = true;
+            break;
+        }
+    }
+
+    if (!bSuccess)
+    {
+        if (PARAM_DISTANCE == 1)
+        {
+            PARAM_KERNEL_SIGMA = PARAM_DBSCAN_EPS;
+            cout << "Default sigma = eps for L1" << PARAM_KERNEL_SIGMA << endl;
+        }
+        else if (PARAM_DISTANCE == 2)
+        {
+            PARAM_KERNEL_SIGMA = 2 * PARAM_DBSCAN_EPS;
+            cout << "Default sigma = 2*eps for L2" << PARAM_KERNEL_SIGMA << endl;
+        }
     }
 
     // Sampling ratio used on Chi2 and JS - TPAMI 12 (interval_sampling in scikit-learn
