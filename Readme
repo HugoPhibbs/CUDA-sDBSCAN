@@ -1,0 +1,13 @@
+This is a C++ implementation of scalable DBSCAN and its OPTICS, called sDBSCAN, in high dimensional space
+
+sDBSCAN uses FFHT (Fast Fast Hadamard Transform) (https://github.com/FALCONN-LIB/FFHT) that provides a heavily optimized C99 implementation of the Fast Hadamard Transform.
+It uses AVX to speed up the computation. This lib is part of FalconnLib
+
+sDBSCAN also needs EigenLib (https://eigen.tuxfamily.org) with vectorization to fast compute distance
+and boost (https://www.boost.org/) with binary histogram
+
+See the Compile.sh for compiling and running
+
+
+
+

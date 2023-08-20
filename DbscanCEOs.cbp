@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="DbscanCEOs" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/DbscanCEOs" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Option parameters='--numPts 10000 --numDim 10 --X &quot;/home/npha145/Dropbox (Uni of Auckland)/Working/_Code/Python/Clustering/DBSCAN/Gauss_X_10K_10.txt&quot;  --alg Dbscan --eps 30 --minPts 10 --numEmbed 256 --numProj 512 --topKProj 10 --dist L2 --output y_dbscan' />
+				<Compiler>
+					<Add option="-O3" />
+					<Add option="-g" />
+					<Add option="-march=native" />
+				</Compiler>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/DbscanCEOs" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Option parameters='--numPts 60000 --numDim 780 --X &quot;/home/npha145/Dataset/Clustering/mnist_X_60K_780.txt&quot; --alg Dbscan --eps 800 --minPts 10 --numEmbed 1024 --numProj 1024 --topKProj 20 --dist L2 --output y_dbscan --sigma 600' />
+				<Compiler>
+					<Add option="-O3" />
+					<Add option="-std=c++17" />
+					<Add option="-m64" />
+					<Add option="-fopenmp" />
+					<Add option="-march=native" />
+				</Compiler>
+				<Linker>
+					<Add option="-O3" />
+					<Add option="-s" />
+					<Add option="-m64" />
+					<Add option="-lgomp -pthread" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-fexceptions" />
+			<Add directory="C:/Library/eigen-3.4.0" />
+			<Add directory="C:/Library/boost_1_77_0" />
+			<Add directory="/home/npha145/Library/eigen-3.4.0" />
+			<Add directory="/home/npha145/Library/boost_1_78_0" />
+			<Add directory="/shared/Library/eigen-3.4.0" />
+			<Add directory="/shared/Library/boost_1_78_0" />
+		</Compiler>
+		<Linker>
+			<Add directory="/home/npha145/Library/eigen-3.4.0" />
+		</Linker>
+		<Unit filename="Dbscan.cpp" />
+		<Unit filename="Dbscan.h" />
+		<Unit filename="Header.cpp" />
+		<Unit filename="Header.h" />
+		<Unit filename="InputParser.cpp" />
+		<Unit filename="InputParser.h" />
+		<Unit filename="Test.cpp" />
+		<Unit filename="Test.h" />
+		<Unit filename="Utilities.cpp" />
+		<Unit filename="Utilities.h" />
+		<Unit filename="fast_copy.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="fast_copy.h" />
+		<Unit filename="fht.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="fht.h" />
+		<Unit filename="fht_impl.h" />
+		<Unit filename="main.cpp" />
+		<Extensions />
+	</Project>
+</CodeBlocks_project_file>
