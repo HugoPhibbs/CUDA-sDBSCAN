@@ -101,6 +101,8 @@ void embedChiSquare(const Ref<VectorXf> p_vecPoint, Ref<VectorXf> p_vecEmbed)
     int iComponent = (PARAM_KERNEL_EMBED_D / PARAM_DATA_D) - 1; // kappa_1, kappa_2, ...
     iComponent /= 2; // since we take cos and sin
 
+//    cout << "Number of components: " << iComponent << endl;
+
     // adding sqrt(x L kappa(0)
     for (int d = 0; d < PARAM_DATA_D; ++d)
     {
@@ -164,29 +166,71 @@ void embedJS(const Ref<VectorXf> p_vecPoint, Ref<VectorXf> p_vecEmbed)
     }
 }
 
-float computeDist(const Ref<VectorXf> vecX, const Ref<VectorXf> vecY)
+/** Useful for dense vector
+**/
+float computeDist(const Ref<VectorXf> p_vecX, const Ref<VectorXf> p_vecY)
 {
     if (PARAM_DISTANCE == 1)
-        return (vecX - vecY).cwiseAbs().sum();
+        return (p_vecX - p_vecY).cwiseAbs().sum();
     else if (PARAM_DISTANCE == 2)
-        return (vecX - vecY).norm();
+        return (p_vecX - p_vecY).norm();
     else if (PARAM_DISTANCE == 3) // ChiSquare
-        return 1 - (vecX * vecY).cwiseQuotient(vecX + vecY).sum(); // since we consider distance
+    {
+        // hack for vectorize to ensure no zero element
+        VectorXf vecX = p_vecX;
+        VectorXf vecY = p_vecY;
+
+        vecX.array() += EPSILON;
+        vecY.array() += EPSILON;
+
+        VectorXf temp = vecX.cwiseProduct(vecY); // x * y
+        temp = temp.cwiseQuotient(vecX + vecY); // (x * y) / (x + y)
+        temp.array() *= 2.0; // 2(x * y) / (x + y)
+
+        return 1.0 - temp.sum();
+    }
+
     else if (PARAM_DISTANCE == 4) // Jensen Shannon
     {
-        VectorXf vecTemp1 = (vecX + vecY).cwiseQuotient(vecX);
-        vecTemp1 = vecTemp1.array().log() / log(2.0);
-        vecTemp1 = (vecTemp1 * vecX) / 2;
+        // hack for vectorize
+        VectorXf vecX = p_vecX;
+        VectorXf vecY = p_vecY;
+
+        vecX.array() += EPSILON;
+        vecY.array() += EPSILON;
+
+        VectorXf vecTemp1 = (vecX + vecY).cwiseQuotient(vecX); // (x + y) / x
+        vecTemp1 = vecTemp1.array().log() / log(2.0); // log2( (x+y) / x))
+        vecTemp1 = vecTemp1.cwiseProduct(vecX); // x * log2( (x+y) / x))
+
+//        cout << vecTemp1.sum() / 2 << endl;
 
         VectorXf vecTemp2 = (vecX + vecY).cwiseQuotient(vecY);
         vecTemp2 = vecTemp2.array().log() / log(2.0);
-        vecTemp2 = (vecTemp2 * vecY) / 2;
+        vecTemp2 = vecTemp2.cwiseProduct(vecY);
 
-        return 1 - (vecTemp1 + vecTemp2).sum();
+//        cout << vecTemp2.sum() / 2 << endl;
+
+        return 1.0 - (vecTemp1 + vecTemp2).sum() / 2.0;
     }
     else
     {
         cout << "Error: The distance is not support" << endl;
         return 0;
     }
+}
+
+/** Faster with sparse representation
+**/
+float computeChi2(const Ref<VectorXf> vecX, const Ref<VectorXf> vecY)
+{
+    float dist = 0.0;
+    for (int d = 0; d < vecX.size(); ++d)
+    {
+        if ((vecX(d) > 0) && (vecY(d) > 0))
+            dist += 2 * vecX(d) * vecY(d) / (vecX(d) + vecY(d));
+    }
+
+    return 1.0 - dist;
+
 }

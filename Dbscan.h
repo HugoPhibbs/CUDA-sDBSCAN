@@ -3,9 +3,7 @@
 #include "Header.h"
 #include "Utilities.h"
 
-void FourierEmbed_L2();
-void parRandomProjection();
-void seqRandomProjection();
+
 
 void parDbscanIndex_L2();
 //void parDbscanIndex_Sort(); // Only for L2 testing: slower than using PQ

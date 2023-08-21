@@ -95,7 +95,7 @@ extern bool PARAM_INTERNAL_SAVE_OUTPUT;
 extern int PARAM_INTERNAL_NUM_ROTATION;
 
 extern MatrixXf MATRIX_X;
-extern MatrixXf MATRIX_X_EMBED;
+
 
 // Data structure
 extern MatrixXi MATRIX_TOP_K;

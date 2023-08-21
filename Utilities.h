@@ -17,6 +17,7 @@ inline string int2str(int x)
 }
 
 float computeDist(const Ref<VectorXf>, const Ref<VectorXf>);
+float computeChi2(const Ref<VectorXf>, const Ref<VectorXf>);
 
 void embedChiSquare(const Ref<VectorXf>, Ref<VectorXf>);
 void embedJS(const Ref<VectorXf>, Ref<VectorXf>);
