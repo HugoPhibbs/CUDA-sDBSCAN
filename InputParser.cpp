@@ -236,7 +236,12 @@ int loadInput(int nargs, char** args)
     {
         if (strcmp(args[i], "--dist") == 0)
         {
-            if (strcmp(args[i + 1], "L1") == 0)
+            if (strcmp(args[i + 1], "Cosine") == 0)
+            {
+                PARAM_DISTANCE = 0;
+                cout << "Cosine distance - no kernel embedding" << endl;
+            }
+            else if (strcmp(args[i + 1], "L1") == 0)
             {
                 PARAM_DISTANCE = 1;
                 cout << "L1 distance" << endl;

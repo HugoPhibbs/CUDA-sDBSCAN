@@ -308,22 +308,682 @@ Do not store Projection-Matrix due to the memory limit
 Slow on threading since we have to update the same memory i.e. data structure
 Using priority queue to extract top-k and top-MinPts
 **/
-void seqDbscanIndex_Metric()
+//void seqDbscanIndex_Metric()
+//{
+//    vector<Min_PQ_Pair> vecPQ_Close = vector<Min_PQ_Pair> (PARAM_NUM_PROJECTION, Min_PQ_Pair());
+//    vector<Min_PQ_Pair> vecPQ_Far = vector<Min_PQ_Pair> (PARAM_NUM_PROJECTION, Min_PQ_Pair());
+//
+//
+//    /** Param for embedding **/
+//    int iEmbed_D = PARAM_KERNEL_EMBED_D / 2; // This is becase we need cos() and sin()
+//
+//    MatrixXf MATRIX_R = MatrixXf::Zero(iEmbed_D, PARAM_DATA_D); // EigenLib does not allow resize MatrixXf when passing by reference !
+//
+//    // Can be generalized for other kernel embedding
+//    if (PARAM_DISTANCE == 1)
+//        cauchyGenerator(iEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA, MATRIX_R); // K(x, y) = exp(-gamma * L1_dist(X, y))) where gamma = d^2
+//    else if (PARAM_DISTANCE == 2)
+//        gaussGenerator(iEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA, MATRIX_R); // K(x, y) = exp(-gamma * L2_dist^2(X, y))) where gamma = 1/2 sigma^2
+//
+//    /** Param for random projection **/
+//    int log2Project = log2(PARAM_NUM_PROJECTION);
+//
+//    boost::dynamic_bitset<> bitHD3_Proj;
+//    bitHD3Generator(PARAM_NUM_PROJECTION * PARAM_INTERNAL_NUM_ROTATION, bitHD3_Proj);
+//
+//    /** Param for index **/
+//    MATRIX_TOP_K = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_K, PARAM_DATA_N);
+//
+//    #pragma omp parallel for
+//    for (int n = 0; n < PARAM_DATA_N; ++n)
+//    {
+//        /**
+//        Random projection
+//        **/
+//        VectorXf vecPoint = VectorXf::Zero(PARAM_NUM_PROJECTION); // NUM_PROJECT > PARAM_KERNEL_EMBED_D and PARAM_DATA_D
+////        vecPoint.segment(0, PARAM_KERNEL_EMBED_D) = vecEmbed;
+//
+//        if (PARAM_DISTANCE == 0)
+//            vecPoint.segment(0, PARAM_DATA_D) = MATRIX_X.col(n);
+//        else // L1 and L2: Random Fourier Features
+//        {
+//            VectorXf vecProject = MATRIX_R * MATRIX_X.col(n);
+//            vecPoint.segment(0, iEmbed_D) = vecProject.array().cos();
+//            vecPoint.segment(iEmbed_D, iEmbed_D) = vecProject.array().sin(); // start from iEmbbed, copy iEmbed elements
+//        }
+//
+//        for (int r = 0; r < PARAM_INTERNAL_NUM_ROTATION; ++r)
+//        {
+//            // Component-wise multiplication with a random sign
+//            for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//            {
+//                vecPoint(d) *= (2 * (int)bitHD3_Proj[r * PARAM_NUM_PROJECTION + d] - 1);
+//            }
+//
+//            // Multiple with Hadamard matrix by calling FWHT transform
+//            fht_float(vecPoint.data(), log2Project);
+//        }
+//
+//        // Store potential candidate and find top-k closes and furtherest random vector
+//        Min_PQ_Pair minCloseTopK;
+//        Min_PQ_Pair minFarTopK;
+//
+//        for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//        {
+//            float fValue = vecPoint(d);
+//
+//            /**
+//            1) For each random vector Ri, get top-MinPts closest index and top-MinPts furthest index
+//            - Will process it later using projection matrix
+//            2) For each point Xi, get top-K closest random vector and top-K furthest random vector
+//            **/
+//
+//        #pragma omp critical
+//        {
+//            // Single thread: (1) Close: PQ to find Top-MinPts for each random vector
+//            if ((int)vecPQ_Close[d].size() < PARAM_DBSCAN_MINPTS)
+//                vecPQ_Close[d].push(IFPair(n, fValue));
+//            else
+//            {
+//                if (fValue > vecPQ_Close[d].top().m_fValue)
+//                {
+//                    vecPQ_Close[d].pop();
+//                    vecPQ_Close[d].push(IFPair(n, fValue));
+//                }
+//            }
+//
+//            // Single thread: (1) Far: PQ to find Top-MinPts for each random vector
+//            if ((int)vecPQ_Far[d].size() < PARAM_DBSCAN_MINPTS)
+//                vecPQ_Far[d].push(IFPair(n, -fValue));
+//            else
+//            {
+//                if (-fValue > vecPQ_Far[d].top().m_fValue)
+//                {
+//                    vecPQ_Far[d].pop();
+//                    vecPQ_Far[d].push(IFPair(n, -fValue));
+//                }
+//            }
+//        }
+//
+//            // (2) Close: Using priority queue to find top-k closest vectors for each point
+//            if ((int)minCloseTopK.size() < PARAM_PROJECTION_TOP_K)
+//                minCloseTopK.push(IFPair(d, fValue));
+//            else
+//            {
+//                if (fValue > minCloseTopK.top().m_fValue)
+//                {
+//                    minCloseTopK.pop();
+//                    minCloseTopK.push(IFPair(d, fValue));
+//                }
+//            }
+//
+//            // // (2) Far: Using priority queue to find top-k furthest vectors
+//            if ((int)minFarTopK.size() < PARAM_PROJECTION_TOP_K)
+//                minFarTopK.push(IFPair(d, -fValue));
+//            else
+//            {
+//                if (-fValue > minFarTopK.top().m_fValue)
+//                {
+//                    minFarTopK.pop();
+//                    minFarTopK.push(IFPair(d, -fValue));
+//                }
+//            }
+//        }
+//
+//        // Get (sorted by projection value) top-k closest and furthest vector for each point
+//        for (int k = PARAM_PROJECTION_TOP_K - 1; k >= 0; --k)
+//        {
+//            MATRIX_TOP_K(k, n) = minCloseTopK.top().m_iIndex;
+//            minCloseTopK.pop();
+//
+//            MATRIX_TOP_K(k + PARAM_PROJECTION_TOP_K, n) = minFarTopK.top().m_iIndex;
+//            minFarTopK.pop();
+//        }
+//
+//    }
+//
+//    /**
+//    For each random vector, getting 2*top-MinPts as close and far candidates
+//    **/
+//    MATRIX_TOP_MINPTS = MatrixXi::Zero(2 * PARAM_DBSCAN_MINPTS, PARAM_NUM_PROJECTION);
+//
+//    #pragma omp parallel for
+//    for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//    {
+//        for (int k = PARAM_DBSCAN_MINPTS - 1; k >= 0; --k)
+//        {
+//            // Close
+//            MATRIX_TOP_MINPTS(k, d) = vecPQ_Close[d].top().m_iIndex;
+//            vecPQ_Close[d].pop();
+//
+//            // Far
+//            MATRIX_TOP_MINPTS(k + PARAM_DBSCAN_MINPTS, d) = vecPQ_Far[d].top().m_iIndex;
+//            vecPQ_Far[d].pop();
+//        }
+//    }
+//}
+
+/**
+Have to store the projection matrix for parallel processing.
+Using priority queue to extract top-k and top-MinPts
+**/
+//void parDbscanIndex_Metric()
+//{
+//
+//    /** Param for embedding **/
+//    int iEmbed_D = PARAM_KERNEL_EMBED_D / 2; // This is becase we need cos() and sin()
+//
+//    MatrixXf MATRIX_R = MatrixXf::Zero(iEmbed_D, PARAM_DATA_D); // EigenLib does not allow resize MatrixXf when passing by reference !
+//
+//    // See: https://github.com/hichamjanati/srf/blob/master/RFF-I.ipynb
+//    if (PARAM_DISTANCE == 1)
+//        cauchyGenerator(iEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA, MATRIX_R); // K(x, y) = exp(-gamma * L1_dist(X, y))) where gamma = 1/sigma
+//    else if (PARAM_DISTANCE == 2)
+//        gaussGenerator(iEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA, MATRIX_R); // std = 1/sigma, K(x, y) = exp(-gamma * L2_dist^2(X, y))) where gamma = 1/2 sigma^2
+//
+//    /** Param for random projection **/
+//    MatrixXf MATRIX_RP = MatrixXf::Zero(PARAM_NUM_PROJECTION, PARAM_DATA_N);
+//
+//    int log2Project = log2(PARAM_NUM_PROJECTION);
+//    boost::dynamic_bitset<> bitHD3_Proj;
+//    bitHD3Generator(PARAM_NUM_PROJECTION * PARAM_INTERNAL_NUM_ROTATION, bitHD3_Proj);
+//
+//    /** Param for index **/
+//    MATRIX_TOP_K = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_K, PARAM_DATA_N);
+//
+//    #pragma omp parallel for
+//    for (int n = 0; n < PARAM_DATA_N; ++n)
+//    {
+//        /**
+//        Random projection
+//        **/
+//        VectorXf vecPoint = VectorXf::Zero(PARAM_NUM_PROJECTION); // NUM_PROJECT > PARAM_KERNEL_EMBED_D
+////        vecPoint.segment(0, PARAM_KERNEL_EMBED_D) = vecEmbed;
+//
+//        if (PARAM_DISTANCE == 0)
+//            vecPoint.segment(0, PARAM_DATA_D) = MATRIX_X.col(n);
+//        else // L1 and L2: Random Fourier Features
+//        {
+//            VectorXf vecProject = MATRIX_R * MATRIX_X.col(n);
+//            vecPoint.segment(0, iEmbed_D) = vecProject.array().cos();
+//            vecPoint.segment(iEmbed_D, iEmbed_D) = vecProject.array().sin(); // start from iEmbbed, copy iEmbed elements
+//        }
+//
+//
+//        for (int r = 0; r < PARAM_INTERNAL_NUM_ROTATION; ++r)
+//        {
+//            // Component-wise multiplication with a random sign
+//            for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//            {
+//                vecPoint(d) *= (2 * (int)bitHD3_Proj[r * PARAM_NUM_PROJECTION + d] - 1);
+//            }
+//
+//            // Multiple with Hadamard matrix by calling FWHT transform
+//            fht_float(vecPoint.data(), log2Project);
+//        }
+//
+//        // Store projection matrix for faster parallel, and no need to scale since we keep top-k and top-MinPts
+//        MATRIX_RP.col(n) = vecPoint;
+//
+//        // Store potential candidate and find top-k closes and furtherest random vector
+//        Min_PQ_Pair minCloseTopK;
+//        Min_PQ_Pair minFarTopK;
+//
+//        for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//        {
+//            float fValue = vecPoint(d);
+//
+//            /**
+//            1) For each random vector Ri, get top-MinPts closest index and top-MinPts furthest index
+//            - Will process it later using projection matrix
+//            2) For each point Xi, get top-K closest random vector and top-K furthest random vector
+//            **/
+//
+//            // (2) Close: Using priority queue to find top-k closest vectors for each point
+//            if ((int)minCloseTopK.size() < PARAM_PROJECTION_TOP_K)
+//                minCloseTopK.push(IFPair(d, fValue));
+//            else
+//            {
+//                if (fValue > minCloseTopK.top().m_fValue)
+//                {
+//                    minCloseTopK.pop();
+//                    minCloseTopK.push(IFPair(d, fValue));
+//                }
+//            }
+//
+//            // // (2) Far: Using priority queue to find top-k furthest vectors
+//            if ((int)minFarTopK.size() < PARAM_PROJECTION_TOP_K)
+//                minFarTopK.push(IFPair(d, -fValue));
+//            else
+//            {
+//                if (-fValue > minFarTopK.top().m_fValue)
+//                {
+//                    minFarTopK.pop();
+//                    minFarTopK.push(IFPair(d, -fValue));
+//                }
+//            }
+//        }
+//
+//        // Get (sorted by projection value) top-k closest and furthest vector for each point
+//        for (int k = PARAM_PROJECTION_TOP_K - 1; k >= 0; --k)
+//        {
+//            MATRIX_TOP_K(k, n) = minCloseTopK.top().m_iIndex;
+//            minCloseTopK.pop();
+//
+//            MATRIX_TOP_K(k + PARAM_PROJECTION_TOP_K, n) = minFarTopK.top().m_iIndex;
+//            minFarTopK.pop();
+//        }
+//
+//    }
+//
+//    /**
+//    For each random vector, getting 2*top-MinPts as close and far candidates
+//    **/
+//    MATRIX_TOP_MINPTS = MatrixXi::Zero(2 * PARAM_DBSCAN_MINPTS, PARAM_NUM_PROJECTION);
+//
+//    #pragma omp parallel for
+//    for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//    {
+//        // sort(begin(matProject.col(d)), end(matProject.col(d)), [](float lhs, float rhs){return rhs > lhs});
+//
+//        Min_PQ_Pair minPQ_Close;
+//        Min_PQ_Pair minPQ_Far;
+//
+//        VectorXf vecProject = MATRIX_RP.row(d); // it must be row since D x N
+//
+//        for (int n = 0; n < PARAM_DATA_N; ++n)
+//        {
+//            float fValue = vecProject(n);
+//
+//            if ((int)minPQ_Close.size() < PARAM_DBSCAN_MINPTS)
+//                minPQ_Close.push(IFPair(n, fValue));
+//            else
+//            {
+//                if (fValue > minPQ_Close.top().m_fValue)
+//                {
+//                    minPQ_Close.pop();
+//                    minPQ_Close.push(IFPair(n, fValue));
+//                }
+//            }
+//
+//            // Single thread: (1) Far: PQ to find Top-MinPts for each random vector
+//            if ((int)minPQ_Far.size() < PARAM_DBSCAN_MINPTS)
+//                minPQ_Far.push(IFPair(n, -fValue));
+//            else
+//            {
+//                if (-fValue > minPQ_Far.top().m_fValue)
+//                {
+//                    minPQ_Far.pop();
+//                    minPQ_Far.push(IFPair(n, -fValue));
+//                }
+//            }
+//        }
+//
+//        for (int k = PARAM_DBSCAN_MINPTS - 1; k >= 0; --k)
+//        {
+//            // Close
+//            MATRIX_TOP_MINPTS(k, d) = minPQ_Close.top().m_iIndex;
+//            minPQ_Close.pop();
+//
+//            // Far
+//            MATRIX_TOP_MINPTS(k + PARAM_DBSCAN_MINPTS, d) = minPQ_Far.top().m_iIndex;
+//            minPQ_Far.pop();
+//        }
+//    }
+//}
+
+/**
+Have to store the projection matrix for parallel processing.
+Using priority queue to extract top-k and top-MinPts
+
+Only support ChiSquare and Johnson Shannon divergences
+**/
+//void parDbscanIndex_NonMetric()
+//{
+//    /** Param for random projection **/
+//    MatrixXf MATRIX_RP = MatrixXf::Zero(PARAM_NUM_PROJECTION, PARAM_DATA_N);
+//
+//    int log2Project = log2(PARAM_NUM_PROJECTION);
+//    boost::dynamic_bitset<> bitHD3_Proj;
+//    bitHD3Generator(PARAM_NUM_PROJECTION * PARAM_INTERNAL_NUM_ROTATION, bitHD3_Proj);
+//
+//    /** Param for index **/
+//    MATRIX_TOP_K = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_K, PARAM_DATA_N);
+//
+//    #pragma omp parallel for
+//    for (int n = 0; n < PARAM_DATA_N; ++n)
+//    {
+//        /**
+//        Deterministic Additive Kernel feature
+//        **/
+//        VectorXf vecEmbed = VectorXf::Zero(PARAM_KERNEL_EMBED_D); // iEmbed_D > D
+//        if (PARAM_DISTANCE == 3)
+//            embedChiSquare(MATRIX_X.col(n), vecEmbed);
+//        else if (PARAM_DISTANCE == 4)
+//            embedJS(MATRIX_X.col(n), vecEmbed);
+//
+//        /**
+//        Random projection
+//        **/
+//        VectorXf vecPoint = VectorXf::Zero(PARAM_NUM_PROJECTION); // NUM_PROJECT > PARAM_KERNEL_EMBED_D
+//        vecPoint.segment(0, PARAM_KERNEL_EMBED_D) = vecEmbed;
+//
+//        for (int r = 0; r < PARAM_INTERNAL_NUM_ROTATION; ++r)
+//        {
+//            // Component-wise multiplication with a random sign
+//            for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//            {
+//                vecPoint(d) *= (2 * (int)bitHD3_Proj[r * PARAM_NUM_PROJECTION + d] - 1);
+//            }
+//
+//            // Multiple with Hadamard matrix by calling FWHT transform
+//            fht_float(vecPoint.data(), log2Project);
+//        }
+//
+//        // Store projection matrix for faster parallel, and no need to scale since we keep top-k and top-MinPts
+//        MATRIX_RP.col(n) = vecPoint;
+//
+//        // Store potential candidate and find top-k closes and furtherest random vector
+//        Min_PQ_Pair minCloseTopK;
+//        Min_PQ_Pair minFarTopK;
+//
+//        for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//        {
+//            float fValue = vecPoint(d);
+//
+//            /**
+//            1) For each random vector Ri, get top-MinPts closest index and top-MinPts furthest index
+//            - Will process it later using projection matrix
+//            2) For each point Xi, get top-K closest random vector and top-K furthest random vector
+//            **/
+//
+//            // (2) Close: Using priority queue to find top-k closest vectors for each point
+//            if ((int)minCloseTopK.size() < PARAM_PROJECTION_TOP_K)
+//                minCloseTopK.push(IFPair(d, fValue));
+//            else
+//            {
+//                if (fValue > minCloseTopK.top().m_fValue)
+//                {
+//                    minCloseTopK.pop();
+//                    minCloseTopK.push(IFPair(d, fValue));
+//                }
+//            }
+//
+//            // // (2) Far: Using priority queue to find top-k furthest vectors
+//            if ((int)minFarTopK.size() < PARAM_PROJECTION_TOP_K)
+//                minFarTopK.push(IFPair(d, -fValue));
+//            else
+//            {
+//                if (-fValue > minFarTopK.top().m_fValue)
+//                {
+//                    minFarTopK.pop();
+//                    minFarTopK.push(IFPair(d, -fValue));
+//                }
+//            }
+//        }
+//
+//        // Get (sorted by projection value) top-k closest and furthest vector for each point
+//        for (int k = PARAM_PROJECTION_TOP_K - 1; k >= 0; --k)
+//        {
+//            MATRIX_TOP_K(k, n) = minCloseTopK.top().m_iIndex;
+//            minCloseTopK.pop();
+//
+//            MATRIX_TOP_K(k + PARAM_PROJECTION_TOP_K, n) = minFarTopK.top().m_iIndex;
+//            minFarTopK.pop();
+//        }
+//
+//    }
+//
+//    /**
+//    For each random vector, getting 2*top-MinPts as close and far candidates
+//    **/
+//    MATRIX_TOP_MINPTS = MatrixXi::Zero(2 * PARAM_DBSCAN_MINPTS, PARAM_NUM_PROJECTION);
+//
+//    #pragma omp parallel for
+//    for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//    {
+//        // sort(begin(matProject.col(d)), end(matProject.col(d)), [](float lhs, float rhs){return rhs > lhs});
+//
+//        Min_PQ_Pair minPQ_Close;
+//        Min_PQ_Pair minPQ_Far;
+//
+//        VectorXf vecProject = MATRIX_RP.row(d); // it must be row since D x N
+//
+//        for (int n = 0; n < PARAM_DATA_N; ++n)
+//        {
+//            float fValue = vecProject(n);
+//
+//            if ((int)minPQ_Close.size() < PARAM_DBSCAN_MINPTS)
+//                minPQ_Close.push(IFPair(n, fValue));
+//            else
+//            {
+//                if (fValue > minPQ_Close.top().m_fValue)
+//                {
+//                    minPQ_Close.pop();
+//                    minPQ_Close.push(IFPair(n, fValue));
+//                }
+//            }
+//
+//            // Single thread: (1) Far: PQ to find Top-MinPts for each random vector
+//            if ((int)minPQ_Far.size() < PARAM_DBSCAN_MINPTS)
+//                minPQ_Far.push(IFPair(n, -fValue));
+//            else
+//            {
+//                if (-fValue > minPQ_Far.top().m_fValue)
+//                {
+//                    minPQ_Far.pop();
+//                    minPQ_Far.push(IFPair(n, -fValue));
+//                }
+//            }
+//        }
+//
+//        for (int k = PARAM_DBSCAN_MINPTS - 1; k >= 0; --k)
+//        {
+//            // Close
+//            MATRIX_TOP_MINPTS(k, d) = minPQ_Close.top().m_iIndex;
+//            minPQ_Close.pop();
+//
+//            // Far
+//            MATRIX_TOP_MINPTS(k + PARAM_DBSCAN_MINPTS, d) = minPQ_Far.top().m_iIndex;
+//            minPQ_Far.pop();
+//        }
+//    }
+//}
+
+void parDbscanIndex()
+{
+
+    /** Param for embedding L1 and L2 **/
+    int iFourierEmbed_D = PARAM_KERNEL_EMBED_D / 2; // This is becase we need cos() and sin()
+
+    MatrixXf MATRIX_R; // EigenLib does not allow resize MatrixXf when passing by reference !
+
+    // See: https://github.com/hichamjanati/srf/blob/master/RFF-I.ipynb
+    if (PARAM_DISTANCE == 1)
+        MATRIX_R = cauchyGenerator(iFourierEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA); // K(x, y) = exp(-gamma * L1_dist(X, y))) where gamma = 1/sigma
+    else if (PARAM_DISTANCE == 2)
+        MATRIX_R = gaussGenerator(iFourierEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA); // std = 1/sigma, K(x, y) = exp(-gamma * L2_dist^2(X, y))) where gamma = 1/2 sigma^2
+
+    /** Param for random projection **/
+    MatrixXf MATRIX_RP = MatrixXf::Zero(PARAM_NUM_PROJECTION, PARAM_DATA_N);
+
+    int log2Project = log2(PARAM_NUM_PROJECTION);
+    boost::dynamic_bitset<> bitHD3_Proj;
+    bitHD3Generator(PARAM_NUM_PROJECTION * PARAM_INTERNAL_NUM_ROTATION, bitHD3_Proj);
+
+    /** Param for index **/
+    MATRIX_TOP_K = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_K, PARAM_DATA_N);
+
+    #pragma omp parallel for
+    for (int n = 0; n < PARAM_DATA_N; ++n)
+    {
+        /**
+        Random embedding
+        **/
+        VectorXf vecX = MATRIX_X.col(n);
+        VectorXf vecEmbed = VectorXf::Zero(PARAM_KERNEL_EMBED_D); // PARAM_KERNEL_EMBED_D >= D
+
+        if (PARAM_DISTANCE == 0)
+            vecEmbed.segment(0, PARAM_DATA_D) = vecX;
+        else if ((PARAM_DISTANCE == 1) || (PARAM_DISTANCE == 2))
+        {
+            VectorXf vecProject = MATRIX_R * vecX;
+            vecEmbed.segment(0, iFourierEmbed_D) = vecProject.array().cos();
+            vecEmbed.segment(iFourierEmbed_D, iFourierEmbed_D) = vecProject.array().sin(); // start from iEmbbed, copy iEmbed elements
+        }
+        else if (PARAM_DISTANCE == 3)
+            embedChiSquare(vecX, vecEmbed);
+        else if (PARAM_DISTANCE == 4)
+            embedJS(vecX, vecEmbed);
+
+        /**
+        Random projection
+        **/
+        VectorXf vecRotation = VectorXf::Zero(PARAM_NUM_PROJECTION); // NUM_PROJECT > PARAM_KERNEL_EMBED_D
+        vecRotation.segment(0, PARAM_KERNEL_EMBED_D) = vecEmbed;
+
+        for (int r = 0; r < PARAM_INTERNAL_NUM_ROTATION; ++r)
+        {
+            // Component-wise multiplication with a random sign
+            for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+            {
+                vecRotation(d) *= (2 * (int)bitHD3_Proj[r * PARAM_NUM_PROJECTION + d] - 1);
+            }
+
+            // Multiple with Hadamard matrix by calling FWHT transform
+            fht_float(vecRotation.data(), log2Project);
+        }
+
+        // Store projection matrix for faster parallel, and no need to scale since we keep top-k and top-MinPts
+        MATRIX_RP.col(n) = vecRotation;
+
+        // Store potential candidate and find top-k closes and furtherest random vector
+        Min_PQ_Pair minCloseTopK;
+        Min_PQ_Pair minFarTopK;
+
+        for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+        {
+            float fValue = vecRotation(d);
+
+            /**
+            1) For each random vector Ri, get top-MinPts closest index and top-MinPts furthest index
+            - Will process it later using projection matrix
+            2) For each point Xi, get top-K closest random vector and top-K furthest random vector
+            **/
+
+            // (2) Close: Using priority queue to find top-k closest vectors for each point
+            if ((int)minCloseTopK.size() < PARAM_PROJECTION_TOP_K)
+                minCloseTopK.push(IFPair(d, fValue));
+            else
+            {
+                if (fValue > minCloseTopK.top().m_fValue)
+                {
+                    minCloseTopK.pop();
+                    minCloseTopK.push(IFPair(d, fValue));
+                }
+            }
+
+            // // (2) Far: Using priority queue to find top-k furthest vectors
+            if ((int)minFarTopK.size() < PARAM_PROJECTION_TOP_K)
+                minFarTopK.push(IFPair(d, -fValue));
+            else
+            {
+                if (-fValue > minFarTopK.top().m_fValue)
+                {
+                    minFarTopK.pop();
+                    minFarTopK.push(IFPair(d, -fValue));
+                }
+            }
+        }
+
+        // Get (sorted by projection value) top-k closest and furthest vector for each point
+        for (int k = PARAM_PROJECTION_TOP_K - 1; k >= 0; --k)
+        {
+            MATRIX_TOP_K(k, n) = minCloseTopK.top().m_iIndex;
+            minCloseTopK.pop();
+
+            MATRIX_TOP_K(k + PARAM_PROJECTION_TOP_K, n) = minFarTopK.top().m_iIndex;
+            minFarTopK.pop();
+        }
+
+    }
+
+    /**
+    For each random vector, getting 2*top-MinPts as close and far candidates
+    **/
+    MATRIX_TOP_MINPTS = MatrixXi::Zero(2 * PARAM_DBSCAN_MINPTS, PARAM_NUM_PROJECTION);
+
+    #pragma omp parallel for
+    for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+    {
+        // sort(begin(matProject.col(d)), end(matProject.col(d)), [](float lhs, float rhs){return rhs > lhs});
+
+        Min_PQ_Pair minPQ_Close;
+        Min_PQ_Pair minPQ_Far;
+
+        VectorXf vecProject = MATRIX_RP.row(d); // it must be row since D x N
+
+        for (int n = 0; n < PARAM_DATA_N; ++n)
+        {
+            float fValue = vecProject(n);
+
+            if ((int)minPQ_Close.size() < PARAM_DBSCAN_MINPTS)
+                minPQ_Close.push(IFPair(n, fValue));
+            else
+            {
+                if (fValue > minPQ_Close.top().m_fValue)
+                {
+                    minPQ_Close.pop();
+                    minPQ_Close.push(IFPair(n, fValue));
+                }
+            }
+
+            // Single thread: (1) Far: PQ to find Top-MinPts for each random vector
+            if ((int)minPQ_Far.size() < PARAM_DBSCAN_MINPTS)
+                minPQ_Far.push(IFPair(n, -fValue));
+            else
+            {
+                if (-fValue > minPQ_Far.top().m_fValue)
+                {
+                    minPQ_Far.pop();
+                    minPQ_Far.push(IFPair(n, -fValue));
+                }
+            }
+        }
+
+        for (int k = PARAM_DBSCAN_MINPTS - 1; k >= 0; --k)
+        {
+            // Close
+            MATRIX_TOP_MINPTS(k, d) = minPQ_Close.top().m_iIndex;
+            minPQ_Close.pop();
+
+            // Far
+            MATRIX_TOP_MINPTS(k + PARAM_DBSCAN_MINPTS, d) = minPQ_Far.top().m_iIndex;
+            minPQ_Far.pop();
+        }
+    }
+}
+
+/**
+Do not store Projection-Matrix due to the memory limit
+Slow on threading since we have to update the same memory i.e. data structure
+Using priority queue to extract top-k and top-MinPts
+**/
+void seqDbscanIndex()
 {
     vector<Min_PQ_Pair> vecPQ_Close = vector<Min_PQ_Pair> (PARAM_NUM_PROJECTION, Min_PQ_Pair());
     vector<Min_PQ_Pair> vecPQ_Far = vector<Min_PQ_Pair> (PARAM_NUM_PROJECTION, Min_PQ_Pair());
 
-
     /** Param for embedding **/
-    int iEmbed_D = PARAM_KERNEL_EMBED_D / 2; // This is becase we need cos() and sin()
+    int iFourierEmbed_D = PARAM_KERNEL_EMBED_D / 2; // This is becase we need cos() and sin()
 
-    MatrixXf MATRIX_R = MatrixXf::Zero(iEmbed_D, PARAM_DATA_D); // EigenLib does not allow resize MatrixXf when passing by reference !
+    MatrixXf MATRIX_R; // EigenLib does not allow resize MatrixXf when passing by reference !
 
     // Can be generalized for other kernel embedding
     if (PARAM_DISTANCE == 1)
-        cauchyGenerator(iEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA, MATRIX_R); // K(x, y) = exp(-gamma * L1_dist(X, y))) where gamma = d^2
-    else
-        gaussGenerator(iEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA, MATRIX_R); // K(x, y) = exp(-gamma * L2_dist^2(X, y))) where gamma = 1/2 sigma^2
+        MATRIX_R = cauchyGenerator(iFourierEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA); // K(x, y) = exp(-gamma * L1_dist(X, y))) where gamma = d^2
+    else if (PARAM_DISTANCE == 2)
+        MATRIX_R = gaussGenerator(iFourierEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA); // K(x, y) = exp(-gamma * L2_dist^2(X, y))) where gamma = 1/2 sigma^2
 
     /** Param for random projection **/
     int log2Project = log2(PARAM_NUM_PROJECTION);
@@ -338,30 +998,40 @@ void seqDbscanIndex_Metric()
     for (int n = 0; n < PARAM_DATA_N; ++n)
     {
         /**
-        Random Fourier Transform
+        Random embedding
         **/
+        VectorXf vecX = MATRIX_X.col(n);
+        VectorXf vecEmbed = VectorXf::Zero(PARAM_KERNEL_EMBED_D); // PARAM_KERNEL_EMBED_D >= D
 
-        VectorXf vecProject = VectorXf::Zero(iEmbed_D); // iEmbed_D > D
-        vecProject = MATRIX_R * MATRIX_X.col(n);
+        if (PARAM_DISTANCE == 0)
+            vecEmbed.segment(0, PARAM_DATA_D) = vecX;
+        else if ((PARAM_DISTANCE == 1) || (PARAM_DISTANCE == 2))
+        {
+            VectorXf vecProject = MATRIX_R * vecX;
+            vecEmbed.segment(0, iFourierEmbed_D) = vecProject.array().cos();
+            vecEmbed.segment(iFourierEmbed_D, iFourierEmbed_D) = vecProject.array().sin(); // start from iEmbbed, copy iEmbed elements
+        }
+        else if (PARAM_DISTANCE == 3)
+            embedChiSquare(vecX, vecEmbed);
+        else if (PARAM_DISTANCE == 4)
+            embedJS(vecX, vecEmbed);
 
         /**
         Random projection
         **/
-        VectorXf vecPoint = VectorXf::Zero(PARAM_NUM_PROJECTION); // NUM_PROJECT > PARAM_KERNEL_EMBED_D
-        vecPoint.segment(0, iEmbed_D) = vecProject.array().cos();
-        vecPoint.segment(iEmbed_D, iEmbed_D) = vecProject.array().sin(); // start from iEmbbed, copy iEmbed elements
-
+        VectorXf vecRotation = VectorXf::Zero(PARAM_NUM_PROJECTION); // NUM_PROJECT > PARAM_KERNEL_EMBED_D
+        vecRotation.segment(0, PARAM_KERNEL_EMBED_D) = vecEmbed;
 
         for (int r = 0; r < PARAM_INTERNAL_NUM_ROTATION; ++r)
         {
             // Component-wise multiplication with a random sign
             for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
             {
-                vecPoint(d) *= (2 * (int)bitHD3_Proj[r * PARAM_NUM_PROJECTION + d] - 1);
+                vecRotation(d) *= (2 * (int)bitHD3_Proj[r * PARAM_NUM_PROJECTION + d] - 1);
             }
 
             // Multiple with Hadamard matrix by calling FWHT transform
-            fht_float(vecPoint.data(), log2Project);
+            fht_float(vecRotation.data(), log2Project);
         }
 
         // Store potential candidate and find top-k closes and furtherest random vector
@@ -370,7 +1040,7 @@ void seqDbscanIndex_Metric()
 
         for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
         {
-            float fValue = vecPoint(d);
+            float fValue = vecRotation(d);
 
             /**
             1) For each random vector Ri, get top-MinPts closest index and top-MinPts furthest index
@@ -462,338 +1132,6 @@ void seqDbscanIndex_Metric()
         }
     }
 }
-
-/**
-Have to store the projection matrix for parallel processing.
-Using priority queue to extract top-k and top-MinPts
-**/
-void parDbscanIndex_Metric()
-{
-
-    /** Param for embedding **/
-    int iEmbed_D = PARAM_KERNEL_EMBED_D / 2; // This is becase we need cos() and sin()
-
-    MatrixXf MATRIX_R = MatrixXf::Zero(iEmbed_D, PARAM_DATA_D); // EigenLib does not allow resize MatrixXf when passing by reference !
-
-    // See: https://github.com/hichamjanati/srf/blob/master/RFF-I.ipynb
-    if (PARAM_DISTANCE == 1)
-        cauchyGenerator(iEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA, MATRIX_R); // K(x, y) = exp(-gamma * L1_dist(X, y))) where gamma = 1/sigma
-    else
-        gaussGenerator(iEmbed_D, PARAM_DATA_D, 0, 1.0 / PARAM_KERNEL_SIGMA, MATRIX_R); // std = 1/sigma, K(x, y) = exp(-gamma * L2_dist^2(X, y))) where gamma = 1/2 sigma^2
-
-    /** Param for random projection **/
-    MatrixXf MATRIX_RP = MatrixXf::Zero(PARAM_NUM_PROJECTION, PARAM_DATA_N);
-
-    int log2Project = log2(PARAM_NUM_PROJECTION);
-    boost::dynamic_bitset<> bitHD3_Proj;
-    bitHD3Generator(PARAM_NUM_PROJECTION * PARAM_INTERNAL_NUM_ROTATION, bitHD3_Proj);
-
-    /** Param for index **/
-    MATRIX_TOP_K = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_K, PARAM_DATA_N);
-
-    #pragma omp parallel for
-    for (int n = 0; n < PARAM_DATA_N; ++n)
-    {
-        /**
-        Random Fourier Transform
-        **/
-
-        VectorXf vecProject = VectorXf::Zero(iEmbed_D); // iEmbed_D > D
-        vecProject = MATRIX_R * MATRIX_X.col(n);
-
-//        VectorXf vecEmbed = VectorXf::Zero(PARAM_KERNEL_EMBED_D);
-//        vecEmbed << vecPoint.array().cos(), vecPoint.array().sin(); // no need to scale since we only use ranking
-
-
-        /**
-        Random projection
-        **/
-        VectorXf vecPoint = VectorXf::Zero(PARAM_NUM_PROJECTION); // NUM_PROJECT > PARAM_KERNEL_EMBED_D
-//        vecPoint.segment(0, PARAM_KERNEL_EMBED_D) = vecEmbed;
-        vecPoint.segment(0, iEmbed_D) = vecProject.array().cos();
-        vecPoint.segment(iEmbed_D, iEmbed_D) = vecProject.array().sin(); // start from iEmbbed, copy iEmbed elements
-
-
-        for (int r = 0; r < PARAM_INTERNAL_NUM_ROTATION; ++r)
-        {
-            // Component-wise multiplication with a random sign
-            for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
-            {
-                vecPoint(d) *= (2 * (int)bitHD3_Proj[r * PARAM_NUM_PROJECTION + d] - 1);
-            }
-
-            // Multiple with Hadamard matrix by calling FWHT transform
-            fht_float(vecPoint.data(), log2Project);
-        }
-
-        // Store projection matrix for faster parallel, and no need to scale since we keep top-k and top-MinPts
-        MATRIX_RP.col(n) = vecPoint;
-
-        // Store potential candidate and find top-k closes and furtherest random vector
-        Min_PQ_Pair minCloseTopK;
-        Min_PQ_Pair minFarTopK;
-
-        for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
-        {
-            float fValue = vecPoint(d);
-
-            /**
-            1) For each random vector Ri, get top-MinPts closest index and top-MinPts furthest index
-            - Will process it later using projection matrix
-            2) For each point Xi, get top-K closest random vector and top-K furthest random vector
-            **/
-
-            // (2) Close: Using priority queue to find top-k closest vectors for each point
-            if ((int)minCloseTopK.size() < PARAM_PROJECTION_TOP_K)
-                minCloseTopK.push(IFPair(d, fValue));
-            else
-            {
-                if (fValue > minCloseTopK.top().m_fValue)
-                {
-                    minCloseTopK.pop();
-                    minCloseTopK.push(IFPair(d, fValue));
-                }
-            }
-
-            // // (2) Far: Using priority queue to find top-k furthest vectors
-            if ((int)minFarTopK.size() < PARAM_PROJECTION_TOP_K)
-                minFarTopK.push(IFPair(d, -fValue));
-            else
-            {
-                if (-fValue > minFarTopK.top().m_fValue)
-                {
-                    minFarTopK.pop();
-                    minFarTopK.push(IFPair(d, -fValue));
-                }
-            }
-        }
-
-        // Get (sorted by projection value) top-k closest and furthest vector for each point
-        for (int k = PARAM_PROJECTION_TOP_K - 1; k >= 0; --k)
-        {
-            MATRIX_TOP_K(k, n) = minCloseTopK.top().m_iIndex;
-            minCloseTopK.pop();
-
-            MATRIX_TOP_K(k + PARAM_PROJECTION_TOP_K, n) = minFarTopK.top().m_iIndex;
-            minFarTopK.pop();
-        }
-
-    }
-
-    /**
-    For each random vector, getting 2*top-MinPts as close and far candidates
-    **/
-    MATRIX_TOP_MINPTS = MatrixXi::Zero(2 * PARAM_DBSCAN_MINPTS, PARAM_NUM_PROJECTION);
-
-    #pragma omp parallel for
-    for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
-    {
-        // sort(begin(matProject.col(d)), end(matProject.col(d)), [](float lhs, float rhs){return rhs > lhs});
-
-        Min_PQ_Pair minPQ_Close;
-        Min_PQ_Pair minPQ_Far;
-
-        VectorXf vecProject = MATRIX_RP.row(d); // it must be row since D x N
-
-        for (int n = 0; n < PARAM_DATA_N; ++n)
-        {
-            float fValue = vecProject(n);
-
-            if ((int)minPQ_Close.size() < PARAM_DBSCAN_MINPTS)
-                minPQ_Close.push(IFPair(n, fValue));
-            else
-            {
-                if (fValue > minPQ_Close.top().m_fValue)
-                {
-                    minPQ_Close.pop();
-                    minPQ_Close.push(IFPair(n, fValue));
-                }
-            }
-
-            // Single thread: (1) Far: PQ to find Top-MinPts for each random vector
-            if ((int)minPQ_Far.size() < PARAM_DBSCAN_MINPTS)
-                minPQ_Far.push(IFPair(n, -fValue));
-            else
-            {
-                if (-fValue > minPQ_Far.top().m_fValue)
-                {
-                    minPQ_Far.pop();
-                    minPQ_Far.push(IFPair(n, -fValue));
-                }
-            }
-        }
-
-        for (int k = PARAM_DBSCAN_MINPTS - 1; k >= 0; --k)
-        {
-            // Close
-            MATRIX_TOP_MINPTS(k, d) = minPQ_Close.top().m_iIndex;
-            minPQ_Close.pop();
-
-            // Far
-            MATRIX_TOP_MINPTS(k + PARAM_DBSCAN_MINPTS, d) = minPQ_Far.top().m_iIndex;
-            minPQ_Far.pop();
-        }
-    }
-}
-
-/**
-Have to store the projection matrix for parallel processing.
-Using priority queue to extract top-k and top-MinPts
-
-Only support ChiSquare and Johnson Shannon divergences
-**/
-void parDbscanIndex_NonMetric()
-{
-    /** Param for random projection **/
-    MatrixXf MATRIX_RP = MatrixXf::Zero(PARAM_NUM_PROJECTION, PARAM_DATA_N);
-
-    int log2Project = log2(PARAM_NUM_PROJECTION);
-    boost::dynamic_bitset<> bitHD3_Proj;
-    bitHD3Generator(PARAM_NUM_PROJECTION * PARAM_INTERNAL_NUM_ROTATION, bitHD3_Proj);
-
-    /** Param for index **/
-    MATRIX_TOP_K = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_K, PARAM_DATA_N);
-
-    #pragma omp parallel for
-    for (int n = 0; n < PARAM_DATA_N; ++n)
-    {
-        /**
-        Deterministic Additive Kernel feature
-        **/
-        VectorXf vecEmbed = VectorXf::Zero(PARAM_KERNEL_EMBED_D); // iEmbed_D > D
-        if (PARAM_DISTANCE == 3)
-            embedChiSquare(MATRIX_X.col(n), vecEmbed);
-        else if (PARAM_DISTANCE == 4)
-            embedJS(MATRIX_X.col(n), vecEmbed);
-
-        /**
-        Random projection
-        **/
-        VectorXf vecPoint = VectorXf::Zero(PARAM_NUM_PROJECTION); // NUM_PROJECT > PARAM_KERNEL_EMBED_D
-        vecPoint.segment(0, PARAM_KERNEL_EMBED_D) = vecEmbed;
-
-        for (int r = 0; r < PARAM_INTERNAL_NUM_ROTATION; ++r)
-        {
-            // Component-wise multiplication with a random sign
-            for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
-            {
-                vecPoint(d) *= (2 * (int)bitHD3_Proj[r * PARAM_NUM_PROJECTION + d] - 1);
-            }
-
-            // Multiple with Hadamard matrix by calling FWHT transform
-            fht_float(vecPoint.data(), log2Project);
-        }
-
-        // Store projection matrix for faster parallel, and no need to scale since we keep top-k and top-MinPts
-        MATRIX_RP.col(n) = vecPoint;
-
-        // Store potential candidate and find top-k closes and furtherest random vector
-        Min_PQ_Pair minCloseTopK;
-        Min_PQ_Pair minFarTopK;
-
-        for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
-        {
-            float fValue = vecPoint(d);
-
-            /**
-            1) For each random vector Ri, get top-MinPts closest index and top-MinPts furthest index
-            - Will process it later using projection matrix
-            2) For each point Xi, get top-K closest random vector and top-K furthest random vector
-            **/
-
-            // (2) Close: Using priority queue to find top-k closest vectors for each point
-            if ((int)minCloseTopK.size() < PARAM_PROJECTION_TOP_K)
-                minCloseTopK.push(IFPair(d, fValue));
-            else
-            {
-                if (fValue > minCloseTopK.top().m_fValue)
-                {
-                    minCloseTopK.pop();
-                    minCloseTopK.push(IFPair(d, fValue));
-                }
-            }
-
-            // // (2) Far: Using priority queue to find top-k furthest vectors
-            if ((int)minFarTopK.size() < PARAM_PROJECTION_TOP_K)
-                minFarTopK.push(IFPair(d, -fValue));
-            else
-            {
-                if (-fValue > minFarTopK.top().m_fValue)
-                {
-                    minFarTopK.pop();
-                    minFarTopK.push(IFPair(d, -fValue));
-                }
-            }
-        }
-
-        // Get (sorted by projection value) top-k closest and furthest vector for each point
-        for (int k = PARAM_PROJECTION_TOP_K - 1; k >= 0; --k)
-        {
-            MATRIX_TOP_K(k, n) = minCloseTopK.top().m_iIndex;
-            minCloseTopK.pop();
-
-            MATRIX_TOP_K(k + PARAM_PROJECTION_TOP_K, n) = minFarTopK.top().m_iIndex;
-            minFarTopK.pop();
-        }
-
-    }
-
-    /**
-    For each random vector, getting 2*top-MinPts as close and far candidates
-    **/
-    MATRIX_TOP_MINPTS = MatrixXi::Zero(2 * PARAM_DBSCAN_MINPTS, PARAM_NUM_PROJECTION);
-
-    #pragma omp parallel for
-    for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
-    {
-        // sort(begin(matProject.col(d)), end(matProject.col(d)), [](float lhs, float rhs){return rhs > lhs});
-
-        Min_PQ_Pair minPQ_Close;
-        Min_PQ_Pair minPQ_Far;
-
-        VectorXf vecProject = MATRIX_RP.row(d); // it must be row since D x N
-
-        for (int n = 0; n < PARAM_DATA_N; ++n)
-        {
-            float fValue = vecProject(n);
-
-            if ((int)minPQ_Close.size() < PARAM_DBSCAN_MINPTS)
-                minPQ_Close.push(IFPair(n, fValue));
-            else
-            {
-                if (fValue > minPQ_Close.top().m_fValue)
-                {
-                    minPQ_Close.pop();
-                    minPQ_Close.push(IFPair(n, fValue));
-                }
-            }
-
-            // Single thread: (1) Far: PQ to find Top-MinPts for each random vector
-            if ((int)minPQ_Far.size() < PARAM_DBSCAN_MINPTS)
-                minPQ_Far.push(IFPair(n, -fValue));
-            else
-            {
-                if (-fValue > minPQ_Far.top().m_fValue)
-                {
-                    minPQ_Far.pop();
-                    minPQ_Far.push(IFPair(n, -fValue));
-                }
-            }
-        }
-
-        for (int k = PARAM_DBSCAN_MINPTS - 1; k >= 0; --k)
-        {
-            // Close
-            MATRIX_TOP_MINPTS(k, d) = minPQ_Close.top().m_iIndex;
-            minPQ_Close.pop();
-
-            // Far
-            MATRIX_TOP_MINPTS(k + PARAM_DBSCAN_MINPTS, d) = minPQ_Far.top().m_iIndex;
-            minPQ_Far.pop();
-        }
-    }
-}
-
 
 /**
 vec2D_DBSCAN_Neighbor: For each point, store its true neighborhood (within radius eps)
@@ -1177,13 +1515,8 @@ void fastDbscan()
     begin = chrono::steady_clock::now();
 //    parDbscanIndex_L2();
 
-    if ((PARAM_DISTANCE == 1) || (PARAM_DISTANCE == 2))
-        parDbscanIndex_Metric();
-    else if ((PARAM_DISTANCE == 3) || (PARAM_DISTANCE == 4))
-        parDbscanIndex_NonMetric();
-    else
-        cerr << "Error: The distance is not supported !" << endl;
 
+    parDbscanIndex();
     cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
 
     // Find core point
@@ -1201,7 +1534,7 @@ void fastDbscan()
     if (PARAM_INTERNAL_SAVE_OUTPUT)
 	{
         string sFileName = PARAM_OUTPUT_FILE + + "_L" + int2str(PARAM_DISTANCE) +
-                        "_Eps_" + int2str(round(10 * PARAM_DBSCAN_EPS)) +
+                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
                         "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
                         "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
                         "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
@@ -1216,7 +1549,7 @@ void memoryDbscan()
 {
     chrono::steady_clock::time_point begin;
     begin = chrono::steady_clock::now();
-    seqDbscanIndex_Metric();
+    seqDbscanIndex();
     cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
 
     // Find core point
@@ -1233,7 +1566,7 @@ void memoryDbscan()
     if (PARAM_INTERNAL_SAVE_OUTPUT)
 	{
         string sFileName = PARAM_OUTPUT_FILE + + "_L" + int2str(PARAM_DISTANCE) +
-                        "_Eps_" + int2str(round(10 * PARAM_DBSCAN_EPS)) +
+                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
                         "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
                         "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
                         "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
@@ -1911,8 +2244,8 @@ void fastOptics()
     chrono::steady_clock::time_point begin;
     begin = chrono::steady_clock::now();
 
-//    parDbscanIndex_L2(); // only specific for L2 - not affect running time
-    parDbscanIndex_Metric();
+    parDbscanIndex();
+
     cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
 
     // Find core point
@@ -1936,7 +2269,7 @@ void fastOptics()
     if (PARAM_INTERNAL_SAVE_OUTPUT)
 	{
         string sFileName = PARAM_OUTPUT_FILE + "_L" + int2str(PARAM_DISTANCE) +
-                        "_Eps_" + int2str(round(10 * PARAM_DBSCAN_EPS)) +
+                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
                         "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
                         "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
                         "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
@@ -1952,7 +2285,7 @@ void memoryOptics()
     chrono::steady_clock::time_point begin;
     begin = chrono::steady_clock::now();
 
-    seqDbscanIndex_Metric();
+    seqDbscanIndex();
     cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
 
     // Find core point
@@ -1974,7 +2307,7 @@ void memoryOptics()
     if (PARAM_INTERNAL_SAVE_OUTPUT)
 	{
         string sFileName = PARAM_OUTPUT_FILE + "_L" + int2str(PARAM_DISTANCE) +
-                        "_Eps_" + int2str(round(10 * PARAM_DBSCAN_EPS)) +
+                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
                         "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
                         "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
                         "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +

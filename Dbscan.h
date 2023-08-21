@@ -8,8 +8,11 @@
 void parDbscanIndex_L2();
 //void parDbscanIndex_Sort(); // Only for L2 testing: slower than using PQ
 
-void parDbscanIndex_Metric();
-void parDbscanIndex_NonMetric();
+//void parDbscanIndex_Metric();
+//void parDbscanIndex_NonMetric();
+
+void parDbscanIndex();
+void seqDbscanIndex();
 
 void findCorePoints_Asym();
 void findCorePoints();

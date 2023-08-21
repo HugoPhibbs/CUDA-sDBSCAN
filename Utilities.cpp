@@ -34,8 +34,10 @@ Output:
 - MATRIX_G: vector contains normal random variables
 
 **/
-void gaussGenerator(int p_iNumRows, int p_iNumCols, float mean, float stddev, Ref<MatrixXf> MATRIX_G)
+MatrixXf gaussGenerator(int p_iNumRows, int p_iNumCols, float mean, float stddev)
 {
+    MatrixXf MATRIX_G = MatrixXf::Zero(p_iNumRows, p_iNumCols);
+
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
     default_random_engine generator(seed);
 
@@ -47,10 +49,14 @@ void gaussGenerator(int p_iNumRows, int p_iNumCols, float mean, float stddev, Re
     for (int c = 0; c < p_iNumCols; ++c)
         for (int r = 0; r < p_iNumRows; ++r)
             MATRIX_G(r, c) = normDist(generator);
+
+    return MATRIX_G;
 }
 
-void cauchyGenerator(int p_iNumRows, int p_iNumCols, float x0, float gamma, Ref<MatrixXf> MATRIX_C)
+MatrixXf cauchyGenerator(int p_iNumRows, int p_iNumCols, float x0, float gamma)
 {
+    MatrixXf MATRIX_C = MatrixXf::Zero(p_iNumRows, p_iNumCols);
+
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
     default_random_engine generator(seed);
 
@@ -62,6 +68,8 @@ void cauchyGenerator(int p_iNumRows, int p_iNumCols, float x0, float gamma, Ref<
     for (int c = 0; c < p_iNumCols; ++c)
         for (int r = 0; r < p_iNumRows; ++r)
             MATRIX_C(r, c) = cauchyDist(generator);
+
+    return MATRIX_C;
 }
 
 void outputDbscan(const IVector & p_Labels, string p_sOutputFile)
@@ -170,6 +178,8 @@ void embedJS(const Ref<VectorXf> p_vecPoint, Ref<VectorXf> p_vecEmbed)
 **/
 float computeDist(const Ref<VectorXf> p_vecX, const Ref<VectorXf> p_vecY)
 {
+    if (PARAM_DISTANCE == 0)
+        return 1 - p_vecX.dot(p_vecY);
     if (PARAM_DISTANCE == 1)
         return (p_vecX - p_vecY).cwiseAbs().sum();
     else if (PARAM_DISTANCE == 2)

@@ -25,8 +25,8 @@ void embedJS(const Ref<VectorXf>, Ref<VectorXf>);
 /* Generate Hadamard matrix
 */
 void bitHD3Generator(int, boost::dynamic_bitset<> &);
-void gaussGenerator(int, int, float, float, Ref<MatrixXf>);
-void cauchyGenerator(int, int, float, float, Ref<MatrixXf>);
+MatrixXf gaussGenerator(int, int, float, float);
+MatrixXf cauchyGenerator(int, int, float, float);
 
 // Saving
 void outputDbscan(const IVector &, string);
