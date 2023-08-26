@@ -30,7 +30,7 @@ MatrixXf cauchyGenerator(int, int, float, float);
 
 // Saving
 void outputDbscan(const IVector &, string);
-void outputOptics(const IVector &, const FVector &, const IVector &, string);
+void outputOptics(const IVector &, const FVector &, string);
 
 
 #endif // UTILITIES_H_INCLUDED

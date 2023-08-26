@@ -11,7 +11,7 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters='--numPts 10000 --numDim 10 --X &quot;/home/npha145/Dropbox (Uni of Auckland)/Working/_Code/Python/Clustering/DBSCAN/Gauss_X_10K_10.txt&quot;  --alg Dbscan --eps 30 --minPts 10 --numEmbed 256 --numProj 512 --topKProj 10 --dist L2 --output y_dbscan' />
+				<Option parameters='--numPts 10000 --numDim 10 --X &quot;/home/npha145/Dataset/Clustering/gauss_X_1000K_10&quot; --alg Optics --eps 3.5 --minPts 70 --numEmbed 128 --numProj 1024 --topKProj 20 --dist L2 --output y_dbscan --sigma 10' />
 				<Compiler>
 					<Add option="-O3" />
 					<Add option="-g" />
@@ -23,7 +23,7 @@
 				<Option object_output="obj/Release/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters='--numPts 60000 --numDim 780 --X &quot;/home/npha145/Dataset/Clustering/mnist_X_60K_780.txt&quot; --alg Dbscan --eps 800 --minPts 10 --numEmbed 1024 --numProj 1024 --topKProj 20 --dist L2 --output y_dbscan --sigma 600' />
+				<Option parameters='--numPts 1000000 --numDim 10 --X &quot;/home/npha145/Dataset/Clustering/gauss_X_1000K_10&quot; --alg Optics --eps 3.5 --minPts 70 --numEmbed 128 --numProj 1024 --topKProj 20 --dist L2 --output y_dbscan --sigma 10' />
 				<Compiler>
 					<Add option="-O3" />
 					<Add option="-std=c++17" />
@@ -42,12 +42,6 @@
 		<Compiler>
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
-			<Add directory="C:/Library/eigen-3.4.0" />
-			<Add directory="C:/Library/boost_1_77_0" />
-			<Add directory="/home/npha145/Library/eigen-3.4.0" />
-			<Add directory="/home/npha145/Library/boost_1_78_0" />
-			<Add directory="/shared/Library/eigen-3.4.0" />
-			<Add directory="/shared/Library/boost_1_78_0" />
 		</Compiler>
 		<Linker>
 			<Add directory="/home/npha145/Library/eigen-3.4.0" />

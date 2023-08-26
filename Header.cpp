@@ -28,10 +28,9 @@ int PARAM_INTERNAL_NUM_ROTATION = 3;
 
 boost::dynamic_bitset<> bit_CORE_POINTS;
 vector<IVector> vec2D_DBSCAN_Neighbor;
-vector<unordered_set<int>> set2D_DBSCAN_Neighbor;
 
 FVector vec_CORE_DIST;
-vector<FVector> vec2D_DBSCAN_NeighborDist; // correlated to vec2D_DBSCAN_Neighbor
+vector< vector< pair<int, float> > > vec2D_OPTICS_NeighborDist;
 
 MatrixXi MATRIX_TOP_K;
 MatrixXi MATRIX_TOP_MINPTS;

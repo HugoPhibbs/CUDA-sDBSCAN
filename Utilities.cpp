@@ -88,7 +88,7 @@ void outputDbscan(const IVector & p_Labels, string p_sOutputFile)
 //	cout << "Done" << endl;
 }
 
-void outputOptics(const IVector & p_vecOrder, const FVector & p_vecDist, const IVector & p_vecLabels, string p_sOutputFile)
+void outputOptics(const IVector & p_vecOrder, const FVector & p_vecDist, string p_sOutputFile)
 {
 //	cout << "Outputing File..." << endl;
 
@@ -97,7 +97,7 @@ void outputOptics(const IVector & p_vecOrder, const FVector & p_vecDist, const I
 
     for (int n = 0; n < PARAM_DATA_N; ++n)
     {
-        myfile << p_vecOrder[n] << " " << p_vecDist[n] << " " << p_vecLabels[n] << '\n';
+        myfile << p_vecOrder[n] << " " << p_vecDist[n] << '\n';
     }
 
     myfile.close();

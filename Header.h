@@ -105,7 +105,8 @@ extern boost::dynamic_bitset<> bit_CORE_POINTS;
 extern vector<IVector> vec2D_DBSCAN_Neighbor;
 
 extern FVector vec_CORE_DIST;
-extern vector<FVector> vec2D_DBSCAN_NeighborDist; // correlated to vec2D_DBSCAN_Neighbor for Optics
+extern vector< vector< pair<int, float> > > vec2D_OPTICS_NeighborDist;
+
 
 
 
