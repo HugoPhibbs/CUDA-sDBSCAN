@@ -19,6 +19,7 @@ void findCorePoints();
 
 
 void formCluster(int &, IVector &);
+void formCluster_Asym(int &, IVector &);
 
 void fastDbscan();
 void memoryDbscan();

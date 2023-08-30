@@ -2,7 +2,7 @@
 #include "Utilities.h"
 #include "Dbscan.h"
 
-#include "google/dense_hash_set"
+//#include "google/dense_hash_set"
 //#include "google/dense_hash_map"
 
 
@@ -1359,7 +1359,7 @@ void findCorePoints()
         vec2D_DBSCAN_Neighbor[n].clear();
 
         // Decide core points
-        if (setNeighbor.size() >= PARAM_DBSCAN_MINPTS - 1)
+        if ((int)setNeighbor.size() >= PARAM_DBSCAN_MINPTS - 1)
         {
             bit_CORE_POINTS[n] = 1;
 
@@ -1381,7 +1381,7 @@ void findCorePoints()
 /**
 We connect core points first, then label its neighborhood later
 **/
-void formCluster(int & p_iNumClusters, IVector & p_vecLabels)
+void formCluster_Asym(int & p_iNumClusters, IVector & p_vecLabels)
 {
     p_vecLabels = IVector(PARAM_DATA_N, -1); //noise = -1
     p_iNumClusters = 0;
@@ -1515,6 +1515,124 @@ void formCluster(int & p_iNumClusters, IVector & p_vecLabels)
     cout << "Number of clusters: " << p_iNumClusters << endl;
 }
 
+/**
+We connect core points first, then label its neighborhood later
+**/
+void formCluster(int & p_iNumClusters, IVector & p_vecLabels)
+{
+    p_vecLabels = IVector(PARAM_DATA_N, -1); //noise = -1
+    p_iNumClusters = 0;
+
+    int iNewClusterID = -1; // The cluster ID starts from 0
+
+    // Fast enough so might not need multi-threading
+    for (int n = 0; n < PARAM_DATA_N; ++n)
+    {
+        // Skip: (1) core-point with assigned labels, (2) non-core points
+
+        if ( (!bit_CORE_POINTS[n]) || (p_vecLabels[n] != -1) )  //only consider core points and point without labels
+            continue;
+
+
+        /** Note: There is a tradeoff between multi-threading speedup and clustering time
+        TODO: Better parallel forming cluster()
+        - If call findCorePoints_Asym(), then we have to consider several seedSet and it will connect to the clustered point before
+        Therefore, forming cluster takes time
+        - If call findCorePoints(), similar points are inserted into both arrays, then clusters tend to connect each other well.
+        Therefore, forming clustering is very fast
+        One can test with cout << n << endl;
+
+        **/
+
+        // Always start from the core points without any labels
+
+        iNewClusterID++;
+
+        unordered_set<int> seedSet; //seedSet only contains core points
+        seedSet.insert(n);
+
+        // Note: For small data set (e.g. < 10K), bitset might be faster
+        // However, for large data set (1M), iterative the bitset is O(n) --> much slower, especially if OPTICS with large radius
+//        boost::dynamic_bitset<> seedSet(PARAM_DATA_N);
+//        seedSet[n] = 1;
+
+//        unordered_set<int> connectedPoints; // can be replaced by a histogram to increase the searching process
+//        connectedPoints.insert(n);
+
+        // We should use bitset since a cluster tends to contain many points (e.g. n / 10) so iterative bitset is fine
+        // Otherwise, unorder_set might be faster
+        boost::dynamic_bitset<> connectedPoints(PARAM_DATA_N);
+        connectedPoints[n] = 1;
+
+        // unorder_set<int> is slow if there are many core points - google::dense_hash_set might be faster
+        // however, clustering is very fast compared to computing core points and its neighborhood - no need to improve at this stage
+//        while (seedSet.count() > 0)
+        while (seedSet.size() > 0)
+        {
+            int Xi = *seedSet.begin();
+            seedSet.erase(seedSet.begin());
+
+//            int Xi = seedSet.find_first();
+//            seedSet[Xi] = 0;
+
+            // Get neighborhood of the core Xi
+            IVector Xi_neighborhood = vec2D_DBSCAN_Neighbor[Xi];
+
+            // Find the core points, connect them together, and check if one of them already has assigned labels
+            for (auto const& Xj : Xi_neighborhood)
+            {
+                // Find the core points first
+                if (bit_CORE_POINTS[Xj])
+                {
+//                    if (connectedCore.find(Xj) == connectedCore.end())
+                    if (! connectedPoints[Xj])
+                    {
+                        connectedPoints[Xj] = 1;
+
+                        if (p_vecLabels[Xj] == -1) // only insert into seedSet for non-labeled core; otherwise used the label of this labeled core
+                            seedSet.insert(Xj);
+//                            seedSet[Xj] = 1;
+                    }
+                }
+                else
+                    connectedPoints[Xj] = 1;
+            }
+        }
+
+//        cout << "Connecting component time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+        // Assign the cluster label
+//        begin = chrono::steady_clock::now();
+//        for (auto const& Xj : connectedCore)
+        size_t Xj = connectedPoints.find_first();
+        while (Xj != boost::dynamic_bitset<>::npos)
+        {
+            // Get all neighborhood
+            if (p_vecLabels[Xj] == -1)
+                p_vecLabels[Xj] = iNewClusterID; // assign core
+
+            // This code increases the accuracy for the non-core points Xi which has non-core points neighbor
+            // It might be suitable for the data set with many noise
+//            IVector Xj_neighborhood = vec2D_DBSCAN_Neighbor[Xj];
+//            for (auto const& Xk : Xj_neighborhood)
+//            {
+//                if (p_vecLabels[Xk] == -1)
+//                    p_vecLabels[Xk] = iClusterID;
+//            }
+
+            Xj = connectedPoints.find_next(Xj);
+        }
+
+        // Update the largest cluster ID
+        p_iNumClusters = iNewClusterID;
+
+//        cout << "Labelling components time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+    }
+
+    p_iNumClusters = p_iNumClusters + 2; // increase by 2 since we count -1 as noisy cluster, and cluster ID start from 0
+
+    cout << "Number of clusters: " << p_iNumClusters << endl;
+}
 
 void fastDbscan()
 {
