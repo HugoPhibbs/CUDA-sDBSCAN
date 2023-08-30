@@ -23,7 +23,7 @@
 				<Option object_output="obj/Release/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters='--numPts 1000000 --numDim 10 --X &quot;/home/npha145/Dataset/Clustering/gauss_X_1000K_10&quot; --alg Optics --eps 3.5 --minPts 70 --numEmbed 128 --numProj 1024 --topKProj 20 --dist L2 --output y_dbscan --sigma 10' />
+				<Option parameters='--numPts 1000000 --numDim 10 --X &quot;/home/npha145/Dataset/Clustering/gauss_X_1000K_10&quot; --alg Dbscan --eps 2.5 --minPts 10 --numEmbed 128 --numProj 512 --topKProj 10 --dist L2 --output y_dbscan --sigma 5' />
 				<Compiler>
 					<Add option="-O3" />
 					<Add option="-std=c++17" />
@@ -42,10 +42,9 @@
 		<Compiler>
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
-		</Compiler>
-		<Linker>
+			<Add directory="/home/npha145/Library/boost_1_78_0" />
 			<Add directory="/home/npha145/Library/eigen-3.4.0" />
-		</Linker>
+		</Compiler>
 		<Unit filename="Dbscan.cpp" />
 		<Unit filename="Dbscan.h" />
 		<Unit filename="Header.cpp" />
