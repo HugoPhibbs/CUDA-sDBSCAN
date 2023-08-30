@@ -206,7 +206,8 @@ int loadInput(int nargs, char** args)
 
     if (!bSuccess)
     {
-        PARAM_NUM_PROJECTION = 512;
+        int iTemp = ceil(log2(1.0 * PARAM_DATA_D));
+        PARAM_NUM_PROJECTION = max(512, 1 << iTemp);
         cout << "Default number of projections: " << PARAM_NUM_PROJECTION << endl;
     }
 
