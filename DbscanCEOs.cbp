@@ -11,7 +11,7 @@
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters='--numPts 60000 --numDim 780 --X &quot;/home/npha145/Dataset/Clustering/mnist_X&quot; --alg Dbscan --eps 1200 --minPts 100 --numEmbed 1024 --numProj 2048 --topKProj 30 --dist L2 --output y_dbscans ' />
+				<Option parameters='--numPts 70000 --numDim 784 --X &quot;/home/npha145/Dataset/Clustering/mnist_all_X_Cplus&quot; --alg Optics --eps 1700 --minPts 50 --numEmbed 1024 --numProj 2048 --topKProj 2 --topMProj 1000 --dist L2 --output y_optics --sigma 2600' />
 				<Compiler>
 					<Add option="-O3" />
 					<Add option="-g" />
@@ -23,7 +23,7 @@
 				<Option object_output="obj/Release/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters='--numPts 60000 --numDim 780 --X &quot;/home/npha145/Dataset/Clustering/mnist_X&quot; --alg Dbscan --eps 1200 --minPts 100 -numEmbed 1024 -numProj 2048 --topKProj 30 --dist L2 --output y_dbscans ' />
+				<Option parameters='--numPts 247208 --numDim 52 --X &quot;/home/npha145/Dataset/Clustering/pamap2_X01_cosine&quot; --alg Optics --eps 0.5 --minPts 50 --numProj 1024 --topKProj 10 --topMProj 50 --dist Cosine --output y_optics' />
 				<Compiler>
 					<Add option="-O3" />
 					<Add option="-std=c++17" />

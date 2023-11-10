@@ -10,14 +10,20 @@ int PARAM_DATA_N; // Number of points (rows) of X
 int PARAM_DATA_D; // Number of dimensions
 int PARAM_DISTANCE; // Currently support L1, L2
 
+int PARAM_NUM_THREADS;
+
 float PARAM_DBSCAN_EPS; // radius eps
 int PARAM_DBSCAN_MINPTS; // MinPts
 
-int PARAM_PROJECTION_TOP_K; // TopK largest and smallest random vector
+int PARAM_PROJECTION_TOP_K; // TopK random vectors closest and furthest to each point
+int PARAM_PROJECTION_TOP_M; // TopM points closest and furthest to random vector
+
 string PARAM_OUTPUT_FILE;
 
 int PARAM_KERNEL_EMBED_D;
 int PARAM_NUM_PROJECTION;
+int PARAM_INTERNAL_FWHT_PROJECTION;
+
 float PARAM_KERNEL_SIGMA;
 float PARAM_KERNEL_INTERVAL_SAMPLING;
 
@@ -33,5 +39,5 @@ FVector vec_CORE_DIST;
 vector< vector< pair<int, float> > > vec2D_OPTICS_NeighborDist;
 
 MatrixXi MATRIX_TOP_K;
-MatrixXi MATRIX_TOP_MINPTS;
+MatrixXi MATRIX_TOP_M;
 

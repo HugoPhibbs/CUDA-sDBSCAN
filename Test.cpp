@@ -19,6 +19,8 @@ void FourierEmbed_L2()
     MatrixXf MATRIX_P = MatrixXf::Zero(iEmbed_D, PARAM_DATA_N); // col-wise D x n
 
     // Fast Hadamard transform
+    omp_set_dynamic(0);     // Explicitly disable dynamic teams
+    omp_set_num_threads(PARAM_NUM_THREADS);
     #pragma omp parallel for
     for (int n = 0; n < PARAM_DATA_N; ++n)
     {
@@ -125,6 +127,8 @@ void FourierEmbed_Nonmetric()
 
     MatrixXf MATRIX_X_EMBED = MatrixXf::Zero(PARAM_KERNEL_EMBED_D, PARAM_DATA_N); // col-wise D x n
 
+    omp_set_dynamic(0);     // Explicitly disable dynamic teams
+    omp_set_num_threads(PARAM_NUM_THREADS);
     #pragma omp parallel for
     for (int n = 0; n < PARAM_DATA_N; ++n)
     {
@@ -195,6 +199,8 @@ void seqRandomProjection()
     int log2Project = log2(PARAM_NUM_PROJECTION);
 
     // Fast Hadamard transform
+    omp_set_dynamic(0);     // Explicitly disable dynamic teams
+    omp_set_num_threads(PARAM_NUM_THREADS);
     #pragma omp parallel for
     for (int n = 0; n < PARAM_DATA_N; ++n)
     {
@@ -305,18 +311,18 @@ void seqRandomProjection()
 
 
     // After getting all neighborhood points for each random vector, we sort based on value, extract only index
-    MATRIX_TOP_MINPTS = MatrixXi::Zero(2 * PARAM_DBSCAN_MINPTS, PARAM_NUM_PROJECTION);
+    MATRIX_TOP_M = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_M, PARAM_NUM_PROJECTION);
 
     for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
     {
         for (int k = PARAM_DBSCAN_MINPTS - 1; k >= 0; --k)
         {
             // Close
-            MATRIX_TOP_MINPTS(k, d) = vecPQ_Close[d].top().m_iIndex;
+            MATRIX_TOP_M(k, d) = vecPQ_Close[d].top().m_iIndex;
             vecPQ_Close[d].pop();
 
             // Far
-            MATRIX_TOP_MINPTS(k + PARAM_DBSCAN_MINPTS, d) = vecPQ_Far[d].top().m_iIndex;
+            MATRIX_TOP_M(k + PARAM_PROJECTION_TOP_M, d) = vecPQ_Far[d].top().m_iIndex;
             vecPQ_Far[d].pop();
         }
     }
@@ -339,6 +345,8 @@ void parRandomProjection()
     int log2Project = log2(PARAM_NUM_PROJECTION);
 
     // Fast Hadamard transform
+    omp_set_dynamic(0);     // Explicitly disable dynamic teams
+    omp_set_num_threads(PARAM_NUM_THREADS);
     #pragma omp parallel for
     for (int n = 0; n < PARAM_DATA_N; ++n)
     {
@@ -421,8 +429,10 @@ void parRandomProjection()
     }
 
     // After getting all neighborhood points for each random vector, we sort based on value, extract only index
-    MATRIX_TOP_MINPTS = MatrixXi::Zero(2 * PARAM_DBSCAN_MINPTS, PARAM_NUM_PROJECTION);
+    MATRIX_TOP_M = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_M, PARAM_NUM_PROJECTION);
 
+    omp_set_dynamic(0);     // Explicitly disable dynamic teams
+    omp_set_num_threads(PARAM_NUM_THREADS);
     #pragma omp parallel for
     for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
     {
@@ -464,13 +474,171 @@ void parRandomProjection()
         for (int k = PARAM_DBSCAN_MINPTS - 1; k >= 0; --k)
         {
             // Close
-            MATRIX_TOP_MINPTS(k, d) = minPQ_Close.top().m_iIndex;
+            MATRIX_TOP_M(k, d) = minPQ_Close.top().m_iIndex;
             minPQ_Close.pop();
 
             // Far
-            MATRIX_TOP_MINPTS(k + PARAM_DBSCAN_MINPTS, d) = minPQ_Far.top().m_iIndex;
+            MATRIX_TOP_M(k + PARAM_PROJECTION_TOP_M, d) = minPQ_Far.top().m_iIndex;
             minPQ_Far.pop();
         }
 
     }
+}
+
+
+void test_sDbscan(int i)
+{
+    cout << "Testing sDbscan" << endl;
+
+    chrono::steady_clock::time_point begin, start;
+    begin = chrono::steady_clock::now();
+    start = chrono::steady_clock::now();
+    parDbscanIndex();
+
+    cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    // Find core point
+    begin = chrono::steady_clock::now();
+    findCorePoints();
+    cout << "Find core points time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    begin = chrono::steady_clock::now();
+    int iNumClusters = 0;
+    IVector vecLabels;
+    formCluster(iNumClusters, vecLabels);
+    cout << "Form clusters time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    cout << "Dbscan time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << "[ms]" << endl;
+
+    if (PARAM_INTERNAL_SAVE_OUTPUT)
+	{
+        string sFileName = PARAM_OUTPUT_FILE + int2str(i) + "_L" + int2str(PARAM_DISTANCE) +
+                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
+                        "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
+                        "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
+                        "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
+                        "_TopM_" + int2str(PARAM_PROJECTION_TOP_M) +
+                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
+
+        outputDbscan(vecLabels, sFileName);
+	}
+}
+
+void test_sDbscan_L2(int i)
+{
+    cout << "Testing L2 with FWHT for Fourier embedding & CEOs" << endl;
+
+    chrono::steady_clock::time_point begin;
+    begin = chrono::steady_clock::now();
+    parDbscanIndex_L2();
+
+    cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    // Find core point
+    begin = chrono::steady_clock::now();
+    findCorePoints();
+    cout << "Find core points time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    begin = chrono::steady_clock::now();
+    int iNumClusters = 0;
+    IVector vecLabels;
+    formCluster(iNumClusters, vecLabels);
+    cout << "Form clusters time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    if (PARAM_INTERNAL_SAVE_OUTPUT)
+	{
+        string sFileName = PARAM_OUTPUT_FILE + int2str(i) + "_FWHT_L2" +
+                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
+                        "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
+                        "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
+                        "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
+                        "_TopM_" + int2str(PARAM_PROJECTION_TOP_M) +
+                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
+
+        outputDbscan(vecLabels, sFileName);
+	}
+}
+
+/**
+Test FWHT for embedding & CEOs
+With FindCore_Asym() - we should use much larger m, e.g. m = 2 * minPts to ensure the coverage of neighborhoods
+**/
+void test_sDbscan_Asym(int i)
+{
+    cout << "Testing asymmetric Dbscan" << endl;
+
+    chrono::steady_clock::time_point begin;
+    begin = chrono::steady_clock::now();
+    parDbscanIndex();
+
+    cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    // Find core point
+    begin = chrono::steady_clock::now();
+    // findCorePoints();
+    findCorePoints_Asym();
+    cout << "Find core points Asym() time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    begin = chrono::steady_clock::now();
+    int iNumClusters = 0;
+    IVector vecLabels;
+    formCluster(iNumClusters, vecLabels);
+    cout << "Form clusters time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    if (PARAM_INTERNAL_SAVE_OUTPUT)
+	{
+        string sFileName = PARAM_OUTPUT_FILE + int2str(i) + "_L" + int2str(PARAM_DISTANCE) +
+                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
+                        "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
+                        "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
+                        "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
+                        "_TopM_" + int2str(PARAM_PROJECTION_TOP_M) +
+                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
+
+        outputDbscan(vecLabels, sFileName);
+	}
+}
+
+/**
+Test FWHT for embedding & CEOs
+With FindCore_Asym() - we should use much larger m, e.g. m = 2 * minPts to ensure the coverage of neighborhoods
+**/
+void test_sOptics_Asym()
+{
+    cout << "Testing asymmetric Optics" << endl;
+
+    chrono::steady_clock::time_point begin;
+    begin = chrono::steady_clock::now();
+
+    parDbscanIndex();
+
+    cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    // Find core point
+    begin = chrono::steady_clock::now();
+    findCoreDist_Asym(); // Faster for multi-threading but loss some accuracy
+    // findCoreDist();
+    cout << "Find core points and distance time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    begin = chrono::steady_clock::now();
+    IVector vecOrder;
+    FVector vecReachDist;
+
+//    formOptics(vecLabels, vecOrder, vecReachDist);
+
+    formOptics_scikit(vecOrder, vecReachDist);
+    cout << "Form optics time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    if (PARAM_INTERNAL_SAVE_OUTPUT)
+	{
+        string sFileName = PARAM_OUTPUT_FILE + "_L" + int2str(PARAM_DISTANCE) +
+                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
+                        "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
+                        "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
+                        "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
+                        "_TopM_" + int2str(PARAM_PROJECTION_TOP_M) +
+                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
+
+        outputOptics(vecOrder, vecReachDist, sFileName);
+	}
 }

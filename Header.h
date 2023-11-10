@@ -79,15 +79,19 @@ extern int PARAM_DATA_N; // Number of points (rows) of X
 extern int PARAM_DATA_D; // Number of dimensions
 
 extern int PARAM_DISTANCE;
+extern int PARAM_NUM_THREADS;
 
 extern float PARAM_DBSCAN_EPS; // radius eps
 extern int PARAM_DBSCAN_MINPTS; // MinPts
 
-extern int PARAM_PROJECTION_TOP_K; // TopK largest and smallest random vector
+extern int PARAM_PROJECTION_TOP_K; // TopK random vectors closest and furthest to each point
+extern int PARAM_PROJECTION_TOP_M; // TopM points closest and furthest to random vector
 extern string PARAM_OUTPUT_FILE;
 
 extern int PARAM_KERNEL_EMBED_D;
 extern int PARAM_NUM_PROJECTION;
+extern int PARAM_INTERNAL_FWHT_PROJECTION;
+
 extern float PARAM_KERNEL_SIGMA;
 extern float PARAM_KERNEL_INTERVAL_SAMPLING;
 
@@ -99,7 +103,7 @@ extern MatrixXf MATRIX_X;
 
 // Data structure
 extern MatrixXi MATRIX_TOP_K;
-extern MatrixXi MATRIX_TOP_MINPTS;
+extern MatrixXi MATRIX_TOP_M;
 
 extern boost::dynamic_bitset<> bit_CORE_POINTS;
 extern vector<IVector> vec2D_DBSCAN_Neighbor;

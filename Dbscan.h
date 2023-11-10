@@ -21,8 +21,8 @@ void findCorePoints();
 void formCluster(int &, IVector &);
 void formCluster_Asym(int &, IVector &);
 
-void fastDbscan();
-void memoryDbscan();
+void sDbscan();
+void seq_sDbscan();
 
 
 void findCoreDist_Asym();
@@ -32,8 +32,8 @@ void findCoreDist();
 void formOptics(IVector & , IVector &, FVector &);
 void formOptics_scikit(IVector &, FVector &);
 
-void fastOptics();
-void memoryOptics();
+void sOptics();
+void seq_sOptics();
 
 
 

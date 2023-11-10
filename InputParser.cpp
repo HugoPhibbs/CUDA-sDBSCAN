@@ -50,59 +50,12 @@ int loadInput(int nargs, char** args)
         exit(1);
     }
 
-    /** NOTE: Reading IO is not safe for OpenMP **/
-
-    // Read the row-wise matrix X, and convert to col-major Eigen matrix
-//    cout << "Read row-wise X, it will be converted to col-major Eigen matrix of size D x N..." << endl;
-    for (int i = 1; i < nargs; i++)
-    {
-        if (strcmp(args[i], "--X") == 0)
-        {
-            FILE *f = fopen(args[i + 1], "r");
-            if (!f)
-            {
-                cerr << "Error: Data file does not exist !" << endl;
-                exit(1);
-            }
-
-            FVector vecTempX(PARAM_DATA_D * PARAM_DATA_N, 0.0);
-
-            // Each line is a vector of D dimensions
-            for (int n = 0; n < PARAM_DATA_N; ++n)
-            {
-                for (int d = 0; d < PARAM_DATA_D; ++d)
-                {
-                    fscanf(f, "%f", &vecTempX[n * PARAM_DATA_D + d]);
-                    // cout << vecTempX[n + d * PARAM_DATA_N] << " ";
-                }
-                // cout << endl;
-            }
-
-            // Matrix_X is col-major
-            MATRIX_X = Map<MatrixXf>(vecTempX.data(), PARAM_DATA_D, PARAM_DATA_N);
-    //        MATRIX_X.transpose();
-    //        cout << "X has " << MATRIX_X.rows() << " rows and " << MATRIX_X.cols() << " cols " << endl;
-
-            /**
-            Print the first col (1 x N)
-            Print some of the first elements of the MATRIX_X to see that these elements are on consecutive memory cell.
-            **/
-    //        cout << MATRIX_X.col(0) << endl << endl;
-    //        cout << "In memory (col-major):" << endl;
-    //        for (int n = 0; n < 10; n++)
-    //            cout << *(MATRIX_X.data() + n) << "  ";
-    //        cout << endl << endl;
-
-            break;
-        }
-    }
-
+    // DBSCAN or OPTICS
 
     // Algorithm
     int iAlgType = 0;
-
-    // DBSCAN or OPTICS
     bSuccess = false;
+
     for (int i = 1; i < nargs; i++)
     {
         if (strcmp(args[i], "--alg") == 0)
@@ -110,12 +63,32 @@ int loadInput(int nargs, char** args)
             if (strcmp(args[i + 1], "Dbscan") == 0)
             {
                 iAlgType = 1;
-                cout << "Fast DBSCAN... " << endl;
+                cout << "sDBSCAN... " << endl;
             }
             else if (strcmp(args[i + 1], "Optics") == 0)
             {
                 iAlgType = 2;
-                cout << "Fast OPTICS... " << endl;
+                cout << "sOPTICS... " << endl;
+            }
+            else if (strcmp(args[i + 1], "testDbscan") == 0)
+            {
+                iAlgType = 30;
+                cout << "Test sDbscan... " << endl;
+            }
+            else if (strcmp(args[i + 1], "testDbscanL2") == 0)
+            {
+                iAlgType = 31;
+                cout << "Test sDbscan L2 with FWHT... " << endl;
+            }
+            else if (strcmp(args[i + 1], "testDbscanAsym") == 0)
+            {
+                iAlgType = 32;
+                cout << "Test asymmetric sDbscan... " << endl;
+            }
+            else if (strcmp(args[i + 1], "testOpticsAsym") == 0)
+            {
+                iAlgType = 33;
+                cout << "Test asymmetric sOptics... " << endl;
             }
             else
             {
@@ -130,9 +103,12 @@ int loadInput(int nargs, char** args)
 
     if (!bSuccess)
     {
-        cerr << "Error: Cannot find the algorithm !" << endl;
+        cerr << "Error: Algorithm is missing !" << endl;
         exit(1);
     }
+
+
+
 
     // Eps
     bSuccess = false;
@@ -172,6 +148,69 @@ int loadInput(int nargs, char** args)
         exit(1);
     }
 
+    /** NOTE: Reading IO is not safe for OpenMP **/
+
+    // Read the row-wise matrix X, and convert to col-major Eigen matrix
+//    cout << "Read row-wise X, it will be converted to col-major Eigen matrix of size D x N..." << endl;
+    for (int i = 1; i < nargs; i++)
+    {
+        if (strcmp(args[i], "--X") == 0)
+        {
+            FILE *f = fopen(args[i + 1], "r");
+            if (!f)
+            {
+                cerr << "Error: Data file does not exist !" << endl;
+                exit(1);
+            }
+
+            MATRIX_X = MatrixXf::Zero(PARAM_DATA_D, PARAM_DATA_N);
+
+            //FVector vecTempX(PARAM_DATA_D * PARAM_DATA_N, 0.0); // this vector<float> has limited length
+            // Each line is a vector of D dimensions
+            for (int n = 0; n < PARAM_DATA_N; ++n)
+            {
+                for (int d = 0; d < PARAM_DATA_D; ++d)
+                {
+                    //fscanf(f, "%f", &vecTempX[n * PARAM_DATA_D + d]);
+                    // cout << vecTempX[n + d * PARAM_DATA_N] << " ";
+                    // or
+                    //                    fscanf(f, "%f", &x);
+                    //                    MATRIX_X(d, n) = x;
+
+                    fscanf(f, "%f", &MATRIX_X(d, n));
+
+                }
+                // cout << endl;
+            }
+
+            // Matrix_X is col-major
+//            MATRIX_X = Map<MatrixXf>(vecTempX.data(), PARAM_DATA_D, PARAM_DATA_N);
+
+    //        MATRIX_X.transpose();
+    //        cout << "X has " << MATRIX_X.rows() << " rows and " << MATRIX_X.cols() << " cols " << endl;
+
+            /**
+            Print the first col (1 x N)
+            Print some of the first elements of the MATRIX_X to see that these elements are on consecutive memory cell.
+            **/
+//            cout << MATRIX_X.col(0) << endl << endl;
+//            cout << "In memory (col-major):" << endl;
+//            for (int n = 0; n < 10; n++)
+//                cout << *(MATRIX_X.data() + n) << "  ";
+//            cout << endl << endl;
+
+            bSuccess = true;
+            break;
+        }
+    }
+    if (!bSuccess)
+    {
+        cerr << "Error: Cannot reading the data set !" << endl;
+        exit(1);
+    }
+
+
+
     // Kernel embedding
     bSuccess = false;
     for (int i = 1; i < nargs; i++)
@@ -180,6 +219,7 @@ int loadInput(int nargs, char** args)
         {
             PARAM_KERNEL_EMBED_D = atoi(args[i + 1]);
             cout << "Number of kernel embedded dimensions: " << PARAM_KERNEL_EMBED_D << endl;
+            cout << "If using L1 and L2, this must be an even number. Must be pow(2) > D for L2 for FWHT." << endl;
             bSuccess = true;
             break;
         }
@@ -211,6 +251,15 @@ int loadInput(int nargs, char** args)
         cout << "Default number of projections: " << PARAM_NUM_PROJECTION << endl;
     }
 
+    // Identify PARAM_INTERNAL_FWHT_PROJECTION to use FWHT
+    if (PARAM_NUM_PROJECTION < PARAM_KERNEL_EMBED_D)
+        PARAM_INTERNAL_FWHT_PROJECTION = 1 << int(ceil(log2(PARAM_KERNEL_EMBED_D)));
+    else
+        PARAM_INTERNAL_FWHT_PROJECTION = 1 << int(ceil(log2(PARAM_NUM_PROJECTION)));
+
+    cout << "Internal FWHT: " << PARAM_INTERNAL_FWHT_PROJECTION << endl;
+
+
     // Top-K close/far random vectors
     bSuccess = false;
     for (int i = 1; i < nargs; i++)
@@ -228,6 +277,25 @@ int loadInput(int nargs, char** args)
     {
         PARAM_PROJECTION_TOP_K = 20;
         cout << "Default top-k closest/furthest vectors: " << PARAM_PROJECTION_TOP_K << endl;
+    }
+
+    // m >= MinPts
+    bSuccess = false;
+    for (int i = 1; i < nargs; i++)
+    {
+        if (strcmp(args[i], "--topMProj") == 0)
+        {
+            PARAM_PROJECTION_TOP_M = atoi(args[i + 1]);
+            cout << "Top-m: " << PARAM_PROJECTION_TOP_M << endl;
+            bSuccess = true;
+            break;
+        }
+    }
+
+    if (!bSuccess)
+    {
+        PARAM_PROJECTION_TOP_M = PARAM_DBSCAN_MINPTS;
+        cout << "Default top-m = minPts = " << PARAM_PROJECTION_TOP_M << endl;
     }
 
     // Distance measurement
@@ -279,7 +347,7 @@ int loadInput(int nargs, char** args)
         PARAM_DISTANCE = 2;
     }
 
-    // Scale gamma of kernel L2 and L1
+    // Scale sigma of kernel L2 and L1
     bSuccess = false;
     for (int i = 1; i < nargs; i++)
     {
@@ -306,7 +374,7 @@ int loadInput(int nargs, char** args)
         }
     }
 
-    // Sampling ratio used on Chi2 and JS - TPAMI 12 (interval_sampling in scikit-learn
+    // Sampling ratio used on Chi2 and JS - TPAMI 12 (interval_sampling in scikit-learn)
     bSuccess = false;
     for (int i = 1; i < nargs; i++)
     {
@@ -344,7 +412,31 @@ int loadInput(int nargs, char** args)
     }
 
     if (!bSuccess)
+    {
+        cout << "No output file" << endl;
         PARAM_INTERNAL_SAVE_OUTPUT = false;
+    }
+
+    bSuccess = false;
+    for (int i = 1; i < nargs; i++)
+    {
+        if (strcmp(args[i], "--numThreads") == 0)
+        {
+            PARAM_NUM_THREADS = atoi(args[i + 1]);
+
+            cout << "Number of threads: " << PARAM_NUM_THREADS << endl;
+
+            bSuccess = true;
+            break;
+        }
+    }
+
+    if (!bSuccess)
+    {
+        PARAM_NUM_THREADS = 4;
+        cout << "Default number of threads is: " << PARAM_NUM_THREADS << endl;
+
+    }
 
     return iAlgType;
 }

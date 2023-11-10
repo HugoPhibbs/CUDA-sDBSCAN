@@ -62,7 +62,7 @@ int main(int nargs, char** args)
 //            cout << "Chi2/JS Embedding time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
 
 
-            fastDbscan(); // speed friendly
+            sDbscan(); // speed friendly
 //            memoryDbscan(); // memory friendly
 
             end = chrono::steady_clock::now();
@@ -77,7 +77,7 @@ int main(int nargs, char** args)
 
             begin = chrono::steady_clock::now();
 
-            fastOptics(); // for speed
+            sOptics(); // for speed
 //            memoryOptics(); // for memory
 
             end = chrono::steady_clock::now();
@@ -86,6 +86,69 @@ int main(int nargs, char** args)
             break;
         }
 
+        // Test DBSCAN
+        case 30:
+        {
+
+            begin = chrono::steady_clock::now();
+
+            PARAM_DBSCAN_EPS = 0.14;
+            for (int i = 0; i < 5; ++i)
+                test_sDbscan(i); // speed friendly
+
+            PARAM_DBSCAN_EPS = 0.18;
+            for (int i = 0; i < 5; ++i)
+                test_sDbscan(i); // speed friendly
+
+            end = chrono::steady_clock::now();
+            cout << "DBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
+            cout << endl;
+            break;
+        }
+
+        // Test DBSCAN L2 FWHT twice
+        case 31:
+        {
+
+            begin = chrono::steady_clock::now();
+
+            for (int i = 0; i < 5; ++i)
+                test_sDbscan(i); // speed friendly
+
+            end = chrono::steady_clock::now();
+            cout << "DBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
+            cout << endl;
+            break;
+        }
+
+        // Test DBSCAN L2 FWHT twice + Asymmetric update
+        case 32:
+        {
+
+            begin = chrono::steady_clock::now();
+
+            for (int i = 0; i < 5; ++i)
+                test_sDbscan_Asym(i); // speed friendly
+
+            end = chrono::steady_clock::now();
+            cout << "DBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
+            cout << endl;
+            break;
+        }
+
+        // Test OPTICS L2 FWHT twice + Asymmetric update
+        case 33:
+        {
+
+            begin = chrono::steady_clock::now();
+
+            test_sOptics_Asym(); // speed friendly
+
+            end = chrono::steady_clock::now();
+            cout << "OPTICS Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
+            cout << endl;
+            break;
+        }
     }
 }
 
