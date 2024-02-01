@@ -14,6 +14,7 @@ int PARAM_NUM_THREADS;
 
 float PARAM_DBSCAN_EPS; // radius eps
 int PARAM_DBSCAN_MINPTS; // MinPts
+int PARAM_DBSCAN_CLUSTER_NOISE; // assign label to noise
 
 int PARAM_PROJECTION_TOP_K; // TopK random vectors closest and furthest to each point
 int PARAM_PROJECTION_TOP_M; // TopM points closest and furthest to random vector
@@ -26,6 +27,8 @@ int PARAM_INTERNAL_FWHT_PROJECTION;
 
 float PARAM_KERNEL_SIGMA;
 float PARAM_KERNEL_INTERVAL_SAMPLING;
+
+float PARAM_SAMPLING_PROB;
 
 MatrixXf MATRIX_X;
 
@@ -41,3 +44,10 @@ vector< vector< pair<int, float> > > vec2D_OPTICS_NeighborDist;
 MatrixXi MATRIX_TOP_K;
 MatrixXi MATRIX_TOP_M;
 
+
+MatrixXf MATRIX_R; // We can store its seed to save space
+boost::dynamic_bitset<> bitHD3_Proj;
+
+float PARAM_INTERNAL_TEST_EPS_RANGE;
+int PARAM_INTERNAL_TEST_UNITS;
+int PARAM_TEST_REPEAT;

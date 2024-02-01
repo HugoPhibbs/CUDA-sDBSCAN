@@ -5,6 +5,60 @@
 #include <sstream>
 
 /**
+Randomly sampling a subset of size K points
+- Use Fisher-Yates shuffle algorithm
+**/
+vector<int> samplingWOR(vector<int> vectorIndex, int K)
+{
+    if ( K >= (int)vectorIndex.size() )
+        return vectorIndex;
+
+    vector<int>::iterator iterFirst, iterRandom;
+    iterFirst = vectorIndex.begin();
+    int left = vectorIndex.size() - 1;
+
+    /**
+    int i, j;
+    for (i = K - 1; i > 0; i--)
+    {
+        // Pick a random index from 0 to i
+        j = rand() % (i + 1);
+
+        // Swap arr[i] with the element
+        // at random index
+        iter_swap(vectorIndex.begin() + i, vectorIndex.begin() + j);
+    }
+
+    return vector<int>(vectorIndex.begin(), vectorIndex.begin() + K);
+    **/
+
+    while (K--)
+    {
+        //cout << *iterFirst << endl;
+        iterRandom = iterFirst;
+
+        // increment iterRandom by a random position
+//        advance(iterRandom, intUnifRand(0, left - 1));
+        advance(iterRandom, rand() % left);
+
+        //cout << *iterRandom << endl;
+        // Swap value
+        swap(*iterFirst, *iterRandom);
+        //cout << *iterFirst << endl;
+        //cout << *iterRandom << endl;
+
+        // Increase the iterFirst
+        ++iterFirst;
+
+        // Decrease the size of vector
+        --left;
+    }
+
+    return vector<int>(vectorIndex.begin(), iterFirst);
+
+}
+
+/**
 Generate dynamic bitset for HD3HD2HD1
 We need to generate two bitsets for 2 LSH functions
 **/

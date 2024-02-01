@@ -5,6 +5,7 @@
 
 #include "Test.h"
 #include "Dbscan.h"
+#include "Optics.h"
 
 #include <time.h> // for time(0) to generate different random number
 #include <stdlib.h>
@@ -32,6 +33,10 @@ int main(int nargs, char** args)
 	/************************************************************************/
 
     chrono::steady_clock::time_point begin, end;
+
+    // Only for testing
+
+    PARAM_INTERNAL_TEST_UNITS = 10;
 
     /************************************************************************/
 	/* Algorithms                                             */
@@ -86,22 +91,35 @@ int main(int nargs, char** args)
             break;
         }
 
-        // Test DBSCAN
-        case 30:
+        case 3:
         {
 
             begin = chrono::steady_clock::now();
 
-            PARAM_DBSCAN_EPS = 0.14;
-            for (int i = 0; i < 5; ++i)
-                test_sDbscan(i); // speed friendly
-
-            PARAM_DBSCAN_EPS = 0.18;
-            for (int i = 0; i < 5; ++i)
-                test_sDbscan(i); // speed friendly
+//            sngOptics(); // for speed
+//            memoryOptics(); // for memory
 
             end = chrono::steady_clock::now();
-            cout << "DBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
+            cout << "sngOPTICS Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
+            cout << endl;
+            break;
+        }
+
+        // Test sDBSCAN
+        case 30:
+        {
+
+            begin = chrono::steady_clock::now();
+            float fBaseEps = PARAM_DBSCAN_EPS;
+            for (int i = 0; i < PARAM_TEST_REPEAT; ++i)
+            {
+                PARAM_DBSCAN_EPS = fBaseEps; // need to reset baseEps
+                cout << "Base sDbscan eps: " << PARAM_DBSCAN_EPS << " at time " << i << endl;
+                test_sDbscan(i); // speed friendly
+            }
+
+            end = chrono::steady_clock::now();
+            cout << "sDBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
             cout << endl;
             break;
         }
@@ -112,8 +130,16 @@ int main(int nargs, char** args)
 
             begin = chrono::steady_clock::now();
 
+            float fBaseEps = PARAM_DBSCAN_EPS;
             for (int i = 0; i < 5; ++i)
-                test_sDbscan(i); // speed friendly
+            {
+                PARAM_DBSCAN_EPS = fBaseEps + i * PARAM_INTERNAL_TEST_EPS_RANGE;
+                for (int j = 0; j < 5; ++j)
+                {
+                    cout << "Dbscan eps: " << PARAM_DBSCAN_EPS << " at time " << j << endl;
+                    test_sDbscan_L2(j); // speed friendly
+                }
+            }
 
             end = chrono::steady_clock::now();
             cout << "DBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
@@ -127,8 +153,18 @@ int main(int nargs, char** args)
 
             begin = chrono::steady_clock::now();
 
+
+            float fBaseEps = PARAM_DBSCAN_EPS;
             for (int i = 0; i < 5; ++i)
-                test_sDbscan_Asym(i); // speed friendly
+            {
+                PARAM_DBSCAN_EPS = fBaseEps + i * PARAM_INTERNAL_TEST_EPS_RANGE;
+                for (int j = 0; j < 5; ++j)
+                {
+                    cout << "Dbscan eps: " << PARAM_DBSCAN_EPS << " at time " << j << endl;
+                    test_sDbscan_Asym(j); // speed friendly
+                }
+            }
+
 
             end = chrono::steady_clock::now();
             cout << "DBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
@@ -136,16 +172,76 @@ int main(int nargs, char** args)
             break;
         }
 
-        // Test OPTICS L2 FWHT twice + Asymmetric update
-        case 33:
+        // sngDbscan
+        case 4:
+        {
+            begin = chrono::steady_clock::now();
+
+            sngDbscan();
+
+            end = chrono::steady_clock::now();
+            cout << "sngDBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
+            cout << endl;
+            break;
+        }
+
+        // Test uniform Dbscan++
+        case 41:
+        {
+            begin = chrono::steady_clock::now();
+
+            float fBaseEps = PARAM_DBSCAN_EPS;
+            for (int i = 0; i < 5; ++i)
+            {
+                PARAM_DBSCAN_EPS = fBaseEps + i * PARAM_INTERNAL_TEST_EPS_RANGE;
+                for (int j = 0; j < 5; ++j)
+                {
+                    cout << "uDbscan eps: " << PARAM_DBSCAN_EPS << " at time " << j << endl;
+                    test_uDbscan(j); // speed friendly
+                }
+            }
+
+
+            end = chrono::steady_clock::now();
+            cout << "Test uDBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
+            cout << endl;
+            break;
+        }
+
+
+        // Test sng Dbscan++
+        case 42:
         {
 
             begin = chrono::steady_clock::now();
 
-            test_sOptics_Asym(); // speed friendly
+            float fBaseEps = PARAM_DBSCAN_EPS;
+
+            if (PARAM_SAMPLING_PROB < 1.0)
+            {
+                // Repeat 5 times
+                for (int i = 0; i < PARAM_TEST_REPEAT; ++i)
+                {
+                    PARAM_DBSCAN_EPS = fBaseEps;
+                    cout << "Base sngDbscan eps: " << PARAM_DBSCAN_EPS << " at time " << i << endl;
+                    test_sngDbscan(i);
+                }
+
+            }
+            else
+            {
+                for (int i = 0; i < 5; ++i)
+                {
+                    PARAM_DBSCAN_EPS = fBaseEps + i * PARAM_INTERNAL_TEST_EPS_RANGE;
+                    cout << "naiveDbscan eps: " << PARAM_DBSCAN_EPS << endl;
+                    test_naiveDbscan(); // speed friendly
+                }
+            }
+
+
 
             end = chrono::steady_clock::now();
-            cout << "OPTICS Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
+            cout << "Test sngDBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
             cout << endl;
             break;
         }

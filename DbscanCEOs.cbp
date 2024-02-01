@@ -23,7 +23,7 @@
 				<Option object_output="obj/Release/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
-				<Option parameters='--numPts 247208 --numDim 52 --X &quot;/home/npha145/Dataset/Clustering/pamap2_X01_cosine&quot; --alg Optics --eps 0.5 --minPts 50 --numProj 1024 --topKProj 10 --topMProj 50 --dist Cosine --output y_optics' />
+				<Option parameters='--numPts 70000 --numDim 784 --X &quot;/home/npha145/Dataset/Clustering/mnist_all_X_cosine&quot; --alg sngDbscan --eps 0.11 --p 0.01 --minPts 50 --clusterNoise 3 --dist Cosine --numThreads 64 --output y_sngDbscan' />
 				<Compiler>
 					<Add option="-O3" />
 					<Add option="-std=c++17" />
@@ -51,6 +51,8 @@
 		<Unit filename="Header.h" />
 		<Unit filename="InputParser.cpp" />
 		<Unit filename="InputParser.h" />
+		<Unit filename="Optics.cpp" />
+		<Unit filename="Optics.h" />
 		<Unit filename="Test.cpp" />
 		<Unit filename="Test.h" />
 		<Unit filename="Utilities.cpp" />

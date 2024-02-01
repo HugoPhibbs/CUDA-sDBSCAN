@@ -50,6 +50,7 @@ int loadInput(int nargs, char** args)
         exit(1);
     }
 
+
     // DBSCAN or OPTICS
 
     // Algorithm
@@ -60,35 +61,55 @@ int loadInput(int nargs, char** args)
     {
         if (strcmp(args[i], "--alg") == 0)
         {
-            if (strcmp(args[i + 1], "Dbscan") == 0)
+            if (strcmp(args[i + 1], "sDbscan") == 0)
             {
                 iAlgType = 1;
-                cout << "sDBSCAN... " << endl;
+                cout << "Algorithm: sDBSCAN... " << endl;
             }
-            else if (strcmp(args[i + 1], "Optics") == 0)
+            else if (strcmp(args[i + 1], "sOptics") == 0)
             {
                 iAlgType = 2;
-                cout << "sOPTICS... " << endl;
+                cout << "Algorithm: sOPTICS... " << endl;
             }
-            else if (strcmp(args[i + 1], "testDbscan") == 0)
+            else if (strcmp(args[i + 1], "sngOptics") == 0)
+            {
+                iAlgType = 3;
+                cout << "Algorithm: sngOPTICS... " << endl;
+            }
+            else if (strcmp(args[i + 1], "test_sDbscan") == 0)
             {
                 iAlgType = 30;
-                cout << "Test sDbscan... " << endl;
+                cout << "Algorithm: Test sDbscan... " << endl;
             }
-            else if (strcmp(args[i + 1], "testDbscanL2") == 0)
+            else if (strcmp(args[i + 1], "test_sDbscanL2") == 0)
             {
                 iAlgType = 31;
-                cout << "Test sDbscan L2 with FWHT... " << endl;
+                cout << "Algorithm: Test sDbscan L2 with FWHT... " << endl;
             }
-            else if (strcmp(args[i + 1], "testDbscanAsym") == 0)
+            else if (strcmp(args[i + 1], "test_sDbscanAsym") == 0)
             {
                 iAlgType = 32;
-                cout << "Test asymmetric sDbscan... " << endl;
+                cout << "Algorithm: Test asymmetric sDbscan... " << endl;
             }
-            else if (strcmp(args[i + 1], "testOpticsAsym") == 0)
+            else if (strcmp(args[i + 1], "test_sOpticsAsym") == 0)
             {
                 iAlgType = 33;
-                cout << "Test asymmetric sOptics... " << endl;
+                cout << "Algorithm: Test asymmetric sOptics... " << endl;
+            }
+            else if (strcmp(args[i + 1], "sngDbscan") == 0)
+            {
+                iAlgType = 4;
+                cout << "Algorithm: sngDbscan... " << endl;
+            }
+            else if (strcmp(args[i + 1], "test_uDbscan") == 0)
+            {
+                iAlgType = 41;
+                cout << "Algorithm: Test uniform DBSCAN++... " << endl;
+            }
+            else if (strcmp(args[i + 1], "test_sngDbscan") == 0)
+            {
+                iAlgType = 42;
+                cout << "Algorithm: Test sampling Dbscan... " << endl;
             }
             else
             {
@@ -107,8 +128,23 @@ int loadInput(int nargs, char** args)
         exit(1);
     }
 
-
-
+    // MinPTS
+    bSuccess = false;
+    for (int i = 1; i < nargs; i++)
+    {
+        if (strcmp(args[i], "--minPts") == 0)
+        {
+            PARAM_DBSCAN_MINPTS = atoi(args[i + 1]);
+            cout << "minPts: " << PARAM_DBSCAN_MINPTS << endl;
+            bSuccess = true;
+            break;
+        }
+    }
+    if (!bSuccess)
+    {
+        cerr << "Error: minPts is missing !" << endl;
+        exit(1);
+    }
 
     // Eps
     bSuccess = false;
@@ -129,14 +165,14 @@ int loadInput(int nargs, char** args)
         exit(1);
     }
 
-    // MinPts
+    // Only for testing Eps
     bSuccess = false;
     for (int i = 1; i < nargs; i++)
     {
-        if (strcmp(args[i], "--minPts") == 0)
+        if (strcmp(args[i], "--epsRange") == 0)
         {
-            PARAM_DBSCAN_MINPTS = atoi(args[i + 1]);
-            cout << "MinPts: " << PARAM_DBSCAN_MINPTS << endl;
+            PARAM_INTERNAL_TEST_EPS_RANGE = atof(args[i + 1]);
+            cout << "Radius eps range: " << PARAM_INTERNAL_TEST_EPS_RANGE << endl;
             bSuccess = true;
             break;
         }
@@ -144,9 +180,47 @@ int loadInput(int nargs, char** args)
 
     if (!bSuccess)
     {
-        cerr << "Error: MinPts is missing !" << endl;
-        exit(1);
+        PARAM_INTERNAL_TEST_EPS_RANGE = 0;
     }
+
+    // Clustering noisy points
+    bSuccess = false;
+    for (int i = 1; i < nargs; i++)
+    {
+        if (strcmp(args[i], "--clusterNoise") == 0)
+        {
+            PARAM_DBSCAN_CLUSTER_NOISE = atoi(args[i + 1]);
+            cout << "Cluster noise option: " << PARAM_DBSCAN_CLUSTER_NOISE << endl;
+            bSuccess = true;
+            break;
+        }
+    }
+
+    if (!bSuccess)
+    {
+        cout << "Default: We do not cluster the noisy points." << endl;
+        PARAM_DBSCAN_CLUSTER_NOISE = 0;
+    }
+
+    // Sampling probability of uDbscan, kDbscan, sngDbscan
+    bSuccess = false;
+    for (int i = 1; i < nargs; i++)
+    {
+        if (strcmp(args[i], "--p") == 0)
+        {
+            PARAM_SAMPLING_PROB = atof(args[i + 1]);
+            cout << "Sampling probability: " << PARAM_SAMPLING_PROB << endl;
+            bSuccess = true;
+            break;
+        }
+    }
+
+    if (!bSuccess)
+    {
+        PARAM_SAMPLING_PROB = 0.01;
+        cout << "Default sampling probability: " << PARAM_SAMPLING_PROB << endl;
+    }
+
 
     /** NOTE: Reading IO is not safe for OpenMP **/
 
@@ -275,7 +349,7 @@ int loadInput(int nargs, char** args)
 
     if (!bSuccess)
     {
-        PARAM_PROJECTION_TOP_K = 20;
+        PARAM_PROJECTION_TOP_K = 5;
         cout << "Default top-k closest/furthest vectors: " << PARAM_PROJECTION_TOP_K << endl;
     }
 
@@ -420,6 +494,27 @@ int loadInput(int nargs, char** args)
     bSuccess = false;
     for (int i = 1; i < nargs; i++)
     {
+        if (strcmp(args[i], "--numRepeat") == 0)
+        {
+            PARAM_TEST_REPEAT = atoi(args[i + 1]);
+
+            cout << "Number of testing repeats: " << PARAM_TEST_REPEAT << endl;
+
+            bSuccess = true;
+            break;
+        }
+    }
+
+    if (!bSuccess)
+    {
+        PARAM_TEST_REPEAT = 1;
+        cout << "Default number of repeat is: " << PARAM_TEST_REPEAT << endl;
+
+    }
+
+    bSuccess = false;
+    for (int i = 1; i < nargs; i++)
+    {
         if (strcmp(args[i], "--numThreads") == 0)
         {
             PARAM_NUM_THREADS = atoi(args[i + 1]);
@@ -433,7 +528,7 @@ int loadInput(int nargs, char** args)
 
     if (!bSuccess)
     {
-        PARAM_NUM_THREADS = 4;
+        PARAM_NUM_THREADS = 64;
         cout << "Default number of threads is: " << PARAM_NUM_THREADS << endl;
 
     }

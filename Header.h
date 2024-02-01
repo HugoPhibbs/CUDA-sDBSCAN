@@ -83,6 +83,7 @@ extern int PARAM_NUM_THREADS;
 
 extern float PARAM_DBSCAN_EPS; // radius eps
 extern int PARAM_DBSCAN_MINPTS; // MinPts
+extern int PARAM_DBSCAN_CLUSTER_NOISE; // assign cluster label to noise
 
 extern int PARAM_PROJECTION_TOP_K; // TopK random vectors closest and furthest to each point
 extern int PARAM_PROJECTION_TOP_M; // TopM points closest and furthest to random vector
@@ -94,6 +95,8 @@ extern int PARAM_INTERNAL_FWHT_PROJECTION;
 
 extern float PARAM_KERNEL_SIGMA;
 extern float PARAM_KERNEL_INTERVAL_SAMPLING;
+
+extern float PARAM_SAMPLING_PROB;
 
 extern bool PARAM_INTERNAL_SAVE_OUTPUT;
 extern int PARAM_INTERNAL_NUM_ROTATION;
@@ -111,7 +114,10 @@ extern vector<IVector> vec2D_DBSCAN_Neighbor;
 extern FVector vec_CORE_DIST;
 extern vector< vector< pair<int, float> > > vec2D_OPTICS_NeighborDist;
 
+extern MatrixXf MATRIX_R; // We can store its seed to save space
+extern boost::dynamic_bitset<> bitHD3_Proj;
 
-
-
+extern float PARAM_INTERNAL_TEST_EPS_RANGE;
+extern int PARAM_INTERNAL_TEST_UNITS;
+extern int PARAM_TEST_REPEAT;
 

@@ -16,6 +16,9 @@ inline string int2str(int x)
     return ss.str();
 }
 
+
+vector<int> samplingWOR(vector<int>, int);
+
 float computeDist(const Ref<VectorXf>, const Ref<VectorXf>);
 float computeChi2(const Ref<VectorXf>, const Ref<VectorXf>);
 

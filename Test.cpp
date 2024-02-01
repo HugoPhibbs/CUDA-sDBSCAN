@@ -485,43 +485,257 @@ void parRandomProjection()
     }
 }
 
+/**
+Construct core points and its neighborhood given precomputed Optics data structure
+**/
+void findCorePoints_PrecomputedOptics()
+{
+    vec2D_DBSCAN_Neighbor = vector<IVector> (PARAM_DATA_N, IVector());
+    bit_CORE_POINTS = boost::dynamic_bitset<>(PARAM_DATA_N);
 
-void test_sDbscan(int i)
+    chrono::steady_clock::time_point begin;
+    begin = chrono::steady_clock::now();
+
+    omp_set_num_threads(PARAM_NUM_THREADS);
+    #pragma omp parallel for
+    for (int n = 0; n < PARAM_DATA_N; ++n)
+    {
+        // Using the set to clear duplicates
+        unordered_set<int> setNeighbor;
+        for (int i = 0; i < (int)vec2D_OPTICS_NeighborDist[n].size(); ++i)
+        {
+            if (vec2D_OPTICS_NeighborDist[n][i].second <= PARAM_DBSCAN_EPS)
+                setNeighbor.insert(vec2D_OPTICS_NeighborDist[n][i].first);
+        }
+
+
+        // Decide core points
+        if ((int)setNeighbor.size() >= PARAM_DBSCAN_MINPTS - 1)
+        {
+            bit_CORE_POINTS[n] = 1;
+
+//            if ( n < 1000 )
+//                cout << setNeighbor.size() << endl;
+
+            // Only need neighborhood if it is core point
+            vec2D_DBSCAN_Neighbor[n].insert(vec2D_DBSCAN_Neighbor[n].end(), setNeighbor.begin(), setNeighbor.end());
+
+        }
+
+        // We need to keep the neighborhood of noisy points in case we have to cluster the noise by the case 3
+        // Which is consider any core points within its neighborhoods
+        else if (PARAM_DBSCAN_CLUSTER_NOISE == 3)
+        {
+            vec2D_DBSCAN_Neighbor[n].insert(vec2D_DBSCAN_Neighbor[n].end(), setNeighbor.begin(), setNeighbor.end());
+        }
+
+    }
+
+    cout << "Find core points time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+    cout << "Number of core points: " << bit_CORE_POINTS.count() << endl;
+
+}
+
+/**
+vec2D_DBSCAN_Neighbor: For each sampled point, store its true neighborhood (within radius eps)
+**/
+void findCorePoints_maxEps(float p_fMaxEps)
+{
+    vec2D_OPTICS_NeighborDist = vector< vector< pair<int, float> > > (PARAM_DATA_N, vector< pair<int, float> >());
+
+    chrono::steady_clock::time_point begin;
+    begin = chrono::steady_clock::now();
+
+    // omp_set_dynamic(0);     // Explicitly disable dynamic teams
+    omp_set_num_threads(PARAM_NUM_THREADS);
+    #pragma omp parallel for
+    for (int n = 0; n < PARAM_DATA_N; ++n)
+    {
+        VectorXf vecXn = MATRIX_X.col(n);
+
+        VectorXi vecTopK = MATRIX_TOP_K.col(n); // size 2K: first K is close, last K is far
+
+        boost::dynamic_bitset<> approxNeighbor(PARAM_DATA_N);
+
+        for (int k = 0; k < PARAM_PROJECTION_TOP_K; ++k)
+        {
+            // Closest
+            int Ri = vecTopK(k);
+
+            for (int i = 0; i < PARAM_PROJECTION_TOP_M; ++i)
+            {
+                // Compute distance between Xn and Xi
+                int iPointIdx = MATRIX_TOP_M(i, Ri);
+
+                if (iPointIdx == n)
+                    continue;
+
+                if (!approxNeighbor[iPointIdx]) // cannot find
+                {
+                    approxNeighbor[iPointIdx] = 1;
+
+//                    cout << "The point: " << n << endl;
+//                    cout << vecXn << endl;
+//
+//                    cout << "The point: " << iPointIdx << endl;
+//                    cout << MATRIX_X.col(iPointIdx) << endl;
+
+                    float fDist = computeDist(vecXn, MATRIX_X.col(iPointIdx));
+
+//                    if (fDist < 0)
+//                    {
+//                        cout << n << " " << iPointIdx << ": " << fDist << endl;
+//                        cout << 1 - vecXn.dot(MATRIX_X.col(iPointIdx)) << endl;
+//                    }
+
+                    if (fDist <= p_fMaxEps)
+                    {
+
+                        #pragma omp critical
+                        {
+//                        map2D_DBSCAN_Neighbor[n].insert(make_pair(iPointIdx, fDist));
+//                        map2D_DBSCAN_Neighbor[iPointIdx].insert(make_pair(n, fDist));
+
+                        vec2D_OPTICS_NeighborDist[n].push_back(make_pair(iPointIdx, fDist)); // duplicate at most twice
+                        vec2D_OPTICS_NeighborDist[iPointIdx].push_back(make_pair(n, fDist)); // so vector is much better than map()
+                        }
+                    }
+                }
+            }
+
+            // Far
+            Ri = vecTopK(k + PARAM_PROJECTION_TOP_K);
+
+            for (int i = 0; i < PARAM_PROJECTION_TOP_M; ++i)
+            {
+                // Compute distance between Xn and Xi
+                int iPointIdx = MATRIX_TOP_M(i + PARAM_PROJECTION_TOP_M, Ri);
+
+                if (iPointIdx == n)
+                    continue;
+
+                if (!approxNeighbor[iPointIdx]) // cannot find
+                {
+                    approxNeighbor[iPointIdx] = 1;
+
+                    float fDist = computeDist(vecXn, MATRIX_X.col(iPointIdx));
+
+                    if (fDist <= p_fMaxEps)
+                    {
+                        // omp_set_dynamic(0);     // Explicitly disable dynamic teams
+                        omp_set_num_threads(PARAM_NUM_THREADS);
+                        #pragma omp critical
+                        {
+//                        map2D_DBSCAN_Neighbor[n].insert(make_pair(iPointIdx, fDist));
+//                        map2D_DBSCAN_Neighbor[iPointIdx].insert(make_pair(n, fDist));
+
+                        vec2D_OPTICS_NeighborDist[n].push_back(make_pair(iPointIdx, fDist));
+                        vec2D_OPTICS_NeighborDist[iPointIdx].push_back(make_pair(n, fDist));
+
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    cout << "Neighborhood time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+}
+
+
+/** Simulate sngOptics to get point and its distance in the neighbor
+**/
+void findCorePoints_sngDbscan_maxEps(float p_fMaxEps)
+{
+    vec2D_OPTICS_NeighborDist = vector< vector< pair<int, float> > > (PARAM_DATA_N, vector< pair<int, float> >());
+
+    int iNumSamples = ceil(PARAM_SAMPLING_PROB * PARAM_DATA_N);
+
+    // omp_set_dynamic(0);     // Explicitly disable dynamic teams
+    omp_set_num_threads(PARAM_NUM_THREADS);
+    #pragma omp parallel for
+    for (int n = 0; n < PARAM_DATA_N; ++n)
+    {
+        VectorXf vecXn = MATRIX_X.col(n);
+
+        // Sampling points to identify core points
+        random_device rd;  // a seed source for the random number engine
+        mt19937 gen(rd()); // mersenne_twister_engine seeded with rd()
+        uniform_int_distribution<> distrib(0, PARAM_DATA_N - 1);
+
+        // Compute distance from sampled Xn to all points in X
+        for (int s = 0; s < iNumSamples; ++s) {
+            int iPointIdx = distrib(gen);
+            if (iPointIdx == n)
+                continue;
+
+            float fDist = computeDist(vecXn, MATRIX_X.col(iPointIdx));
+
+            if (fDist <= p_fMaxEps) // if (vecXn.dot(MATRIX_X_EMBED.col(iPointIdx)) >= fThresDot)
+            {
+#pragma omp critical
+                {
+                    vec2D_OPTICS_NeighborDist[n].push_back(make_pair(iPointIdx, fDist)); // duplicate at most twice
+                    vec2D_OPTICS_NeighborDist[iPointIdx].push_back(make_pair(n, fDist)); // so vector is much better than map()
+                }
+            }
+        }
+    }
+
+}
+
+void test_sDbscan(int p_iTimes)
 {
     cout << "Testing sDbscan" << endl;
 
-    chrono::steady_clock::time_point begin, start;
-    begin = chrono::steady_clock::now();
-    start = chrono::steady_clock::now();
+    chrono::steady_clock::time_point begin = chrono::steady_clock::now();
+
     parDbscanIndex();
 
     cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
 
-    // Find core point
     begin = chrono::steady_clock::now();
-    findCorePoints();
-    cout << "Find core points time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
 
-    begin = chrono::steady_clock::now();
-    int iNumClusters = 0;
-    IVector vecLabels;
-    formCluster(iNumClusters, vecLabels);
-    cout << "Form clusters time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+    float fBaseEps = PARAM_DBSCAN_EPS;
+    float fMaxEps = fBaseEps + (PARAM_INTERNAL_TEST_UNITS - 1) * PARAM_INTERNAL_TEST_EPS_RANGE;
 
-    cout << "Dbscan time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << "[ms]" << endl;
+    findCorePoints_maxEps(fMaxEps);
+    cout << "MaxEps Neighborhood time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
 
-    if (PARAM_INTERNAL_SAVE_OUTPUT)
-	{
-        string sFileName = PARAM_OUTPUT_FILE + int2str(i) + "_L" + int2str(PARAM_DISTANCE) +
-                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
-                        "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
-                        "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
-                        "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
-                        "_TopM_" + int2str(PARAM_PROJECTION_TOP_M) +
-                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
+    for (int i = 0; i < PARAM_INTERNAL_TEST_UNITS; ++i)
+    {
+        begin = chrono::steady_clock::now();
 
-        outputDbscan(vecLabels, sFileName);
-	}
+        // Get the current Eps for testing
+        PARAM_DBSCAN_EPS = fBaseEps + i * PARAM_INTERNAL_TEST_EPS_RANGE;
+
+        // Build neighborhood from pre-computed neighborhoods
+        findCorePoints_PrecomputedOptics();
+
+        cout << "Find core points time for eps = " << PARAM_DBSCAN_EPS << " is: " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+        begin = chrono::steady_clock::now();
+        int iNumClusters = 0;
+        IVector vecLabels;
+        formCluster(iNumClusters, vecLabels);
+
+        cout << "Form clusters time for eps = " << PARAM_DBSCAN_EPS << " is: " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+
+        if (PARAM_INTERNAL_SAVE_OUTPUT)
+        {
+            string sFileName = PARAM_OUTPUT_FILE + int2str(p_iTimes) + "_L" + int2str(PARAM_DISTANCE) +
+                            "_Eps_" + int2str(round(1000 * PARAM_DBSCAN_EPS)) +
+                            "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
+                            "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
+                            "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
+                            "_TopM_" + int2str(PARAM_PROJECTION_TOP_M) +
+                            "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
+
+            outputDbscan(vecLabels, sFileName);
+        }
+    }
 }
 
 void test_sDbscan_L2(int i)
@@ -548,7 +762,7 @@ void test_sDbscan_L2(int i)
     if (PARAM_INTERNAL_SAVE_OUTPUT)
 	{
         string sFileName = PARAM_OUTPUT_FILE + int2str(i) + "_FWHT_L2" +
-                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
+                        "_Eps_" + int2str(round(1000 * PARAM_DBSCAN_EPS)) +
                         "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
                         "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
                         "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
@@ -588,7 +802,7 @@ void test_sDbscan_Asym(int i)
     if (PARAM_INTERNAL_SAVE_OUTPUT)
 	{
         string sFileName = PARAM_OUTPUT_FILE + int2str(i) + "_L" + int2str(PARAM_DISTANCE) +
-                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
+                        "_Eps_" + int2str(round(1000 * PARAM_DBSCAN_EPS)) +
                         "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
                         "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
                         "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
@@ -599,46 +813,111 @@ void test_sDbscan_Asym(int i)
 	}
 }
 
-/**
-Test FWHT for embedding & CEOs
-With FindCore_Asym() - we should use much larger m, e.g. m = 2 * minPts to ensure the coverage of neighborhoods
-**/
-void test_sOptics_Asym()
+void test_uDbscan(int i)
 {
-    cout << "Testing asymmetric Optics" << endl;
+    cout << "Testing uDBSCAN++" << endl;
 
-    chrono::steady_clock::time_point begin;
+    chrono::steady_clock::time_point begin, start;
     begin = chrono::steady_clock::now();
-
-    parDbscanIndex();
-
-    cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
-
-    // Find core point
-    begin = chrono::steady_clock::now();
-    findCoreDist_Asym(); // Faster for multi-threading but loss some accuracy
-    // findCoreDist();
-    cout << "Find core points and distance time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+    start = chrono::steady_clock::now();
+    findCorePoints_uDbscan();
+    cout << "Find core points time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
 
     begin = chrono::steady_clock::now();
-    IVector vecOrder;
-    FVector vecReachDist;
+    int iNumClusters = 0;
+    IVector vecLabels;
+    formCluster(iNumClusters, vecLabels);
+    cout << "Form clusters time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
 
-//    formOptics(vecLabels, vecOrder, vecReachDist);
-
-    formOptics_scikit(vecOrder, vecReachDist);
-    cout << "Form optics time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+    cout << "uDbscan time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << "[ms]" << endl;
 
     if (PARAM_INTERNAL_SAVE_OUTPUT)
-	{
-        string sFileName = PARAM_OUTPUT_FILE + "_L" + int2str(PARAM_DISTANCE) +
-                        "_Eps_" + int2str(round(100 * PARAM_DBSCAN_EPS)) +
-                        "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
-                        "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
-                        "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
-                        "_TopM_" + int2str(PARAM_PROJECTION_TOP_M) +
-                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
+    {
+        string sFileName = PARAM_OUTPUT_FILE + int2str(i) + "_L" + int2str(PARAM_DISTANCE) +
+                           "_Eps_" + int2str(round(1000 * PARAM_DBSCAN_EPS)) +
+                           "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
+                           "_Prob_" + int2str(round(1000 * PARAM_SAMPLING_PROB));
 
-        outputOptics(vecOrder, vecReachDist, sFileName);
-	}
+        outputDbscan(vecLabels, sFileName);
+    }
+}
+
+/**
+Compute all-NN once with max eps, then extract NN and form cluster for smaller eps
+**/
+void test_sngDbscan(int p_iTimes)
+{
+    cout << "Testing sngDBSCAN++" << endl;
+
+    chrono::steady_clock::time_point begin = chrono::steady_clock::now();
+
+    float fBaseEps = PARAM_DBSCAN_EPS;
+    float fMaxEps = fBaseEps + (PARAM_INTERNAL_TEST_UNITS - 1) * PARAM_INTERNAL_TEST_EPS_RANGE;
+
+    findCorePoints_sngDbscan_maxEps(fMaxEps);
+    cout << "MaxEps Neighborhood time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    for (int i = 0; i < PARAM_INTERNAL_TEST_UNITS; ++i)
+    {
+        begin = chrono::steady_clock::now();
+
+        // Get the current Eps for testing
+        PARAM_DBSCAN_EPS = fBaseEps + i * PARAM_INTERNAL_TEST_EPS_RANGE;
+
+        // Build neighborhood from pre-computed neighborhoods
+        findCorePoints_PrecomputedOptics();
+
+        cout << "Find core points time for eps = " << PARAM_DBSCAN_EPS << " is: " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+        begin = chrono::steady_clock::now();
+        int iNumClusters = 0;
+        IVector vecLabels;
+        formCluster(iNumClusters, vecLabels);
+
+        cout << "Form clusters time for eps = " << PARAM_DBSCAN_EPS << " is: " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+
+        if (PARAM_INTERNAL_SAVE_OUTPUT)
+        {
+            string sFileName = PARAM_OUTPUT_FILE + int2str(p_iTimes) + "_L" + int2str(PARAM_DISTANCE) +
+                               "_Eps_" + int2str(round(1000 * PARAM_DBSCAN_EPS)) +
+                               "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
+                               "_Prob_" + int2str(round(1000 * PARAM_SAMPLING_PROB));
+
+            outputDbscan(vecLabels, sFileName);
+        }
+
+    }
+
+}
+
+/**
+Call test_sng with p = 1
+**/
+void test_naiveDbscan()
+{
+    cout << "Testing naive DBSCAN" << endl;
+
+    chrono::steady_clock::time_point begin, start;
+    begin = chrono::steady_clock::now();
+    start = chrono::steady_clock::now();
+    findCorePoints_sngDbscan();
+    cout << "Find core points time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    begin = chrono::steady_clock::now();
+    int iNumClusters = 0;
+    IVector vecLabels;
+    formCluster(iNumClusters, vecLabels);
+    cout << "Form clusters time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
+
+    cout << "Dbscan time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count() << "[ms]" << endl;
+
+    if (PARAM_INTERNAL_SAVE_OUTPUT)
+    {
+        string sFileName = PARAM_OUTPUT_FILE + "_L" + int2str(PARAM_DISTANCE) +
+                           "_Eps_" + int2str(round(1000 * PARAM_DBSCAN_EPS)) +
+                           "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS);
+
+        outputDbscan(vecLabels, sFileName);
+    }
 }

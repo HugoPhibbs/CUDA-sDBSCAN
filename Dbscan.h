@@ -16,24 +16,18 @@ void seqDbscanIndex();
 
 void findCorePoints_Asym();
 void findCorePoints();
-
+void findCorePoints_uDbscan(); // based on sampling uDbscan++ - note that formingCluster will be very different from uDbscan++
+void findCorePoints_sngDbscan(); // based on sampling
 
 void formCluster(int &, IVector &);
 void formCluster_Asym(int &, IVector &);
 
 void sDbscan();
 void seq_sDbscan();
+void sngDbscan();
 
+void clusterNoise(IVector&, int);
 
-void findCoreDist_Asym();
-void findCoreDist();
-//void findCoreDist_Symmetric_L2_Embed(); // Only for testing
-
-void formOptics(IVector & , IVector &, FVector &);
-void formOptics_scikit(IVector &, FVector &);
-
-void sOptics();
-void seq_sOptics();
 
 
 
