@@ -19,7 +19,7 @@ void findCorePoints_maxEps(float);
 void findCorePoints_sngDbscan_maxEps(float);
 
 void test_sDbscan(int);
-void test_sDbscan_L2(int);
+//void test_sDbscan_L2(int); // Test FWHT twice for Random Fourier embedding & random projection
 
 void test_sDbscan_Asym(int);
 void test_sOptics_Asym();

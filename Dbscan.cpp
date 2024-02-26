@@ -124,200 +124,200 @@ Have to store the projection matrix for parallel processing.
 - Call HD3HD2HD1 for CEOs
 Using priority queue to extract top-k and top-MinPts
 **/
-void parDbscanIndex_L2()
-{
-
-    /** Param for embedding **/
-    int iEmbed_D = PARAM_KERNEL_EMBED_D / 2; // This is becase we need cos() and sin()
-    int log2Embed_D = log2(iEmbed_D);
-
-    boost::dynamic_bitset<> bitHD3_Embed;
-    bitHD3Generator(iEmbed_D * PARAM_INTERNAL_NUM_ROTATION, bitHD3_Embed);
-
-    /** Param for random projection **/
-    MatrixXf MATRIX_RP = MatrixXf::Zero(PARAM_NUM_PROJECTION, PARAM_DATA_N);
-    int log2Project = log2(PARAM_NUM_PROJECTION);
-
-    MATRIX_TOP_K = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_K, PARAM_DATA_N);
-
-    boost::dynamic_bitset<> bitHD3_Proj;
-    bitHD3Generator(PARAM_NUM_PROJECTION * PARAM_INTERNAL_NUM_ROTATION, bitHD3_Proj);
-
-    // Only for testing
-//    MATRIX_X_EMBED = MatrixXf::Zero(PARAM_KERNEL_EMBED_D, PARAM_DATA_N);
-
-    // omp_set_dynamic(0);     // Explicitly disable dynamic teams
-    omp_set_num_threads(PARAM_NUM_THREADS);
-
-    #pragma omp parallel for
-    for (int n = 0; n < PARAM_DATA_N; ++n)
-    {
-        /**
-        L2 Embedding
-        **/
-
-        VectorXf vecProject = VectorXf::Zero(iEmbed_D); // iEmbed_D > D
-        vecProject.segment(0, PARAM_DATA_D) = MATRIX_X.col(n);
-
-        for (int r = 0; r < PARAM_INTERNAL_NUM_ROTATION; ++r)
-        {
-            // Component-wise multiplication with a random sign
-            for (int d = 0; d < iEmbed_D; ++d)
-            {
-                vecProject(d) *= (2 * (int)bitHD3_Embed[r * iEmbed_D + d] - 1);
-            }
-
-            // Multiple with Hadamard matrix by calling FWHT transform
-            fht_float(vecProject.data(), log2Embed_D);
-        }
-
-        // We scale with iEmbed_D since we apply HD2HD1, each need a scale of sqrt(iEmbed_D). The last HD3 is similar to Gaussian matrix.
-        // We further scale with sigma since we use the standard scale N(0, 1/sigma^2) hence std = 1/sigma for kernel embedding
-        // K(x, y) = exp(-dist^2 / 2*sigma^2)
-        // See: https://github.com/hichamjanati/srf/blob/master/RFF-I.ipynb
-        vecProject /= (iEmbed_D * PARAM_KERNEL_SIGMA); // vecPoint.segment(0, 128); // One can call O(DlogD) and get top-iEmbed_D if D > iEmbed_D
-
-        // At this stage, vecProject is identical to random projection values with normal vectors.
-        // We would need cos(), sin() and scale by 1/sqrt(iEmbed_D) to have E <f(x), f(q)> = K(x, q)
-
-        // Only for testing OPTICS plot (Euclidean space vs Embedded space)
-//        VectorXf vecEmbed = VectorXf::Zero(PARAM_KERNEL_EMBED_D);
-//        vecEmbed << vecProject.array().cos(), vecProject.array().sin();
-//        MATRIX_X_EMBED.col(n) = vecEmbed / sqrt(iEmbed_D);
-
-        /**
-        Random projection
-        **/
-        VectorXf vecPoint = VectorXf::Zero(PARAM_NUM_PROJECTION); // NUM_PROJECT > PARAM_KERNEL_EMBED_D
-        vecPoint.segment(0, iEmbed_D) = vecProject.array().cos();
-        vecPoint.segment(iEmbed_D, iEmbed_D) = vecProject.array().sin();
-        // At this stage, vecPoint = {cos(w_1 . x), sin(w_1 . x)    ... cos(w_d . x), sin(w_d . x)}
-        // We do not scale by 1/sqrt(iEmbed_D) since we only consider ordering, not value
-        // If we consider the set Si and Ri, then we must scale by 1/sqrt(iEmbed_D)
-
-        for (int r = 0; r < PARAM_INTERNAL_NUM_ROTATION; ++r)
-        {
-            // Component-wise multiplication with a random sign
-            for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
-            {
-                vecPoint(d) *= (2 * (int)bitHD3_Proj[r * PARAM_NUM_PROJECTION + d] - 1);
-            }
-
-            // Multiple with Hadamard matrix by calling FWHT transform
-            fht_float(vecPoint.data(), log2Project);
-        }
-
-        // Since we only consider top-k and top-m, we do not need any further scaling
-        // Store projection matrix for faster parallel, and no need to scale since we keep top-k and top-m
-        MATRIX_RP.col(n) = vecPoint;
-
-        // Store potential candidate and find top-k closes and furtherest random vector
-        Min_PQ_Pair minCloseTopK;
-        Min_PQ_Pair minFarTopK;
-
-        for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
-        {
-            float fValue = vecPoint(d);
-
-            /**
-            For each point Xi, get top-K closest random vector and top-K furthest random vector
-            **/
-
-            // 1) Close: Using priority queue to find top-k closest vectors for each point
-            if ((int)minCloseTopK.size() < PARAM_PROJECTION_TOP_K)
-                minCloseTopK.push(IFPair(d, fValue));
-            else
-            {
-                if (fValue > minCloseTopK.top().m_fValue)
-                {
-                    minCloseTopK.pop();
-                    minCloseTopK.push(IFPair(d, fValue));
-                }
-            }
-
-            // 2) Far: Using priority queue to find top-k furthest vectors
-            if ((int)minFarTopK.size() < PARAM_PROJECTION_TOP_K)
-                minFarTopK.push(IFPair(d, -fValue));
-            else
-            {
-                if (-fValue > minFarTopK.top().m_fValue)
-                {
-                    minFarTopK.pop();
-                    minFarTopK.push(IFPair(d, -fValue));
-                }
-            }
-        }
-
-        // Get (sorted by projection value) top-k closest and furthest vector for each point
-        for (int k = PARAM_PROJECTION_TOP_K - 1; k >= 0; --k)
-        {
-            MATRIX_TOP_K(k, n) = minCloseTopK.top().m_iIndex;
-            minCloseTopK.pop();
-
-            MATRIX_TOP_K(k + PARAM_PROJECTION_TOP_K, n) = minFarTopK.top().m_iIndex;
-            minFarTopK.pop();
-        }
-    }
-
-    /**
-    For each random vector, getting 2*top-m as close and far candidates
-    **/
-    MATRIX_TOP_M = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_M, PARAM_NUM_PROJECTION);
-
-    // omp_set_dynamic(0);     // Explicitly disable dynamic teams
-    omp_set_num_threads(PARAM_NUM_THREADS);
-    #pragma omp parallel for
-    for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
-    {
-        // sort(begin(matProject.col(d)), end(matProject.col(d)), [](float lhs, float rhs){return rhs > lhs});
-
-        Min_PQ_Pair minPQ_Close;
-        Min_PQ_Pair minPQ_Far;
-
-        VectorXf vecProject = MATRIX_RP.row(d); // it must be row since D x N
-
-        for (int n = 0; n < PARAM_DATA_N; ++n)
-        {
-            float fValue = vecProject(n);
-
-            // Close
-            if ((int)minPQ_Close.size() < PARAM_PROJECTION_TOP_M)
-                minPQ_Close.push(IFPair(n, fValue));
-            else
-            {
-                if (fValue > minPQ_Close.top().m_fValue)
-                {
-                    minPQ_Close.pop();
-                    minPQ_Close.push(IFPair(n, fValue));
-                }
-            }
-
-            // Far
-            if ((int)minPQ_Far.size() < PARAM_PROJECTION_TOP_M)
-                minPQ_Far.push(IFPair(n, -fValue));
-            else
-            {
-                if (-fValue > minPQ_Far.top().m_fValue)
-                {
-                    minPQ_Far.pop();
-                    minPQ_Far.push(IFPair(n, -fValue));
-                }
-            }
-        }
-
-        // Extract elements from PQ
-        for (int k = PARAM_PROJECTION_TOP_M - 1; k >= 0; --k)
-        {
-            // Close
-            MATRIX_TOP_M(k, d) = minPQ_Close.top().m_iIndex;
-            minPQ_Close.pop();
-
-            // Far
-            MATRIX_TOP_M(k + PARAM_PROJECTION_TOP_M, d) = minPQ_Far.top().m_iIndex;
-            minPQ_Far.pop();
-        }
-    }
-}
+//void parDbscanIndex_L2()
+//{
+//
+//    /** Param for embedding **/
+//    int iEmbed_D = PARAM_KERNEL_EMBED_D / 2; // This is becase we need cos() and sin()
+//    int log2Embed_D = log2(iEmbed_D);
+//
+//    boost::dynamic_bitset<> bitHD3_Embed;
+//    bitHD3Generator(iEmbed_D * PARAM_INTERNAL_NUM_ROTATION, bitHD3_Embed);
+//
+//    /** Param for random projection **/
+//    MatrixXf MATRIX_RP = MatrixXf::Zero(PARAM_NUM_PROJECTION, PARAM_DATA_N);
+//    int log2Project = log2(PARAM_NUM_PROJECTION);
+//
+//    MATRIX_TOP_K = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_K, PARAM_DATA_N);
+//
+//    boost::dynamic_bitset<> bitHD3_Proj;
+//    bitHD3Generator(PARAM_NUM_PROJECTION * PARAM_INTERNAL_NUM_ROTATION, bitHD3_Proj);
+//
+//    // Only for testing
+////    MATRIX_X_EMBED = MatrixXf::Zero(PARAM_KERNEL_EMBED_D, PARAM_DATA_N);
+//
+//    // omp_set_dynamic(0);     // Explicitly disable dynamic teams
+//    omp_set_num_threads(PARAM_NUM_THREADS);
+//
+//    #pragma omp parallel for
+//    for (int n = 0; n < PARAM_DATA_N; ++n)
+//    {
+//        /**
+//        L2 Embedding
+//        **/
+//
+//        VectorXf vecProject = VectorXf::Zero(iEmbed_D); // iEmbed_D > D
+//        vecProject.segment(0, PARAM_DATA_D) = MATRIX_X.col(n);
+//
+//        for (int r = 0; r < PARAM_INTERNAL_NUM_ROTATION; ++r)
+//        {
+//            // Component-wise multiplication with a random sign
+//            for (int d = 0; d < iEmbed_D; ++d)
+//            {
+//                vecProject(d) *= (2 * (int)bitHD3_Embed[r * iEmbed_D + d] - 1);
+//            }
+//
+//            // Multiple with Hadamard matrix by calling FWHT transform
+//            fht_float(vecProject.data(), log2Embed_D);
+//        }
+//
+//        // We scale with iEmbed_D since we apply HD2HD1, each need a scale of sqrt(iEmbed_D). The last HD3 is similar to Gaussian matrix.
+//        // We further scale with sigma since we use the standard scale N(0, 1/sigma^2) hence std = 1/sigma for kernel embedding
+//        // K(x, y) = exp(-dist^2 / 2*sigma^2)
+//        // See: https://github.com/hichamjanati/srf/blob/master/RFF-I.ipynb
+//        vecProject /= (iEmbed_D * PARAM_KERNEL_SIGMA); // vecPoint.segment(0, 128); // One can call O(DlogD) and get top-iEmbed_D if D > iEmbed_D
+//
+//        // At this stage, vecProject is identical to random projection values with normal vectors.
+//        // We would need cos(), sin() and scale by 1/sqrt(iEmbed_D) to have E <f(x), f(q)> = K(x, q)
+//
+//        // Only for testing OPTICS plot (Euclidean space vs Embedded space)
+////        VectorXf vecEmbed = VectorXf::Zero(PARAM_KERNEL_EMBED_D);
+////        vecEmbed << vecProject.array().cos(), vecProject.array().sin();
+////        MATRIX_X_EMBED.col(n) = vecEmbed / sqrt(iEmbed_D);
+//
+//        /**
+//        Random projection
+//        **/
+//        VectorXf vecPoint = VectorXf::Zero(PARAM_NUM_PROJECTION); // NUM_PROJECT > PARAM_KERNEL_EMBED_D
+//        vecPoint.segment(0, iEmbed_D) = vecProject.array().cos();
+//        vecPoint.segment(iEmbed_D, iEmbed_D) = vecProject.array().sin();
+//        // At this stage, vecPoint = {cos(w_1 . x), sin(w_1 . x)    ... cos(w_d . x), sin(w_d . x)}
+//        // We do not scale by 1/sqrt(iEmbed_D) since we only consider ordering, not value
+//        // If we consider the set Si and Ri, then we must scale by 1/sqrt(iEmbed_D)
+//
+//        for (int r = 0; r < PARAM_INTERNAL_NUM_ROTATION; ++r)
+//        {
+//            // Component-wise multiplication with a random sign
+//            for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//            {
+//                vecPoint(d) *= (2 * (int)bitHD3_Proj[r * PARAM_NUM_PROJECTION + d] - 1);
+//            }
+//
+//            // Multiple with Hadamard matrix by calling FWHT transform
+//            fht_float(vecPoint.data(), log2Project);
+//        }
+//
+//        // Since we only consider top-k and top-m, we do not need any further scaling
+//        // Store projection matrix for faster parallel, and no need to scale since we keep top-k and top-m
+//        MATRIX_RP.col(n) = vecPoint;
+//
+//        // Store potential candidate and find top-k closes and furtherest random vector
+//        Min_PQ_Pair minCloseTopK;
+//        Min_PQ_Pair minFarTopK;
+//
+//        for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//        {
+//            float fValue = vecPoint(d);
+//
+//            /**
+//            For each point Xi, get top-K closest random vector and top-K furthest random vector
+//            **/
+//
+//            // 1) Close: Using priority queue to find top-k closest vectors for each point
+//            if ((int)minCloseTopK.size() < PARAM_PROJECTION_TOP_K)
+//                minCloseTopK.push(IFPair(d, fValue));
+//            else
+//            {
+//                if (fValue > minCloseTopK.top().m_fValue)
+//                {
+//                    minCloseTopK.pop();
+//                    minCloseTopK.push(IFPair(d, fValue));
+//                }
+//            }
+//
+//            // 2) Far: Using priority queue to find top-k furthest vectors
+//            if ((int)minFarTopK.size() < PARAM_PROJECTION_TOP_K)
+//                minFarTopK.push(IFPair(d, -fValue));
+//            else
+//            {
+//                if (-fValue > minFarTopK.top().m_fValue)
+//                {
+//                    minFarTopK.pop();
+//                    minFarTopK.push(IFPair(d, -fValue));
+//                }
+//            }
+//        }
+//
+//        // Get (sorted by projection value) top-k closest and furthest vector for each point
+//        for (int k = PARAM_PROJECTION_TOP_K - 1; k >= 0; --k)
+//        {
+//            MATRIX_TOP_K(k, n) = minCloseTopK.top().m_iIndex;
+//            minCloseTopK.pop();
+//
+//            MATRIX_TOP_K(k + PARAM_PROJECTION_TOP_K, n) = minFarTopK.top().m_iIndex;
+//            minFarTopK.pop();
+//        }
+//    }
+//
+//    /**
+//    For each random vector, getting 2*top-m as close and far candidates
+//    **/
+//    MATRIX_TOP_M = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_M, PARAM_NUM_PROJECTION);
+//
+//    // omp_set_dynamic(0);     // Explicitly disable dynamic teams
+//    omp_set_num_threads(PARAM_NUM_THREADS);
+//    #pragma omp parallel for
+//    for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
+//    {
+//        // sort(begin(matProject.col(d)), end(matProject.col(d)), [](float lhs, float rhs){return rhs > lhs});
+//
+//        Min_PQ_Pair minPQ_Close;
+//        Min_PQ_Pair minPQ_Far;
+//
+//        VectorXf vecProject = MATRIX_RP.row(d); // it must be row since D x N
+//
+//        for (int n = 0; n < PARAM_DATA_N; ++n)
+//        {
+//            float fValue = vecProject(n);
+//
+//            // Close
+//            if ((int)minPQ_Close.size() < PARAM_PROJECTION_TOP_M)
+//                minPQ_Close.push(IFPair(n, fValue));
+//            else
+//            {
+//                if (fValue > minPQ_Close.top().m_fValue)
+//                {
+//                    minPQ_Close.pop();
+//                    minPQ_Close.push(IFPair(n, fValue));
+//                }
+//            }
+//
+//            // Far
+//            if ((int)minPQ_Far.size() < PARAM_PROJECTION_TOP_M)
+//                minPQ_Far.push(IFPair(n, -fValue));
+//            else
+//            {
+//                if (-fValue > minPQ_Far.top().m_fValue)
+//                {
+//                    minPQ_Far.pop();
+//                    minPQ_Far.push(IFPair(n, -fValue));
+//                }
+//            }
+//        }
+//
+//        // Extract elements from PQ
+//        for (int k = PARAM_PROJECTION_TOP_M - 1; k >= 0; --k)
+//        {
+//            // Close
+//            MATRIX_TOP_M(k, d) = minPQ_Close.top().m_iIndex;
+//            minPQ_Close.pop();
+//
+//            // Far
+//            MATRIX_TOP_M(k + PARAM_PROJECTION_TOP_M, d) = minPQ_Far.top().m_iIndex;
+//            minPQ_Far.pop();
+//        }
+//    }
+//}
 
 /**
 Do not store Projection-Matrix due to the memory limit
@@ -806,9 +806,17 @@ Only support ChiSquare and Johnson Shannon divergences
 //    }
 //}
 
+/**
+Store the projection matrix Rx for parallel processing.
+Store binary bits for FHWT transform, especially we have to use them for sDBSCAN-1NN
+
+Using priority queue to extract top-k and top-m
+
+For each point Xi, compute its dot product, extract top-k close/far random vectors
+For each random vector Ri, reuse dot product matrix, extract top-k close/far points
+**/
 void parDbscanIndex()
 {
-
     /** Param for embedding L1 and L2 **/
     int iFourierEmbed_D = PARAM_KERNEL_EMBED_D / 2; // This is becase we need cos() and sin()
 
@@ -833,6 +841,9 @@ void parDbscanIndex()
     // omp_set_dynamic(0);     // Explicitly disable dynamic teams
     omp_set_num_threads(PARAM_NUM_THREADS);
 
+    /**
+    Parallel for each the point Xi: (1) Compute and store dot product, and (2) Extract top-k close/far random vectors
+    **/
     #pragma omp parallel for
     for (int n = 0; n < PARAM_DATA_N; ++n)
     {
@@ -877,7 +888,10 @@ void parDbscanIndex()
         // Store projection matrix for faster parallel, and no need to scale since we keep top-k and top-MinPts
         MATRIX_RP.col(n) = vecRotation.segment(0, PARAM_NUM_PROJECTION); // only get up to #numProj
 
-        // Store potential candidate and find top-k closes and furtherest random vector
+        /**
+        Extract top-k closes and furtherest random vectors
+        **/
+
         Min_PQ_Pair minCloseTopK;
         Min_PQ_Pair minFarTopK;
 
@@ -891,7 +905,7 @@ void parDbscanIndex()
             2) For each point Xi, get top-K closest random vector and top-K furthest random vector
             **/
 
-            // (2) Close: Using priority queue to find top-k closest vectors for each point
+            // (1) Close: Using priority queue to find top-k closest vectors for each point
             if ((int)minCloseTopK.size() < PARAM_PROJECTION_TOP_K)
                 minCloseTopK.push(IFPair(d, fValue));
             else
@@ -903,7 +917,7 @@ void parDbscanIndex()
                 }
             }
 
-            // // (2) Far: Using priority queue to find top-k furthest vectors
+            // (2) Far: Using priority queue to find top-k furthest vectors
             if ((int)minFarTopK.size() < PARAM_PROJECTION_TOP_K)
                 minFarTopK.push(IFPair(d, -fValue));
             else
@@ -928,13 +942,18 @@ void parDbscanIndex()
 
     }
 
+
     /**
-    For each random vector, getting 2*top-m as close and far candidates
+    For each random vector, extract top-m close/far data points
     **/
     MATRIX_TOP_M = MatrixXi::Zero(2 * PARAM_PROJECTION_TOP_M, PARAM_NUM_PROJECTION);
 
     // omp_set_dynamic(0);     // Explicitly disable dynamic teams
     omp_set_num_threads(PARAM_NUM_THREADS);
+
+    /**
+    Parallel for each random vector, getting 2*top-m as close and far candidates
+    **/
     #pragma omp parallel for
     for (int d = 0; d < PARAM_NUM_PROJECTION; ++d)
     {
@@ -988,9 +1007,11 @@ void parDbscanIndex()
 }
 
 /**
-Do not store Projection-Matrix due to the memory limit
+Faster and more memory-efficient than parDbscanIndex() if using single-thread
+
+Do not store Projection Matrix
 Slow on threading since we have to update the same memory containing the data structure
-Using priority queue to extract top-k and top-MinPts
+Using priority queue to extract top-k and top-m
 **/
 void seqDbscanIndex()
 {
@@ -1073,6 +1094,7 @@ void seqDbscanIndex()
             2) For each point Xi, get top-K closest random vector and top-K furthest random vector
             **/
 
+        // need to update PQ for many random vectors as the same time, so it is not multi-thread-friendly
         #pragma omp critical
         {
             // Single thread: (1) Close: PQ to find Top-m for each random vector
@@ -1162,10 +1184,10 @@ void seqDbscanIndex()
 
 /**
 vec2D_DBSCAN_Neighbor: For each point, store its true neighborhood (within radius eps)
-- Note that for each point x, we keep insert into x's neighborhood y - using vector
-- This approach is very fast (multi-thread friendly) but losing that x is also y's neighborhood
-- Also, this approach might store duplicate if y appears several time on close/far random project
-- We might fix with set()
+- Note that for each point X, if dist(X, Y) < eps, we insert Y into X's neighborhood - using vector. Note that set() is rather slow as the size of vector is O(km)
+- This approach is very fast (multi-thread friendly) but losing that X is also Y's neighborhood.
+This affects the symmetric property of the NN graph, which will degrade the clustering time and accuracy.
+
 bit_CORE_POINTS: Store a bit vector presenting for core point
 **/
 void findCorePoints_Asym()
@@ -1177,7 +1199,6 @@ void findCorePoints_Asym()
     bit_CORE_POINTS = boost::dynamic_bitset<>(PARAM_DATA_N);
 
     //TODO: If single thread, then we can improve if we store (X1, X2) s.t. <X1,X2> >= threshold
-    //TODO: We can use EPS and MATRIX_X to compute the distance if embedding_d >> original_d
 
     // omp_set_dynamic(0);     // Explicitly disable dynamic teams
     omp_set_num_threads(PARAM_NUM_THREADS);
@@ -1185,9 +1206,7 @@ void findCorePoints_Asym()
     for (int n = 0; n < PARAM_DATA_N; ++n)
     {
         // Get top-k closese/furthest vectors
-//        VectorXf vecXn = MATRIX_X_EMBED.col(n);
         VectorXf vecXn = MATRIX_X.col(n);
-
         VectorXi vecTopK = MATRIX_TOP_K.col(n); // size 2K: first K is close, last K is far
 
         IVector vecNeighborhood;
@@ -1200,6 +1219,7 @@ void findCorePoints_Asym()
             // Closest
             int Ri = vecTopK(k);
 
+            // Close
             for (int i = 0; i < PARAM_PROJECTION_TOP_M; ++i)
             {
                 // Compute distance between Xn and Xi
@@ -1217,7 +1237,9 @@ void findCorePoints_Asym()
 
                     float fDist = computeDist(vecXn, MATRIX_X.col(iPointIdx));
 
-                    if (fDist <= PARAM_DBSCAN_EPS) // if (vecXn.dot(MATRIX_X_EMBED.col(iPointIdx)) >= fThresDot)
+                    // Can speed up if storing global precomputed matrix as a set((small_ID, large_ID) if have enough RAM
+                    // It is not thread-friendly as it has to update this matrix
+                    if (fDist <= PARAM_DBSCAN_EPS)
                         vecNeighborhood.push_back(iPointIdx);
                 }
             }
@@ -1242,7 +1264,9 @@ void findCorePoints_Asym()
 
                     float fDist = computeDist(vecXn, MATRIX_X.col(iPointIdx));
 
-                    if (fDist <= PARAM_DBSCAN_EPS) // Can speed up if storing global precomputed matrix as a set((small_ID, large_ID)
+                    // Can speed up if storing global precomputed matrix as a set((small_ID, large_ID) if have enough RAM
+                    // It is not thread-friendly as it has to update this matrix
+                    if (fDist <= PARAM_DBSCAN_EPS)
                         vecNeighborhood.push_back(iPointIdx);
                 }
             }
@@ -1276,9 +1300,9 @@ bit_CORE_POINTS: Store a bit vector presenting for core point
 void findCorePoints()
 {
     vec2D_DBSCAN_Neighbor = vector<IVector> (PARAM_DATA_N, IVector());
-    bit_CORE_POINTS = boost::dynamic_bitset<>(PARAM_DATA_N);
+    //    vector<unordered_set<int>> set2D_DBSCAN_Neighbor(PARAM_DATA_N, unordered_set<int>()); // Space and time overheads are significant compared to vector
 
-//    vector<unordered_set<int>> set2D_DBSCAN_Neighbor(PARAM_DATA_N, unordered_set<int>());
+    bit_CORE_POINTS = boost::dynamic_bitset<>(PARAM_DATA_N);
 
     chrono::steady_clock::time_point begin;
     begin = chrono::steady_clock::now();
@@ -1296,11 +1320,16 @@ void findCorePoints()
 
         VectorXi vecTopK = MATRIX_TOP_K.col(n); // size 2K: first K is close, last K is far
 
-//        IVector vecNeighborhood;
 
-//        unordered_set<int> approxNeighbor; // it might be faster with binary vector for small data set if MinPts * 2K * 32 bits >> N
+        /**
+        Choice of data structure: We are using bitSet of size N bits
+        If using vector: It will be faster for 2k * m * 32 (4 bytes) << N (bits)
+        If using unorder_set or set: It will be faster for 2k * m * 36 * 8 (36 bytes) << N (bits)
+        **/
+//        IVector vecNeighborhood;
+//        unordered_set<int> approxNeighbor;
 //        set<int> approxNeighbor;
-        boost::dynamic_bitset<> approxNeighbor(PARAM_DATA_N);
+        boost::dynamic_bitset<> approxNeighbor(PARAM_DATA_N); // 8M bits = 1MB
 
         for (int k = 0; k < PARAM_PROJECTION_TOP_K; ++k)
         {
@@ -1324,7 +1353,7 @@ void findCorePoints()
 
                     float fDist = computeDist(vecXn, MATRIX_X.col(iPointIdx));
 
-                    if (fDist <= PARAM_DBSCAN_EPS) // if (vecXn.dot(MATRIX_X_EMBED.col(iPointIdx)) >= fThresDot)
+                    if (fDist <= PARAM_DBSCAN_EPS)
                     {
                         #pragma omp critical
                         {
@@ -1359,10 +1388,8 @@ void findCorePoints()
 
                     float fDist = computeDist(vecXn, MATRIX_X.col(iPointIdx));
 
-                    if (fDist <= PARAM_DBSCAN_EPS) // Can speed up if storing global precomputed matrix as a set((small_ID, large_ID)
+                    if (fDist <= PARAM_DBSCAN_EPS)
                     {
-                        // omp_set_dynamic(0);     // Explicitly disable dynamic teams
-//                        omp_set_num_threads(PARAM_NUM_THREADS);
                         #pragma omp critical
                         {
 //                        set2D_DBSCAN_Neighbor[n].insert(iPointIdx);  // set is very slow, and the overhead is large
@@ -1419,6 +1446,9 @@ void findCorePoints()
 
 
 /**
+This is a naive implementation of uDBSCAN++.
+Note that DBSCAN++ uses KD Tree to speed up 1NN heuristic for cluster propagation.
+
 vec2D_DBSCAN_Neighbor: For each sampled point, store its true neighborhood (within radius eps)
 bit_CORE_POINTS: Store a bit vector presenting for core point
 **/
@@ -1446,7 +1476,7 @@ void findCorePoints_uDbscan()
 
     // omp_set_dynamic(0);     // Explicitly disable dynamic teams
     omp_set_num_threads(PARAM_NUM_THREADS);
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int s = 0; s < iNumSamples; ++s)
     {
         // Get top-k closese/furthest vectors
@@ -1462,7 +1492,7 @@ void findCorePoints_uDbscan()
 
             float fDist = computeDist(vecXs, MATRIX_X.col(n));
 
-            if (fDist <= PARAM_DBSCAN_EPS) // if (vecXn.dot(MATRIX_X_EMBED.col(iPointIdx)) >= fThresDot)
+            if (fDist <= PARAM_DBSCAN_EPS)
                 vecNeighbor.push_back(n);
         }
 
@@ -1484,6 +1514,8 @@ void findCorePoints_uDbscan()
 }
 
 /**
+This is a multi-thread friendly implementation of sngDBSCAN, much faster than the original sngDBSCAN on large data.
+
 vec2D_DBSCAN_Neighbor: For each sampled point, store its true neighborhood (within radius eps)
 bit_CORE_POINTS: Store a bit vector presenting for core point
 **/
@@ -1566,6 +1598,10 @@ void findCorePoints_sngDbscan()
 
 /**
 We connect core points first, then label its neighborhood later
+
+If the symmetric property of the graph is not preserved, then forming clustering will be very slow
+
+Current implementation is not the final solution!
 **/
 void formCluster_Asym(int & p_iNumClusters, IVector & p_vecLabels)
 {
@@ -1601,16 +1637,6 @@ void formCluster_Asym(int & p_iNumClusters, IVector & p_vecLabels)
         unordered_set<int> seedSet; //seedSet only contains core points
         seedSet.insert(n);
 
-        // Note: For small data set (e.g. < 10K), bitset might be faster
-        // However, for large data set (1M), iterative the bitset is O(n) --> much slower, especially if OPTICS with large radius
-//        boost::dynamic_bitset<> seedSet(PARAM_DATA_N);
-//        seedSet[n] = 1;
-
-//        unordered_set<int> connectedPoints; // can be replaced by a histogram to increase the searching process
-//        connectedPoints.insert(n);
-
-        // We should use bitset since a cluster tends to contain many points (e.g. n / 10) so iterative bitset is fine
-        // Otherwise, unorder_set might be faster
         boost::dynamic_bitset<> connectedPoints(PARAM_DATA_N);
         connectedPoints[n] = 1;
 
@@ -1646,6 +1672,18 @@ void formCluster_Asym(int & p_iNumClusters, IVector & p_vecLabels)
                             seedSet.insert(Xj);
 //                            seedSet[Xj] = 1;
 
+                        /** This is the key difference with asymmetric graph
+                        If NN(x) = {y, z} but NN(y) and NN(z) do not contain x (not symmetric)
+                        what if label(y) != label(z) ?
+
+                        Current slow solution: Updating all label(y) and label(z) with label(x)
+                        Have to update labels of many points --> Very slow
+
+                        TODO: Lazy update cluster label
+                        - If 1 connects to 2, keep info 1-2
+                        - If 2 connects to 4, keep info 2-4
+                        Then finally, merge all connected components together and update labels
+                        **/
                         // Check the core in neighborhood, whose label is already assigned
                         if ( (! bConnected) && (p_vecLabels[Xj] > -1) && (p_vecLabels[Xj] < iNewClusterID))
                         {
@@ -1722,6 +1760,7 @@ void formCluster(int & p_iNumClusters, IVector & p_vecLabels)
 
         /** Note: There is a tradeoff between multi-threading speedup and clustering time
         TODO: Better parallel forming cluster()
+
         - If call findCorePoints_Asym(), then we have to consider several seedSet and it will connect to the clustered point before
         Therefore, forming cluster takes time
         - If call findCorePoints(), similar points are inserted into both arrays, then clusters tend to connect each other well.
@@ -1737,20 +1776,23 @@ void formCluster(int & p_iNumClusters, IVector & p_vecLabels)
         unordered_set<int> seedSet; //seedSet only contains core points
         seedSet.insert(n);
 
-        // Note: For small data set (e.g. < 10K), bitset might be faster
-        // However, for large data set (1M), iterative the bitset is O(n) --> much slower, especially if OPTICS with large radius
+        /**
+        # core points detected for each connected component is small (due to the approximation), so unorder_set() is fine.
+        However, if this number is large, bitSet might be a good choice
 //        boost::dynamic_bitset<> seedSet(PARAM_DATA_N);
 //        seedSet[n] = 1;
+        **/
 
-//        unordered_set<int> connectedPoints; // can be replaced by a histogram to increase the searching process
+        /**
+        connectedPoints tend to have many points (e.g. n/20), then bitSet is better than unordered_set()
+//        unordered_set<int> connectedPoints;
 //        connectedPoints.insert(n);
+        **/
 
-        // We should use bitset since a cluster tends to contain many points (e.g. n / 10) so iterative bitset is fine
-        // Otherwise, unorder_set might be faster
         boost::dynamic_bitset<> connectedPoints(PARAM_DATA_N);
         connectedPoints[n] = 1;
 
-        // unorder_set<int> is slow if there are many core points - google::dense_hash_set might be faster
+        // unordered_set<int> is slow if there are many core points - google::dense_hash_set or bitSet might be faster
         // however, clustering is very fast compared to computing core points and its neighborhood - no need to improve at this stage
 //        while (seedSet.count() > 0)
         while (seedSet.size() > 0)
@@ -1767,7 +1809,7 @@ void formCluster(int & p_iNumClusters, IVector & p_vecLabels)
             // Find the core points, connect them together, and check if one of them already has assigned labels
             for (auto const& Xj : Xi_neighborhood)
             {
-                // Find the core points first
+                // If core point and not connected, then add into seedSet
                 if (bit_CORE_POINTS[Xj])
                 {
 //                    if (connectedCore.find(Xj) == connectedCore.end())
@@ -1830,7 +1872,12 @@ void formCluster(int & p_iNumClusters, IVector & p_vecLabels)
 }
 
 /**
-Cluster noisy points to increase NMI with groundtruth
+Cluster noisy points to increase NMI when comparing with class labels
+There are several methods:
+1) Assign label to random vectors, and use labels of random vectors
+2) Sampling 0.01n core points to compute build 1NN classifier
+3) sngDBSCAN: Assign core points' labels to all of its neighborhoods
+4) Sampling 0.01n core points, use CEOs to approximate 1NN classifier
 **/
 void clusterNoise(IVector& p_vecLabels, int p_iOption)
 {
@@ -2012,6 +2059,9 @@ void clusterNoise(IVector& p_vecLabels, int p_iOption)
             IVector vecCore;
             int iNumCore = bit_CORE_POINTS.count();
 
+            /**
+            Sampling 0.01 n # core points
+            **/
             // Hack: We only consider 1% * n # core points
             float fProb = 1.0;
             if (iNumCore > 0.01 * PARAM_DATA_N)
@@ -2029,7 +2079,7 @@ void clusterNoise(IVector& p_vecLabels, int p_iOption)
                 Xi = bit_CORE_POINTS.find_next(Xi);
             }
 
-            // Update number of cores
+            /** Compute again their random projections **/
             iNumCore = vecCore.size();
             cout << "Number of sampled core points: " << vecCore.size() << endl;
 
@@ -2087,6 +2137,8 @@ void clusterNoise(IVector& p_vecLabels, int p_iOption)
                 matCoreEmbeddings.row(i) = vecRotation.segment(0, PARAM_NUM_PROJECTION); // only get up to #numProj
             }
 
+            /** Estimate distance using CEOs and 1NN classifer **/
+
             omp_set_num_threads(PARAM_NUM_THREADS);
             #pragma omp parallel for
             for (auto const& Xi : vecNoise)
@@ -2094,7 +2146,6 @@ void clusterNoise(IVector& p_vecLabels, int p_iOption)
                 // Get top-k closest/furthest random vectors
                 VectorXi vecRandom = MATRIX_TOP_K.col(Xi);
                 VectorXf vecDotEst = VectorXf::Zero(iNumCore);
-
 
                 for (int k = 0; k < PARAM_PROJECTION_TOP_K; ++k)
                 {
@@ -2139,13 +2190,11 @@ void clusterNoise(IVector& p_vecLabels, int p_iOption)
 
 }
 
-
+/** Multi-thread sDbscan **/
 void sDbscan()
 {
     chrono::steady_clock::time_point begin;
     begin = chrono::steady_clock::now();
-//    parDbscanIndex_L2();
-
 
     parDbscanIndex();
     cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
@@ -2177,6 +2226,7 @@ void sDbscan()
 
 }
 
+/** Single thread sDbscan **/
 void seq_sDbscan()
 {
     chrono::steady_clock::time_point begin;
@@ -2210,6 +2260,7 @@ void seq_sDbscan()
 
 }
 
+/** Multi-thread sngDbscan **/
 void sngDbscan()
 {
     cout << "Running sngDBSCAN" << endl;

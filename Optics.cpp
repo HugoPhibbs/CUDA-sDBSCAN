@@ -5,7 +5,9 @@
 //#include "google/dense_hash_set"
 //#include "google/dense_hash_map"
 
-
+/**
+Finding neighborhood and its distance to the query point using random projection
+**/
 void findCoreDist()
 {
     vec2D_OPTICS_NeighborDist = vector< vector< pair<int, float> > > (PARAM_DATA_N, vector< pair<int, float> >());
@@ -162,6 +164,9 @@ void findCoreDist()
 }
 
 
+/**
+Finding neighborhood and its distance to the query point using sampling
+**/
 void findCoreDist_sng()
 {
     vec2D_OPTICS_NeighborDist = vector< vector< pair<int, float> > > (PARAM_DATA_N, vector< pair<int, float> >());
@@ -195,8 +200,7 @@ void findCoreDist_sng()
 #pragma omp critical
                 {
                     vec2D_OPTICS_NeighborDist[n].push_back(make_pair(iPointIdx, fDist)); // duplicate at most twice
-                    vec2D_OPTICS_NeighborDist[iPointIdx].push_back(
-                            make_pair(n, fDist)); // so vector is much better than map()
+                    vec2D_OPTICS_NeighborDist[iPointIdx].push_back(make_pair(n, fDist)); // so vector is much better than map()
                 }
             }
         }
@@ -424,7 +428,6 @@ void formOptics(IVector& p_vecLabels, IVector & p_vecOrder, FVector & p_vecReach
             cout << "There exist some unlabeled points !" << endl;
 
     }
-
 
     /**
     Compute reachable distance for points within the cluster

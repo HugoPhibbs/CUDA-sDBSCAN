@@ -66,49 +66,45 @@ int loadInput(int nargs, char** args)
                 iAlgType = 1;
                 cout << "Algorithm: sDBSCAN... " << endl;
             }
+            if (strcmp(args[i + 1], "sDbscan_1NN") == 0)
+            {
+                iAlgType = 1;
+                PARAM_DBSCAN_CLUSTER_NOISE = 4;
+                cout << "Algorithm: sDBSCAN-1NN... " << endl;
+            }
+            else if (strcmp(args[i + 1], "test_sDbscan") == 0)
+            {
+                iAlgType = 11;
+                cout << "Algorithm: Test sDbscan... " << endl;
+            }
+//            else if (strcmp(args[i + 1], "test_sDbscanAsym") == 0)
+//            {
+//                iAlgType = 12;
+//                cout << "Algorithm: Test asymmetric sDbscan... " << endl;
+//            }
             else if (strcmp(args[i + 1], "sOptics") == 0)
             {
                 iAlgType = 2;
                 cout << "Algorithm: sOPTICS... " << endl;
             }
-            else if (strcmp(args[i + 1], "sngOptics") == 0)
-            {
-                iAlgType = 3;
-                cout << "Algorithm: sngOPTICS... " << endl;
-            }
-            else if (strcmp(args[i + 1], "test_sDbscan") == 0)
-            {
-                iAlgType = 30;
-                cout << "Algorithm: Test sDbscan... " << endl;
-            }
-            else if (strcmp(args[i + 1], "test_sDbscanL2") == 0)
-            {
-                iAlgType = 31;
-                cout << "Algorithm: Test sDbscan L2 with FWHT... " << endl;
-            }
-            else if (strcmp(args[i + 1], "test_sDbscanAsym") == 0)
-            {
-                iAlgType = 32;
-                cout << "Algorithm: Test asymmetric sDbscan... " << endl;
-            }
-            else if (strcmp(args[i + 1], "test_sOpticsAsym") == 0)
-            {
-                iAlgType = 33;
-                cout << "Algorithm: Test asymmetric sOptics... " << endl;
-            }
+//            else if (strcmp(args[i + 1], "test_sOpticsAsym") == 0)
+//            {
+//                iAlgType = 21;
+//                cout << "Algorithm: Test asymmetric sOptics... " << endl;
+//            }
             else if (strcmp(args[i + 1], "sngDbscan") == 0)
             {
-                iAlgType = 4;
+                iAlgType = 3;
                 cout << "Algorithm: sngDbscan... " << endl;
             }
             else if (strcmp(args[i + 1], "test_uDbscan") == 0)
             {
-                iAlgType = 41;
+                iAlgType = 31;
                 cout << "Algorithm: Test uniform DBSCAN++... " << endl;
             }
             else if (strcmp(args[i + 1], "test_sngDbscan") == 0)
             {
-                iAlgType = 42;
+                iAlgType = 32;
                 cout << "Algorithm: Test sampling Dbscan... " << endl;
             }
             else
