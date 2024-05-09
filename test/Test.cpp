@@ -1,4 +1,8 @@
-#include "Test.h"
+#include "../test/Test.h"
+#include "../include/sngDBSCAN.h"
+#include "../include/sDBSCAN.h"
+#include "../include/uDBSCAN.h"
+#include "../include/sngDBSCAN.h"
 
 MatrixXf MATRIX_X_EMBED;
 
@@ -896,7 +900,7 @@ Call test_sng with p = 1
 **/
 void test_naiveDbscan()
 {
-    cout << "Testing exact DBSCAN" << endl;
+    cout << "Testing exact dbscan" << endl;
 
     chrono::steady_clock::time_point begin, start;
     begin = chrono::steady_clock::now();

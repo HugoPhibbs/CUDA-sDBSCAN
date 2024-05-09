@@ -1,5 +1,5 @@
-#include "InputParser.h"
-#include "Header.h"
+#include "../include/InputParser.h"
+#include "../include/Header.h"
 
 #include <stdlib.h>     /* atoi */
 #include <iostream> // cin, cout
@@ -51,7 +51,7 @@ int loadInput(int nargs, char** args)
     }
 
 
-    // DBSCAN or OPTICS
+    // dbscan or OPTICS
 
     // Algorithm
     int iAlgType = 0;
@@ -100,7 +100,7 @@ int loadInput(int nargs, char** args)
             else if (strcmp(args[i + 1], "test_uDbscan") == 0)
             {
                 iAlgType = 31;
-                cout << "Algorithm: Test uniform DBSCAN++... " << endl;
+                cout << "Algorithm: Test uniform dbscan++... " << endl;
             }
             else if (strcmp(args[i + 1], "test_sngDbscan") == 0)
             {

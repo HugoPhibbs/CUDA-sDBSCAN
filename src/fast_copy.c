@@ -1,4 +1,4 @@
-#include "fast_copy.h"
+#include "../include/fast_copy.h"
 #include <string.h>
 #include <stdlib.h>
 #if (defined(__x86_64__) || defined(__i386__))

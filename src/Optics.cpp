@@ -1,6 +1,6 @@
-#include "Header.h"
-#include "Utilities.h"
-#include "Dbscan.h"
+#include "../include/Header.h"
+#include "../include/Utilities.h"
+#include "../include/DBSCAN.h"
 
 //#include "google/dense_hash_set"
 //#include "google/dense_hash_map"
@@ -395,7 +395,7 @@ Only use for testing - to see Embedding vs Actual Euclidean distance
 void formOptics(IVector& p_vecLabels, IVector & p_vecOrder, FVector & p_vecReachDist)
 {
     /**
-    We form cluster using DBSCAN
+    We form cluster using dbscan
     **/
     chrono::steady_clock::time_point begin;
     begin = chrono::steady_clock::now();
@@ -408,7 +408,7 @@ void formOptics(IVector& p_vecLabels, IVector & p_vecOrder, FVector & p_vecReach
     vector<IVector> nestedVec_ClusterStructure(iNumClusters, IVector()); // +1 since there is noise (label = -1)
     vector<IVector> nestedVec_ClusterCores(iNumClusters, IVector()); // +1 since there is noise (label = -1)
 
-    // Get each connected components of DBSCAN
+    // Get each connected components of dbscan
 //    #pragma omp parallel for : Does not work and cause memory bug (not sure how to fix)
     for (int n = 0; n < PARAM_DATA_N; ++n)
     {
@@ -664,7 +664,7 @@ void formOptics_scikit(IVector & p_vecOrder, FVector & p_vecReachDist)
 
 /**
 Fast OPTICS: optimize speed
-- We use parallel DBSCAN index to preprocess and finding neighborhoods
+- We use parallel dbscan index to preprocess and finding neighborhoods
 - If m is large, then findCoreDist_Asym is faster for multi-threading
     + findCoreDist_Asym only adds x into B(q) if dist(x, q) < eps
     + findCoreDist addx x into B(q) and q into B(x) if dist(x, q) < eps - not multi-threading friendly
@@ -709,7 +709,7 @@ void sOptics()
 
 /**
 Sng-based OPTICS: optimize speed
-- We use parallel DBSCAN index to preprocess and finding neighborhoods
+- We use parallel dbscan index to preprocess and finding neighborhoods
 - If m is large, then findCoreDist_Asym is faster for multi-threading
     + findCoreDist_Asym only adds x into B(q) if dist(x, q) < eps
     + findCoreDist addx x into B(q) and q into B(x) if dist(x, q) < eps - not multi-threading friendly

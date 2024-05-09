@@ -18,15 +18,10 @@ void findCorePoints_Asym();
 void formCluster_Asym(int &, IVector &); // Under construction
 
 void findCorePoints();
-void findCorePoints_uDbscan(); // based on sampling uDbscan++
-void findCorePoints_sngDbscan(); // based on sampling
+// based on sampling uDbscan++
+// based on sampling
 
 void formCluster(int &, IVector &);
-
-void seq_sDbscan();
-
-void sDbscan();
-void sngDbscan();
 
 void clusterNoise(IVector&, int);
 

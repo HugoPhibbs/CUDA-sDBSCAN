@@ -1,11 +1,11 @@
 #ifndef TEST_H_INCLUDED
 #define TEST_H_INCLUDED
 
-#include "Header.h"
-#include "Utilities.h"
-#include "InputParser.h"
-#include "Dbscan.h"
-#include "Optics.h"
+#include "../include/Header.h"
+#include "../include/Utilities.h"
+#include "../include/InputParser.h"
+#include "../include/DBSCAN.h"
+#include "../include/Optics.h"
 
 
 void FourierEmbed_L2();

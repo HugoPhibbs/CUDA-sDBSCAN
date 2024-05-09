@@ -2,7 +2,7 @@
 
 #include "Header.h"
 #include "Utilities.h"
-#include "Dbscan.h"
+#include "DBSCAN.h"
 
 void findCoreDist();
 

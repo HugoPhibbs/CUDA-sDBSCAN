@@ -1,11 +1,13 @@
 ﻿#include <iostream>
-#include "Header.h"
-#include "Utilities.h"
-#include "InputParser.h"
+#include "../include/Header.h"
+#include "../include/Utilities.h"
+#include "../include/InputParser.h"
 
-#include "Test.h"
-#include "Dbscan.h"
-#include "Optics.h"
+#include "../test/Test.h"
+#include "../include/DBSCAN.h"
+#include "../include/Optics.h"
+#include "sngDBSCAN.h"
+#include "sDBSCAN.h"
 
 #include <time.h> // for time(0) to generate different random number
 #include <stdlib.h>
@@ -50,7 +52,7 @@ int main(int nargs, char** args)
             sDbscan(); // speed friendly
 
             end = chrono::steady_clock::now();
-            cout << "DBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
+            cout << "dbscan Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
             cout << endl;
             break;
 
@@ -94,7 +96,7 @@ int main(int nargs, char** args)
 //
 //
 //            end = chrono::steady_clock::now();
-//            cout << "DBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
+//            cout << "dbscan Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
 //            cout << endl;
 //            break;
 //        }
