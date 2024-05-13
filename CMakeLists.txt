@@ -3,15 +3,15 @@ project(DbscanCEOs)
 
 set(CMAKE_CXX_STANDARD 17)
 
+# Add Google Test subdirectory
+add_subdirectory(googletest)
 
-file(GLOB SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/test/*.cpp"
-)
+# Include Google Test in the include path
+include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 
-add_executable(yourProj ${SOURCES} src/main.cpp
-        test/Test.cpp
+# Define sources for the main project executable
+add_executable(yourProj
+        src/main.cpp
         src/fast_copy.c
         src/dbscan/sngDBSCAN.cpp
         include/sngDBSCAN.h
@@ -21,6 +21,17 @@ add_executable(yourProj ${SOURCES} src/main.cpp
         src/dbscan/uDBSCAN.cpp
         include/uDBSCAN.h
         src/dbscan/gsDBSCAN.cpp
-        src/fht/fht.c
         include/gsDBSCAN.h
+        src/fht/fht.c
 )
+
+# Define the test executable
+add_executable(run_gs_dbscan_tests
+        test/Test.cpp
+        test/gsDBSCANTest.cpp
+        src/dbscan/gsDBSCAN.cpp  # Assuming test depends on these source files
+        src/fht/fht.c            # Include other dependencies as needed
+)
+
+# Link Google Test libraries to the test executable
+target_link_libraries(run_gs_dbscan_tests gtest gtest_main)
