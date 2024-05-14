@@ -18,6 +18,7 @@ include_directories(${CUDA_TOOLKIT_ROOT_DIR}/include)
 # Include ArrayFire
 set(ArrayFire_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/ArrayFire-3.9.0-Linux/share/ArrayFire/cmake)
 find_package(ArrayFire REQUIRED)
+include_directories(${ArrayFire_INCLUDE_DIRS})
 
 if(ArrayFire_CUDA_FOUND)
     # Add definitions and sources for the CUDA backend
@@ -61,4 +62,4 @@ add_executable(run_gs_dbscan_tests
 target_link_libraries(run_gs_dbscan_tests gtest gtest_main)
 
 # Link Arrayfire
-target_link_libraries(${PROJECT_NAME} ArrayFire::af)
+target_link_libraries(${PROJECT_NAME} ${ArrayFire_LIBRARIES})
