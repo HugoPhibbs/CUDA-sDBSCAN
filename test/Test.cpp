@@ -742,41 +742,6 @@ void test_sDbscan(int p_iTimes)
     }
 }
 
-//void test_sDbscan_L2(int i)
-//{
-//    cout << "Testing L2 with FWHT for Fourier embedding & CEOs" << endl;
-//
-//    chrono::steady_clock::time_point begin;
-//    begin = chrono::steady_clock::now();
-//    parDbscanIndex_L2();
-//
-//    cout << "Build index time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
-//
-//    // Find core point
-//    begin = chrono::steady_clock::now();
-//    findCorePoints();
-//    cout << "Find core points time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
-//
-//    begin = chrono::steady_clock::now();
-//    int iNumClusters = 0;
-//    IVector vecLabels;
-//    formCluster(iNumClusters, vecLabels);
-//    cout << "Form clusters time = " << chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin).count() << "[ms]" << endl;
-//
-//    if (PARAM_INTERNAL_SAVE_OUTPUT)
-//	{
-//        string sFileName = PARAM_OUTPUT_FILE + int2str(i) + "_FWHT_L2" +
-//                        "_Eps_" + int2str(round(1000 * PARAM_DBSCAN_EPS)) +
-//                        "_MinPts_" + int2str(PARAM_DBSCAN_MINPTS) +
-//                        "_NumEmbed_" + int2str(PARAM_KERNEL_EMBED_D) +
-//                        "_NumProjection_" + int2str(PARAM_NUM_PROJECTION) +
-//                        "_TopM_" + int2str(PARAM_PROJECTION_TOP_M) +
-//                        "_TopK_" + int2str(PARAM_PROJECTION_TOP_K);
-//
-//        outputDbscan(vecLabels, sFileName);
-//	}
-//}
-
 /**
 Test FWHT for embedding & CEOs
 With FindCore_Asym() - we should use much larger m, e.g. m = 2 * minPts to ensure the coverage of neighborhoods
