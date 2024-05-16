@@ -23,4 +23,6 @@ add_executable(yourProj ${SOURCES} src/main.cpp
         src/dbscan/gsDBSCAN.cpp
         src/fht/fht.c
         include/gsDBSCAN.h
+        src/dbscan/preprocessing.cpp
+        include/preprocessing.h
 )
