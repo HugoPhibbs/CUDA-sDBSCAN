@@ -54,10 +54,9 @@ add_executable(${PROJECT_NAME}
 
 # Define the test executable
 add_executable(run_gs_dbscan_tests
-        test/Test.cpp
+#        test/Test.cpp
         test/gsDBSCANTest.cpp
         src/dbscan/gsDBSCAN.cpp  # Assuming test depends on these source files
-        src/fht/fht.c            # Include other dependencies as needed
 )
 
 # Link Google Test libraries to the test executable
@@ -65,3 +64,4 @@ target_link_libraries(run_gs_dbscan_tests gtest gtest_main)
 
 # Link Arrayfire
 target_link_libraries(${PROJECT_NAME} ${ArrayFire_LIBRARIES})
+target_link_libraries(run_gs_dbscan_tests ${ArrayFire_LIBRARIES})
