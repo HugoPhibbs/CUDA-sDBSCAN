@@ -2,28 +2,49 @@
 // Created by hphi344 on 10/05/24.
 //
 
-#include "Header.h"
-#include "Utilities.h"
-
 #ifndef DBSCANCEOS_GSDBSCAN_H
 #define DBSCANCEOS_GSDBSCAN_H
 
+#include "Header.h"
+#include "Utilities.h"
+#include <Eigen/Dense>
+#include <arrayfire.h>
+
+class GsDBSCAN {
+private :
+    af::array X;
+    af::array D;
+    int minPts;
+    int k;
+    int m;
+    float eps;
+    bool skip_pre_checks;
+
+public:
+    // Constructor if needed
+    GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, int m, float eps, bool skip_pre_checks);
+
+    // Methods corresponding to the functions
+    void performGsDbscan();
+
+    void preChecks(af::array X, af::array D, int minPts, int k, int m, float eps);
+
+    void preProcessing(af::array D);
+
+    void randomProjections(af::array X, af::array D, int k, int m, float eps);
+
+    void constructABMatrices(af::array X, af::array D, int k, int m);
+
+    void findDistances(af::array X, af::array A, af::array B, float alpha = 1.2);
+
+    int findDistanceBatchSize(int n, int d, int k, int m, float alpha = 1.2);
+
+    void constructClusterGraph(af::array distances, float eps, int k, int m);
+
+    void assembleAdjacencyList(af::array distances, int E, int V, af::array A, af::array B, float eps, int blockSize = 1024);
+
+    // Destructor if needed
+    ~GsDBSCAN() = default;
+};
+
 #endif //DBSCANCEOS_GSDBSCAN_H
-
-void gsDbscan(MatrixXf X, MatrixXf D, int minPts, int k, int m, float eps, bool skip_pre_check);
-
-void preChecks(MatrixXf X, MatrixXf D, int minPts, int k, int m, float eps);
-
-void preProcessing(MatrixXf D);
-
-void randomProjections(MatrixXf X, MatrixXf D, int k, int m, float eps);
-
-void constructABMatrices(MatrixXf X, MatrixXf D, int k, int m);
-
-void findDistances(MatrixXf X, MatrixXf A, MatrixXf B, float alpha = 1.2);
-
-int findDistanceBatchSize(int n, int d, int k, int m, float alpha = 1.2);
-
-void constructClusterGraph(MatrixXf distances, float eps, int k, int m);
-
-void assembleAdjacencyList(MatrixXf distances, int E, int V, MatrixXf A, MatrixXf B, float eps, int blockSize = 1024);

@@ -3,57 +3,65 @@
 //
 
 #include "../../include/gsDBSCAN.h"
+#include <arrayfire.h>
+
+// Constructor to initialize the DBSCAN parameters
+GsDBSCAN::GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, int m, float eps, bool skip_pre_checks)
+        : X(X), D(D), minPts(minPts), k(k), m(m), eps(eps), skip_pre_checks(skip_pre_checks) {}
 
 /**
  * Performs the gs dbscan algorithm
  *
- * @param X Eigen MatrixXf matrix for the X data points
- * @param D Eigen MatrixXf matrix for the D random vectors
+ * @param X ArrayFire af::array matrix for the X data points
+ * @param D ArrayFire af::array matrix for the D random vectors
  * @param minPts min number of points as per the DBSCAN algorithm
  * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
  * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
  * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
  * @param skip_pre_checks boolean flag to skip the pre-checks
  */
-void gsDbscan(MatrixXf X, MatrixXf D, int minPts, int k, int m, float eps, bool skip_pre_checks) {
-    // TODO implement me!
+void GsDBSCAN::performGsDbscan() {
+    if (!skip_pre_checks) {
+        preChecks(X, D, minPts, k, m, eps);
+    }
+    // Something something ... TODO
 }
 
 /**
  * Performs the pre-checks for the gs dbscan algorithm
  *
- * @param X Eigen MatrixXf matrix for the X data points
- * @param D Eigen MatrixXf matrix for the D random vectors
+ * @param X ArrayFire af::array matrix for the X data points
+ * @param D ArrayFire af::array matrix for the D random vectors
  * @param minPts min number of points as per the DBSCAN algorithm
  * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
  * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
  * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
  */
-void preChecks(MatrixXf X, MatrixXf D, int minPts, int k, int m, float eps) {
+void GsDBSCAN::preChecks(af::array X, af::array D, int minPts, int k, int m, float eps) {
     // TODO implement me!
 }
 
 /**
  * Performs the pre-processing for the gs dbscan algorithm
  *
- * @param D Eigen MatrixXf matrix for the D random vectors
+ * @param D ArrayFire af::array matrix for the D random vectors
  * @return A, B matrices as per the GS-DBSCAN algorithm. A has size (n, 2*k) and B has size (2*k, m)
  */
-void preProcessing(MatrixXf D){
+void GsDBSCAN::preProcessing(af::array D) {
     // TODO implement me!
 }
 
 /**
  * Performs random projections between the X dataset and the random vector
  *
- * @param X MatrixXf matrix for the X data points
- * @param D MatrixXf matrix for the D data points
+ * @param X af::array matrix for the X data points
+ * @param D af::array matrix for the D data points
  * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
  * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
  * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
- * @return MatrixXf matrix for the random projections
+ * @return af::array matrix for the random projections
  */
-void randomProjections(MatrixXf X, MatrixXf D, int k, int m, float eps) {
+void GsDBSCAN::randomProjections(af::array X, af::array D, int k, int m, float eps) {
     // TODO implement me!
 }
 
@@ -67,7 +75,7 @@ void randomProjections(MatrixXf X, MatrixXf D, int k, int m, float eps) {
  * @param k k parameter as per the DBSCAN algorithm
  * @param m m parameter as per the DBSCAN algorithm
  */
-void constructABMatrices(MatrixXf X, MatrixXf D, int k, int m) {
+void GsDBSCAN::constructABMatrices(af::array X, af::array D, int k, int m) {
     // TODO implement me!
 }
 
@@ -79,7 +87,7 @@ void constructABMatrices(MatrixXf X, MatrixXf D, int k, int m) {
  * @param B B matrix, see constructABMatrices
  * @param alpha float for the alpha parameter to tune the batch size
  */
-void findDistances(MatrixXf X, MatrixXf A, MatrixXf B, float alpha = 1.2) {
+void GsDBSCAN::findDistances(af::array X, af::array A, af::array B, float alpha) {
     // TODO implement me!
 }
 
@@ -93,7 +101,7 @@ void findDistances(MatrixXf X, MatrixXf A, MatrixXf B, float alpha = 1.2) {
  * @param alpha alpha param to tune the batch size
  * @return int for the calculated batch size
  */
-int findDistanceBatchSize(int n, int d, int k, int m, float alpha = 1.2) {
+int GsDBSCAN::findDistanceBatchSize(int n, int d, int k, int m, float alpha) {
     return 1; // TODO implement me!
 }
 
@@ -106,7 +114,7 @@ int findDistanceBatchSize(int n, int d, int k, int m, float alpha = 1.2) {
  * @param m m parameter of the DBSCAN algorithm
  * @return a vector containing the (flattened) adjacency list of the cluster graph, along with another list V containing the starting index of each query vector in the adjacency list
  */
-void constructClusterGraph(MatrixXf distances, float eps, int k, int m) {
+void GsDBSCAN::constructClusterGraph(af::array distances, float eps, int k, int m) {
     // TODO implement me!
 }
 
@@ -121,7 +129,7 @@ void constructClusterGraph(MatrixXf distances, float eps, int k, int m) {
  * @param eps epsilon DBSCAN density param
  * @param blockSize size of each block when calculating the adjacency list - essentially the amount of query vectors to process per block
  */
-void assembleAdjacencyList(MatrixXf distances, int E, int V, MatrixXf A, MatrixXf B, float eps, int blockSize = 1024) {
+void GsDBSCAN::assembleAdjacencyList(af::array distances, int E, int V, af::array A, af::array B, float eps, int blockSize) {
     // TODO implement me!
 }
 
@@ -134,6 +142,9 @@ void assembleAdjacencyList(MatrixXf distances, int E, int V, MatrixXf A, MatrixX
  * @param E vector containing the starting index of each query vector in the adjacency list
  * @param eps epsilon DBSCAN density param
  */
-__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int V, int E, float eps) {
-    // TODO implement me!
-}
+//__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int V, int E, float eps) {
+//    // TODO implement me!
+//}
+s
+
+
