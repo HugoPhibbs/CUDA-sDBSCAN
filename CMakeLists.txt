@@ -47,6 +47,8 @@ add_executable(${PROJECT_NAME}
         include/uDBSCAN.h
         src/dbscan/gsDBSCAN.cpp
         include/gsDBSCAN.h
+        src/dbscan/preprocessing.cpp
+        include/preprocessing.h
         src/fht/fht.c
 )
 
