@@ -3,11 +3,56 @@ project(DbscanCEOs)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Add Google Test subdirectory
-add_subdirectory(lib/googletest)
+## Configuring FetchContent
+include(FetchContent)
 
-# Add Eigen include directory
-include_directories(${PROJECT_SOURCE_DIR}/lib/eigen-3.4.0)
+FetchContent_Declare(
+        ArrayFire
+        GIT_REPOSITORY https://github.com/arrayfire/arrayfire.git
+        GIT_TAG v3.9.0
+)
+
+# Declare Google Test
+FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.14.0
+)
+
+# Declare Eigen
+FetchContent_Declare(
+        eigen
+        GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+        GIT_TAG 3.4.0
+)
+
+# Configuring ArrayFire
+
+FetchContent_GetProperties(ArrayFire)
+if(NOT ArrayFire_POPULATED)
+    FetchContent_Populate(ArrayFire)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)  # Disable examples to speed up build
+    set(BUILD_TEST OFF CACHE BOOL "" FORCE)  # Disable tests
+    add_subdirectory(${arrayfire_SOURCE_DIR} ${arrayfire_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
+
+# Include the FetchContent managed ArrayFire directories
+include_directories(${arrayfire_BINARY_DIR}/include)
+link_directories(${arrayfire_BINARY_DIR}/lib)
+
+
+## Configuring Eigen
+
+# Populate Eigen
+FetchContent_GetProperties(eigen)
+if(NOT eigen_POPULATED)
+    FetchContent_Populate(eigen)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)  # Disable examples to speed up build
+    set(BUILD_TEST OFF CACHE BOOL "" FORCE)  # Disable tests
+endif()
+
+
+## Configuring CUDA
 
 # Set the path to the CUDA toolkit. Replace this with your path if necessary.
 set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.3")
@@ -15,24 +60,28 @@ set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.3")
 # Include CUDA
 include_directories(${CUDA_TOOLKIT_ROOT_DIR}/include)
 
-# Include ArrayFire
-set(ArrayFire_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/ArrayFire-3.9.0-Linux/share/ArrayFire/cmake)
-find_package(ArrayFire REQUIRED)
-include_directories(${ArrayFire_INCLUDE_DIRS})
 
-if(ArrayFire_CUDA_FOUND)
-    # Add definitions and sources for the CUDA backend
-    add_definitions(-DAF_CUDA)
-elseif(ArrayFire_OpenCL_FOUND)
-    # Or for the OpenCL backend
-    add_definitions(-DAF_OPENCL)
-elseif(ArrayFire_CPU_FOUND)
-    # Fallback to CPU backend if needed
-    add_definitions(-DAF_CPU)
+## Configuring Google Test
+
+# Populate Google Test
+FetchContent_GetProperties(googletest)
+if(NOT googletest_POPULATED)
+    FetchContent_Populate(googletest)
+    add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-# Include Google Test in the include path
-include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
+
+## Including Directories
+
+include_directories(
+        ${arrayfire_BINARY_DIR}/include
+        ${eigen_SOURCE_DIR}
+        ${googletest_SOURCE_DIR}/include
+)
+
+link_directories(${arrayfire_BINARY_DIR}/lib)
+
+## Configuring Executables
 
 # Define sources for the main project executable
 add_executable(${PROJECT_NAME}
@@ -60,8 +109,12 @@ add_executable(run_gs_dbscan_tests
         src/fht/fht.c            # Include other dependencies as needed
 )
 
+
+## Linking Libraries
+
 # Link Google Test libraries to the test executable
 target_link_libraries(run_gs_dbscan_tests gtest gtest_main)
 
 # Link Arrayfire
-target_link_libraries(${PROJECT_NAME} ${ArrayFire_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ArrayFire::afcuda)
+target_link_directories(run_gs_dbscan_tests ArrayFire::afcuda)
