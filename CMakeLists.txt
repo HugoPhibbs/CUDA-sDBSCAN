@@ -70,8 +70,7 @@ add_executable(run_gs_dbscan_tests
 )
 
 # Link Google Test libraries to the test executable
-target_link_libraries(run_gs_dbscan_tests gtest gtest_main)
+target_link_libraries(run_gs_dbscan_tests gtest gtest_main ${CUDA_LIBS} ${ArrayFire_LIBRARIES})
 
 # Link CUDA and ArrayFire libraries explicitly
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CUDA_LIBS} ${ArrayFire_LIBRARIES})
-target_link_libraries(run_gs_dbscan_tests PRIVATE ${CUDA_LIBS} ${ArrayFire_LIBRARIES})
