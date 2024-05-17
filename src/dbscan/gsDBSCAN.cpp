@@ -92,16 +92,55 @@ void GsDBSCAN::constructABMatrices(af::array X, af::array D, int k, int m) {
  * @param B B matrix, see constructABMatrices
  * @param alpha float for the alpha parameter to tune the batch size
  */
-void GsDBSCAN::findDistances(af::array X, af::array A, af::array B, float alpha) {
-    // TODO implement me!
+af::array GsDBSCAN::findDistances(af::array X, af::array A, af::array B, float alpha) {
+    int k = A.dims(1) / 2;
+    int m = B.dims(1) / 2;
+
+    int n = X.dims(0);
+    int d = X.dims(1);
+
+    int batchSize = GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
+
+    af::array distances(n, 2*k*m, af::dtype::f32);
+    af::array ABatch(batchSize, A.dims(1), A.type());
+    af::array BBatch(batchSize, B.dims(1), B.type());
+    af::array XBatch(batchSize, 2*k, m, d, X.type());
+    af::array XBatchAdj(batchSize, 2*k*m, d, X.type());
+    af::array XSubset(batchSize, d, X.type());
+    af::array XSubsetReshaped = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
+    af::array YBatch = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
+
+    for (int i = 0; i < n; i += batchSize) {
+        int maxBatchIdx = i + batchSize - 1;
+        ABatch = A(af::seq(i, maxBatchIdx));
+        BBatch = B(A);
+
+        XBatch = X(BBatch); // TODO need to create XBatch before for loop?
+        XBatchAdj = af::moddims(XBatch, XBatch.dims(0), XBatch.dims(1) * XBatch.dims(2), XBatch.dims(3));
+
+        XSubset = X(af::seq(i, maxBatchIdx), af::span);
+
+        XSubsetReshaped = moddims(XSubset, XSubset.dims(0), 1, XSubset.dims(1)); // Insert new dim
+
+        YBatch = XBatchAdj - XSubsetReshaped;
+
+        distances(af::seq(i, maxBatchIdx), af::span) = af::sqrt(af::sum(af::pow(YBatch, 2), 2)); // af doesn't have norms across arbitrary axes
+    }
+
+    return distances;
 }
 
 /**
  * Calculates the batch size for distance calculations
  *
+ * @param n size of the X dataset
+ * @param d dimension of the X dataset
+ * @param k k parameter of the DBSCAN algorithm
+ * @param m m parameter of the DBSCAN algorithm
+ * @param alpha alpha param to tune the batch size
  * @return int for the calculated batch size
  */
-int GsDBSCAN::findDistanceBatchSize(float alpha) {
+int GsDBSCAN::findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
     int batchSize = static_cast<int>(static_cast<long long>(n) * d * 2 * k * m / (std::pow(1024, 3) * alpha));
 
     if (batchSize == 0) {
