@@ -11,9 +11,20 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/eigen-3.4.0)
 
 # Set the path to the CUDA toolkit. Replace this with your path if necessary.
 set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.3")
+set(CUDA_TOOLKIT_INCLUDE_DIR "${CUDA_TOOLKIT_ROOT_DIR}/include")
+set(CUDA_TOOLKIT_LIB_DIR "${CUDA_TOOLKIT_ROOT_DIR}/lib64")
+set(CMAKE_CUDA_COMPILER "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
 
 # Include CUDA
-include_directories(${CUDA_TOOLKIT_ROOT_DIR}/include)
+include_directories(${CUDA_TOOLKIT_INCLUDE_DIR})
+
+# Link CUDA explicitly
+link_directories(${CUDA_TOOLKIT_LIB_DIR})
+set(CUDA_LIBS
+        ${CUDA_TOOLKIT_LIB_DIR}/libcudart.so
+        ${CUDA_TOOLKIT_LIB_DIR}/libcublas.so
+        ${CUDA_TOOLKIT_LIB_DIR}/libcusolver.so
+)
 
 # Include ArrayFire
 set(ArrayFire_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/ArrayFire-3.9.0-Linux/share/ArrayFire/cmake)
@@ -21,14 +32,14 @@ find_package(ArrayFire REQUIRED)
 include_directories(${ArrayFire_INCLUDE_DIRS})
 
 if(ArrayFire_CUDA_FOUND)
-    # Add definitions and sources for the CUDA backend
     add_definitions(-DAF_CUDA)
+    list(APPEND CUDA_LIBS ${ArrayFire_LIBRARIES})
 elseif(ArrayFire_OpenCL_FOUND)
-    # Or for the OpenCL backend
     add_definitions(-DAF_OPENCL)
+    list(APPEND CUDA_LIBS ${ArrayFire_LIBRARIES})
 elseif(ArrayFire_CPU_FOUND)
-    # Fallback to CPU backend if needed
     add_definitions(-DAF_CPU)
+    list(APPEND CUDA_LIBS ${ArrayFire_LIBRARIES})
 endif()
 
 # Include Google Test in the include path
@@ -54,7 +65,6 @@ add_executable(${PROJECT_NAME}
 
 # Define the test executable
 add_executable(run_gs_dbscan_tests
-#        test/Test.cpp
         test/gsDBSCANTest.cpp
         src/dbscan/gsDBSCAN.cpp  # Assuming test depends on these source files
 )
@@ -62,6 +72,6 @@ add_executable(run_gs_dbscan_tests
 # Link Google Test libraries to the test executable
 target_link_libraries(run_gs_dbscan_tests gtest gtest_main)
 
-# Link Arrayfire
-target_link_libraries(${PROJECT_NAME} ${ArrayFire_LIBRARIES})
-target_link_libraries(run_gs_dbscan_tests ${ArrayFire_LIBRARIES})
+# Link CUDA and ArrayFire libraries explicitly
+target_link_libraries(${PROJECT_NAME} PRIVATE ${CUDA_LIBS} ${ArrayFire_LIBRARIES})
+target_link_libraries(run_gs_dbscan_tests PRIVATE ${CUDA_LIBS} ${ArrayFire_LIBRARIES})
