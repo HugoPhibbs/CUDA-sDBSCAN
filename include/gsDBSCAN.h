@@ -29,17 +29,17 @@ public:
     // Methods corresponding to the functions
     void performGsDbscan();
 
-    void preChecks(af::array X, af::array D, int minPts, int k, int m, float eps);
+    void static preChecks(af::array X, af::array D, int minPts, int k, int m, float eps);
 
-    void preProcessing(af::array D);
+    void static preProcessing(af::array D);
 
-    void randomProjections(af::array X, af::array D, int k, int m, float eps);
+    void static randomProjections(af::array X, af::array D, int k, int m, float eps);
 
-    void constructABMatrices(af::array X, af::array D, int k, int m);
+    void static constructABMatrices(af::array X, af::array D, int k, int m);
 
-    void findDistances(af::array X, af::array A, af::array B, float alpha = 1.2);
+    af::array static findDistances(af::array X, af::array A, af::array B, float alpha = 1.2);
 
-    int findDistanceBatchSize(float alpha);
+    int static findDistanceBatchSize(float alpha, int n, int d, int k, int m);
 
     void constructClusterGraph(af::array distances, float eps, int k, int m);
 
