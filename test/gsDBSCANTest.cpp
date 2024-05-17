@@ -57,3 +57,31 @@ TEST_F(gsDBSCANTest, TestFindDistances) {
     // TODO
 
 }
+
+class TestCalculatingBatchSize : public gsDBSCANTest {
+
+};
+
+TEST_F(TestCalculatingBatchSize, TestLargeInput) {
+    af::array X(1000000, 3);
+    af::array D(1000, 1000);
+
+    float alpha = 1;
+
+    GsDBSCAN gsDbscan(X, D, 10, 2, 2000, 0.1, true);
+    int batchSize = gsDbscan.findDistanceBatchSize(alpha);
+
+    ASSERT_EQ(20, batchSize);
+}
+
+TEST_F(TestCalculatingBatchSize, TestSmallInput) {
+    af::array X(100, 3);
+    af::array D(10, 10);
+
+    float alpha = 1;
+
+    GsDBSCAN gsDbscan(X, D, 10, 10, 10, 0.1, true);
+    int batchSize = gsDbscan.findDistanceBatchSize(alpha);
+
+    ASSERT_EQ(X.dims(0), batchSize);
+}

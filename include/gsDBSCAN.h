@@ -19,6 +19,8 @@ private :
     int m;
     float eps;
     bool skip_pre_checks;
+    int n;
+    int d;
 
 public:
     // Constructor if needed
@@ -37,7 +39,7 @@ public:
 
     void findDistances(af::array X, af::array A, af::array B, float alpha = 1.2);
 
-    int findDistanceBatchSize(int n, int d, int k, int m, float alpha = 1.2);
+    int findDistanceBatchSize(float alpha);
 
     void constructClusterGraph(af::array distances, float eps, int k, int m);
 

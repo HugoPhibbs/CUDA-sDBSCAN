@@ -4,10 +4,15 @@
 
 #include "../../include/gsDBSCAN.h"
 #include <arrayfire.h>
+#include <cmath>
 
 // Constructor to initialize the DBSCAN parameters
 GsDBSCAN::GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, int m, float eps, bool skip_pre_checks)
-        : X(X), D(D), minPts(minPts), k(k), m(m), eps(eps), skip_pre_checks(skip_pre_checks) {}
+        : X(X), D(D), minPts(minPts), k(k), m(m), eps(eps), skip_pre_checks(skip_pre_checks) {
+        n = X.dims(0);
+        d = X.dims(1);
+
+}
 
 /**
  * Performs the gs dbscan algorithm
@@ -94,15 +99,22 @@ void GsDBSCAN::findDistances(af::array X, af::array A, af::array B, float alpha)
 /**
  * Calculates the batch size for distance calculations
  *
- * @param n size of the X dataset
- * @param d dimension of the X dataset
- * @param k k parameter of the DBSCAN algorithm
- * @param m m parameter of the DBSCAN algorithm
- * @param alpha alpha param to tune the batch size
  * @return int for the calculated batch size
  */
-int GsDBSCAN::findDistanceBatchSize(int n, int d, int k, int m, float alpha) {
-    return 1; // TODO implement me!
+int GsDBSCAN::findDistanceBatchSize(float alpha) {
+    int batchSize = static_cast<int>(static_cast<long long>(n) * d * 2 * k * m / (std::pow(1024, 3) * alpha));
+
+    if (batchSize == 0) {
+        return n;
+    }
+
+    for (int div = batchSize; div > 0; div--) {
+        if (n % div == 0) {
+            return div;
+        }
+    }
+
+    return -1; // Should never reach here
 }
 
 /**
@@ -145,6 +157,3 @@ void GsDBSCAN::assembleAdjacencyList(af::array distances, int E, int V, af::arra
 //__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int V, int E, float eps) {
 //    // TODO implement me!
 //}
-s
-
-
