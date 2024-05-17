@@ -21,5 +21,9 @@ and boost (https://www.boost.org/) with binary histogram
 See the Compile.sh for compiling and running scripts.
 
 
-
+# Configuration
+Please make sure that you have the following libraries installed:
+- Eigen3
+- Google Test
+- Array Fire
 
