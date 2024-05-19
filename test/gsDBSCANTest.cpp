@@ -3,7 +3,7 @@
 //
 #include <gtest/gtest.h>
 
-#include "../include/gsDBSCAN.h"
+#include "../include/GsDBSCAN.h"
 #include <Eigen/Dense>
 #include <chrono>
 #include <arrayfire.h>
@@ -52,7 +52,7 @@ TEST_F(gsDBSCANTest, TestFindDistances) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    //distances = findDistances(X, A, B);
+    af::array distances = GsDBSCAN::findDistances(X, A, B);
 
     // TODO
 
