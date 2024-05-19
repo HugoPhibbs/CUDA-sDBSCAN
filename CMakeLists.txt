@@ -11,9 +11,12 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/eigen-3.4.0)
 
 # Set the path to the CUDA toolkit. Replace this with your path if necessary.
 set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.3")
+set(CMAKE_PREFIX_PATH "/usr/local/cuda-11.3")
 set(CUDA_TOOLKIT_INCLUDE_DIR "${CUDA_TOOLKIT_ROOT_DIR}/include")
 set(CUDA_TOOLKIT_LIB_DIR "${CUDA_TOOLKIT_ROOT_DIR}/lib64")
 set(CMAKE_CUDA_COMPILER "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
+
+find_package(CUDAToolkit 11.3 REQUIRED)
 
 # Include CUDA
 include_directories(${CUDA_TOOLKIT_INCLUDE_DIR})
@@ -27,7 +30,7 @@ set(CUDA_LIBS
 )
 
 # Include ArrayFire
-set(ArrayFire_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/ArrayFire-3.9.0-Linux/share/ArrayFire/cmake)
+set(ArrayFire_DIR /opt/ArrayFire-3.9.0-Linux/share/ArrayFire/cmake)
 find_package(ArrayFire REQUIRED)
 include_directories(${ArrayFire_INCLUDE_DIRS})
 
@@ -56,8 +59,8 @@ add_executable(${PROJECT_NAME}
         include/sDBSCAN.h
         src/dbscan/uDBSCAN.cpp
         include/uDBSCAN.h
-        src/dbscan/gsDBSCAN.cpp
-        include/gsDBSCAN.h
+        src/dbscan/GsDBSCAN.cpp
+        include/GsDBSCAN.h
         src/dbscan/preprocessing.cpp
         include/preprocessing.h
         src/fht/fht.c
@@ -66,7 +69,7 @@ add_executable(${PROJECT_NAME}
 # Define the test executable
 add_executable(run_gs_dbscan_tests
         test/gsDBSCANTest.cpp
-        src/dbscan/gsDBSCAN.cpp  # Assuming test depends on these source files
+        src/dbscan/GsDBSCAN.cpp  # Assuming test depends on these source files
 )
 
 # Link Google Test libraries to the test executable
