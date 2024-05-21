@@ -47,6 +47,10 @@ public:
 
     af::array constructQueryVectorDegreeArray(af::array distances, float eps);
 
+    af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E);
+
+    cudaStream_t GsDBSCAN::getAfCudaStream()
+
     // Destructor if needed
     ~GsDBSCAN() = default;
 };

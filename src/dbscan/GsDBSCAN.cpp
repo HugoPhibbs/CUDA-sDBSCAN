@@ -5,7 +5,7 @@
 #include "../../include/GsDBSCAN.h"
 #include <arrayfire.h>
 #include <cmath>
-#include <cuda_runtime.h> // TODO need to resolve this
+#include <cuda_runtime.h> // TODO, need to make sure this actually exists
 #include <af/cuda.h>
 #include <cassert>
 
@@ -174,10 +174,14 @@ int GsDBSCAN::findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
  */
 void GsDBSCAN::constructClusterGraph(af::array &distances, float eps, int k, int m) {
     af::array E = constructQueryVectorDegreeArray(distances, eps);
-    af::array V = af::scan(E, 0, AF_BINARY_ADD, true); # Do an exclusive scan
+    af::array V = processQueryVectorDegreeArray(E);
     af::array adjacencyList = assembleAdjacencyList(distances, E, V, A, B, eps, 1024);
 
     return adjacencyList, V;
+}
+
+af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E) {
+    af::scan(E, 0, AF_BINARY_ADD, true); // Do an exclusive scan
 }
 
 /**
@@ -234,9 +238,7 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     int *B_d = B.device<int>();
 
     // Getting cuda stream from af
-    int afId = af::getDevice();
-    int v = afcu::getNativeId(afId);
-    cudaStream_t afCudaStream = afcu::getStream(cudaId);
+    cudaStream_t afCudaStream = getAfCudaStream();
 
     // Now we can call the kernel
     int numBlocks = std::max(1, n / blockSize);
@@ -254,6 +256,20 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     return adjacencyList;
 }
 
+/**
+ * Gets the CUDA stream from ArrayFire
+ *
+ * For easy testing of other functions
+ *
+ * See https://arrayfire.org/docs/interop_cuda.htm for info on this
+ *
+ * @return the CUDA stream
+ */
+cudaStream_t GsDBSCAN::getAfCudaStream() {
+    int afId = af::getDevice();
+    int cudaId= afcu::getNativeId(afId);
+    return afcu::getStream(cudaId);
+}
 
 
 /**
