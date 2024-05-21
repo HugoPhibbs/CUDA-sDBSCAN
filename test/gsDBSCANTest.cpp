@@ -7,6 +7,8 @@
 #include <Eigen/Dense>
 #include <chrono>
 #include <arrayfire.h>
+#include <cuda_runtime.h> // TODO, need to make sure this actually exists
+#include <af/cuda.h>
 
 class gsDBSCANTest : public ::testing::Test {
 
@@ -128,4 +130,31 @@ TEST_F(TestFindingDistances, TestSmallInput) {
     ASSERT_TRUE(distances.dims(0) == X.dims(0) && distances.dims(1) == A.dims(1) * B.dims(1));
 
     ASSERT_TRUE(af::allTrue<bool>(af::abs(distances - expected) < 1e-6));
+}
+
+class TestConstructQueryVectorDegreeArray : public gsDBSCANTest {
+
+}
+
+TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInput) {
+    
+    float distancesData[] = {
+        0, 1, 2, 3,
+        0, 2, 1, 0,
+        0, 2, 1, 0,
+        0, 2, 1, 0
+    };
+
+    af::array distances(4, 4, distancesData);
+
+    float eps = 2.1;
+
+    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
+    af::array V = GsDBSCAN::processQueryVectorDegreeArray(E);
+
+    distances.eval();
+    E.eval();
+    V.eval();
+
+    // TODO
 }
