@@ -9,7 +9,6 @@ sDbscan also implements sOPTICS for visualizing and selecting relevant metrics (
 sDbscan supports multi-threading by adding only ```#pragma omp parallel for``` when discovering the neighborhoods.
 We call [Eigen](https://eigen.tuxfamily.org/index.php?title=Main_Page) that supports SIMD dot product computation and [Boost](https://www.boost.org/) with binary histogram
 
-We have not engineered sDbscan much with other techniques, e.g. prefetching.
 sDbscan also features [sngDbscan](https://github.com/jenniferjang/subsampled_neighborhood_graph_dbscan).
 
 
@@ -41,13 +40,14 @@ mkdir build && cd build && cmake .. && make
 
 
 Dataset must be d x n matrix.
+
 See test/test_sDbscan.py or test/plotOptics.py for Python examples and src/main.cpp for C++ example.
 
 
 ## Authors
 
 It is mainly developed by Ninh Pham. It grew out of a master research project of Haochuan Xu.
-If you want to cite FALCONN++ in a publication, please use
+If you want to cite sDbscan in a publication, please use
 
 > [sDbscan](https://arxiv.org/pdf/2402.15679)
 > Haochuan Xu, Ninh Pham
