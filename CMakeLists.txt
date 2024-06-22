@@ -21,6 +21,8 @@ link_directories(
 
 add_subdirectory(lib/googletest)
 
+#add_definitions(-DAF_CUDA) # Enable CUDA support (not sure if this is necessary)
+
 add_executable(${PROJECT_NAME}
         src/main.cpp
         src/fast_copy.c
@@ -43,5 +45,5 @@ add_executable(run_gs_dbscan_tests
         src/dbscan/GsDBSCAN.cpp
 )
 
-target_link_libraries(run_gs_dbscan_tests gtest gtest_main ArrayFire::af)
-target_link_libraries(${PROJECT_NAME} ArrayFire::af)
+target_link_libraries(run_gs_dbscan_tests gtest gtest_main CUDA::cudart ArrayFire::af)
+target_link_libraries(${PROJECT_NAME} CUDA::cudart ArrayFire::af)
