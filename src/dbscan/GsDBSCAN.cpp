@@ -5,6 +5,9 @@
 #include "../../include/GsDBSCAN.h"
 #include <arrayfire.h>
 #include <cmath>
+#include <cuda_runtime.h> // TODO, need to make sure this actually exists
+#include <af/cuda.h>
+#include <cassert>
 #include <tuple>
 
 // Constructor to initialize the DBSCAN parameters
@@ -19,14 +22,14 @@ GsDBSCAN::GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, in
  * Performs the gs dbscan algorithm
  *
  * @param X ArrayFire af::array matrix for the X data points
- * @param D ArrayFire af::array matrix for the D random vectors
+ * @param D int for number of random vectors to generate
  * @param minPts min number of points as per the DBSCAN algorithm
  * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
  * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
  * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
  * @param skip_pre_checks boolean flag to skip the pre-checks
  */
-void GsDBSCAN::performGsDbscan() {
+void GsDBSCAN::performGsDbscan(af::array &X, int D, int minPts, int k, int m, float eps ) {
     if (!skip_pre_checks) {
         preChecks(X, D, minPts, k, m, eps);
     }
@@ -37,23 +40,27 @@ void GsDBSCAN::performGsDbscan() {
  * Performs the pre-checks for the gs dbscan algorithm
  *
  * @param X ArrayFire af::array matrix for the X data points
- * @param D ArrayFire af::array matrix for the D random vectors
+ * @param D int for number of random vectors to generate
  * @param minPts min number of points as per the DBSCAN algorithm
  * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
  * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
  * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
  */
-void GsDBSCAN::preChecks(af::array X, af::array D, int minPts, int k, int m, float eps) {
-    // TODO implement me!
+void GsDBSCAN::preChecks(af::array &X, int D, int minPts, int k, int m, float eps) {
+    assert(X.dims(1) > 0);
+    assert(X.shape[1] > 0);
+    assert(D > 0);
+    assert(D >= k);
+    assert(m >= minPts)
 }
 
 /**
  * Performs the pre-processing for the gs dbscan algorithm
  *
- * @param D ArrayFire af::array matrix for the D random vectors
+ * @param Y ArrayFire af::array matrix for the D random vectors
  * @return A, B matrices as per the GS-DBSCAN algorithm. A has size (n, 2*k) and B has size (2*k, m)
  */
-void GsDBSCAN::preProcessing(af::array D) {
+void GsDBSCAN::preProcessing(af::array &Y) {
     // TODO implement me!
 
     /*
@@ -69,13 +76,13 @@ void GsDBSCAN::preProcessing(af::array D) {
  * Performs random projections between the X dataset and the random vector
  *
  * @param X af::array matrix for the X data points
- * @param D af::array matrix for the D data points
+ * @param D int for number of random vectors to generate
  * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
  * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
  * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
  * @return af::array matrix for the random projections
  */
-void GsDBSCAN::randomProjections(af::array X, af::array D, int k, int m, float eps) {
+void GsDBSCAN::randomProjections(af::array &X, int D, int k, int m, float eps) {
     // TODO implement me!
 }
 
@@ -85,7 +92,7 @@ void GsDBSCAN::randomProjections(af::array X, af::array D, int k, int m, float e
  * A stores the indices of the closest and furthest random vectors per data point.
  *
  * @param X matrix containing the X dataset vectors
- * @param D matrix containing the random vectors
+ * @param Y matrix containing the random vectors
  * @param k k parameter as per the DBSCAN algorithm
  * @param m m parameter as per the DBSCAN algorithm
  */
@@ -123,7 +130,7 @@ std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array& 
  * @param B B matrix, see constructABMatrices
  * @param alpha float for the alpha parameter to tune the batch size
  */
-af::array GsDBSCAN::findDistances(af::array X, af::array A, af::array B, float alpha) {
+af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, float alpha) {
     int k = A.dims(1) / 2;
     int m = B.dims(1) / 2;
 
@@ -196,12 +203,39 @@ int GsDBSCAN::findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
  * @param m m parameter of the DBSCAN algorithm
  * @return a vector containing the (flattened) adjacency list of the cluster graph, along with another list V containing the starting index of each query vector in the adjacency list
  */
-void GsDBSCAN::constructClusterGraph(af::array distances, float eps, int k, int m) {
-    // TODO implement me!
+void GsDBSCAN::constructClusterGraph(af::array &distances, float eps, int k, int m) {
+    af::array E = constructQueryVectorDegreeArray(distances, eps);
+    af::array V = processQueryVectorDegreeArray(E);
+    af::array adjacencyList = assembleAdjacencyList(distances, E, V, A, B, eps, 1024);
+
+    return adjacencyList, V;
+}
+
+af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E) {
+    af::scan(E, 0, AF_BINARY_ADD, true); // Do an exclusive scan
+}
+
+/**
+ * Calculates the degree of the query vectors as per the G-DBSCAN algorithm.
+ *
+ * This function is used in the construction of the cluster graph by determining how many
+ * candidate vectors fall within a given epsilon distance from each query vector.
+ *
+ * @param distances The matrix containing the distances between the query and candidate vectors.
+ *                  Expected shape is (datasetSize, 2*k*m).
+ * @param eps       The epsilon value for DBSCAN. Should be a scalar array of the same data type
+ *                  as the distances array.
+ *
+ * @return The degree array of the query vectors, with shape (datasetSize, 1).
+ */
+af::array GsDBSCAN::constructQueryVectorDegreeArray(af::array &distances, float eps) {
+    return af::sum(af::lt(distances, eps), 1);
 }
 
 /**
  * Assembles the adjacency list for the cluster graph
+ *
+ * See https://arrayfire.org/docs/interop_cuda.htm for info on this
  *
  * @param distances matrix containing the distances between each query vector and it's candidate vectors
  * @param E vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
@@ -211,9 +245,63 @@ void GsDBSCAN::constructClusterGraph(af::array distances, float eps, int k, int 
  * @param eps epsilon DBSCAN density param
  * @param blockSize size of each block when calculating the adjacency list - essentially the amount of query vectors to process per block
  */
-void GsDBSCAN::assembleAdjacencyList(af::array distances, int E, int V, af::array A, af::array B, float eps, int blockSize) {
-    // TODO implement me!
+af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B, float eps, int blockSize) {
+    int n = E.dims(0);
+    int k = A.dims(1) / 2;
+    int m = B.dims(1);
+
+    af::array adjacencyList = af::constant(-1, (E(n-1) + V(n-1)).scalar<int>(), af::dtype::u32);
+
+    // Eval all matrices to ensure they are synced
+    adjacencyList.eval();
+    distances.eval();
+    E.eval();
+    V.eval();
+    A.eval();
+    B.eval();
+
+    // Getting device pointers
+    int *adjacencyList_d= x.device<float>();
+    int *distances_d = distances.device<float>();
+    int *E = E.device<int>();
+    int *V_d = V.device<int>();
+    int *A_d = A.device<int>();
+    int *B_d = B.device<int>();
+
+    // Getting cuda stream from af
+    cudaStream_t afCudaStream = getAfCudaStream();
+
+    // Now we can call the kernel
+    int numBlocks = std::max(1, n / blockSize);
+    blockSize = std::min(n, blockSize);
+    constructAdjacencyListForQueryVector<<numBlocks, blockSize, 0, afCudaStream>>(distances_d, adjacencyList_d, V_d, A_d, B_d, eps, n, k, m);
+
+    // Unlock all the af arrays
+    adjacencyList.unlock();
+    distances.unlock();
+    E.unlock();
+    V.unlock();
+    A.unlock();
+    B.unlock();
+
+    return adjacencyList;
 }
+
+/**
+ * Gets the CUDA stream from ArrayFire
+ *
+ * For easy testing of other functions
+ *
+ * See https://arrayfire.org/docs/interop_cuda.htm for info on this
+ *
+ * @return the CUDA stream
+ */
+cudaStream_t GsDBSCAN::getAfCudaStream() {
+    int afId = af::getDevice();
+    int cudaId= afcu::getNativeId(afId);
+    return afcu::getStream(cudaId);
+}
+
 
 /**
  * Kernel for constructing part of the cluster graph adjacency list for a particular vector
@@ -221,9 +309,28 @@ void GsDBSCAN::assembleAdjacencyList(af::array distances, int E, int V, af::arra
  * @param distances matrix containing the distances between each query vector and it's candidate vectors
  * @param adjacencyList
  * @param V vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
- * @param E vector containing the starting index of each query vector in the adjacency list
+ * @param A A matrix, see constructABMatrices. Stored flat as a float array
+ * @param B B matrix, see constructABMatrices. Stored flat as a float array
+ * @param n number of query vectors in the dataset
  * @param eps epsilon DBSCAN density param
  */
-//__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int V, int E, float eps) {
-//    // TODO implement me!
-//}
+__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n, int k, int m) {
+    idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
+
+    int curr_idx = V[idx];
+
+    int distances_rows = 2 * k * m;
+
+    for (int j = 0; j < distances_rows; j++) {
+        if (distances[idx * distances_rows + j] < eps) {
+            ACol = j / m;
+            BCol = j % m;
+            BRow = A[idx * 2 * k + ACol];
+            neighbourhoodVecIdx = B[BRow * m + BCol];
+
+            adjacencyList[curr_idx] = neighbourhoodVecIdx;
+            curr_idx++;
+        }
+    }
+}
