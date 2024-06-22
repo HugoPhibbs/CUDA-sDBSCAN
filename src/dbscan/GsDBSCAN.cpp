@@ -300,6 +300,14 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
 //    return afcu::getStream(cudaId);
 //}
 
+/*
+ * For the above, check this issue:
+ *
+ * https://github.com/arrayfire/arrayfire/issues/3051
+ *
+ * May need to look further into this - i.e. how to use af/cuda.h properly
+ */
+
 
 ///**
 // * Kernel for constructing part of the cluster graph adjacency list for a particular vector
