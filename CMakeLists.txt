@@ -3,52 +3,24 @@ project(DbscanCEOs)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Add Google Test subdirectory
-add_subdirectory(lib/googletest)
-
-# Add Eigen include directory
-include_directories(${PROJECT_SOURCE_DIR}/lib/eigen-3.4.0)
-
-# Set the path to the CUDA toolkit. Replace this with your path if necessary.
 set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.3")
-set(CMAKE_PREFIX_PATH "/usr/local/cuda-11.3")
-set(CUDA_TOOLKIT_INCLUDE_DIR "${CUDA_TOOLKIT_ROOT_DIR}/include")
-set(CUDA_TOOLKIT_LIB_DIR "${CUDA_TOOLKIT_ROOT_DIR}/lib64")
-set(CMAKE_CUDA_COMPILER "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
-
 find_package(CUDAToolkit 11.3 REQUIRED)
 
-# Include CUDA
-include_directories(${CUDA_TOOLKIT_INCLUDE_DIR})
+find_package(ArrayFire REQUIRED)
 
-# Link CUDA explicitly
-link_directories(${CUDA_TOOLKIT_LIB_DIR})
-set(CUDA_LIBS
-        ${CUDA_TOOLKIT_LIB_DIR}/libcudart.so
-        ${CUDA_TOOLKIT_LIB_DIR}/libcublas.so
-        ${CUDA_TOOLKIT_LIB_DIR}/libcusolver.so
+include_directories(
+        ${PROJECT_SOURCE_DIR}/lib/eigen-3.4.0
+        ${CUDA_TOOLKIT_ROOT_DIR}/include
+        ${gtest_SOURCE_DIR}/include
+        ${gtest_SOURCE_DIR}
 )
 
-# Include ArrayFire
-set(ArrayFire_DIR /opt/ArrayFire-3.9.0-Linux/share/ArrayFire/cmake)
-find_package(ArrayFire REQUIRED)
-include_directories(${ArrayFire_INCLUDE_DIRS})
+link_directories(
+        ${CUDA_TOOLKIT_ROOT_DIR}/lib64
+)
 
-if(ArrayFire_CUDA_FOUND)
-    add_definitions(-DAF_CUDA)
-    list(APPEND CUDA_LIBS ${ArrayFire_LIBRARIES})
-elseif(ArrayFire_OpenCL_FOUND)
-    add_definitions(-DAF_OPENCL)
-    list(APPEND CUDA_LIBS ${ArrayFire_LIBRARIES})
-elseif(ArrayFire_CPU_FOUND)
-    add_definitions(-DAF_CPU)
-    list(APPEND CUDA_LIBS ${ArrayFire_LIBRARIES})
-endif()
+add_subdirectory(lib/googletest)
 
-# Include Google Test in the include path
-include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
-
-# Define sources for the main project executable
 add_executable(${PROJECT_NAME}
         src/main.cpp
         src/fast_copy.c
@@ -66,14 +38,10 @@ add_executable(${PROJECT_NAME}
         src/fht/fht.c
 )
 
-# Define the test executable
 add_executable(run_gs_dbscan_tests
         test/gsDBSCANTest.cpp
-        src/dbscan/GsDBSCAN.cpp  # Assuming test depends on these source files
+        src/dbscan/GsDBSCAN.cpp
 )
 
-# Link Google Test libraries to the test executable
-target_link_libraries(run_gs_dbscan_tests gtest gtest_main ${CUDA_LIBS} ${ArrayFire_LIBRARIES})
-
-# Link CUDA and ArrayFire libraries explicitly
-target_link_libraries(${PROJECT_NAME} PRIVATE ${CUDA_LIBS} ${ArrayFire_LIBRARIES})
+target_link_libraries(run_gs_dbscan_tests gtest gtest_main ArrayFire::af)
+target_link_libraries(${PROJECT_NAME} ArrayFire::af)
