@@ -7,6 +7,53 @@
 #include <Eigen/Dense>
 #include <chrono>
 #include <arrayfire.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+
+/**
+ * Reads a CSV file and returns a vector of vectors of floats
+ *
+ * Used for testing, can use python as a baseline to generate test data
+ *
+ * @param filename
+ * @return
+ */
+std::vector<std::vector<float>> readCSV(const std::string& filename) {
+    std::ifstream file(filename);
+    std::vector<std::vector<float>> data;
+    std::string line;
+
+    while (std::getline(file, line)) {
+        std::stringstream lineStream(line);
+        std::string cell;
+        std::vector<float> row;
+
+        while (std::getline(lineStream, cell, ',')) {
+            row.push_back(std::stof(cell));
+        }
+
+        data.push_back(row);
+    }
+
+    return data;
+}
+
+af::array csvToArray(const std::string& filename) {
+    std::vector<std::vector<float>> data = readCSV(filename);
+    int n = data.size();
+    int m = data[0].size();
+
+    af::array array(n, m, f32); // Create array with matching dimensions and data type (f32 for float)
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            array(i, j) = data[i][j];
+        }
+    }
+
+    return array;
+}
 
 class gsDBSCANTest : public ::testing::Test {
 
@@ -74,6 +121,25 @@ TEST_F(TestCalculatingBatchSize, TestSmallInput) {
     int batchSize = GsDBSCAN::findDistanceBatchSize(1, n, 3, 10, 10);
 
     ASSERT_EQ(n, batchSize);
+}
+
+class TestConstructingABMatrices : public gsDBSCANTest {
+
+};
+
+TEST_F(TestConstructingABMatrices, TestSmallInput) {
+    int n = 100;
+    int D = 30;
+    int k = 5;
+    int m = 10;
+    af::array projections = csvToArray("data/projections.csv");
+
+    int a = 1;
+
+//    std::tie(A, B) = GsDBSCAN::constructABMatrices(projections, k, m);
+//
+//    ASSERT_TRUE(A.dims(0) == n && A.dims(1) == k);
+//    ASSERT_TRUE(B.dims(0) == n && B.dims(1) == m);
 }
 
 class TestFindingDistances : public gsDBSCANTest {
