@@ -5,6 +5,7 @@
 #include "../../include/GsDBSCAN.h"
 #include <arrayfire.h>
 #include <cmath>
+#include <tuple>
 
 // Constructor to initialize the DBSCAN parameters
 GsDBSCAN::GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, int m, float eps, bool skip_pre_checks)
@@ -54,6 +55,14 @@ void GsDBSCAN::preChecks(af::array X, af::array D, int minPts, int k, int m, flo
  */
 void GsDBSCAN::preProcessing(af::array D) {
     // TODO implement me!
+
+    /*
+     * What needs to be done:
+     *
+     * Perform random projections: (use FHT from sDBSCAN for now)
+     * Construct A and B matrices
+     *
+     */
 }
 
 /**
@@ -80,8 +89,30 @@ void GsDBSCAN::randomProjections(af::array X, af::array D, int k, int m, float e
  * @param k k parameter as per the DBSCAN algorithm
  * @param m m parameter as per the DBSCAN algorithm
  */
-void GsDBSCAN::constructABMatrices(af::array X, af::array D, int k, int m) {
-    // TODO implement me!
+std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array& projections, int k, int m) {
+    // Assume projections has shape (n, D)
+    int n = projections.dims(0);
+    int D = projections.dims(1);
+
+    af::array A(n, 2*k);
+    af::array B(2*D, m);
+
+    af::array dataToRandomIdxSorted = af::constant(-1, projections.dims(), af::dtype::u16);
+    af::array randomToDataIdxSorted = af::constant(-1, projections.dims(), af::dtype::u16);
+    af::array sortedValsTemp;
+
+    af::sort(sortedValsTemp, sortedValsTemp, projections, 1);
+
+    A(af::span, af::seq(0, k-1)) = 2 * dataToRandomIdxSorted(af::span, af::seq(0, k - 1));
+    A(af::span, af::seq(k, af::end)) = 2 * dataToRandomIdxSorted(af::span, af::seq(dataToRandomIdxSorted.dims(0)-k, af::end));
+
+    af::array BEvenIdx = af::seq(0, 2*D-1, 2);
+    af::array BOddIdx = BEvenIdx + 1;
+
+    B(BEvenIdx, af::span) = randomToDataIdxSorted(af::seq(0, m-1), af::span);
+    B(BOddIdx, af::span) = randomToDataIdxSorted(af::seq( randomToDataIdxSorted.dims(0)-m, af::end), af::span);
+
+    return std::make_tuple(A, B);
 }
 
 /**

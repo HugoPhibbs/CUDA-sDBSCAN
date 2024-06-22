@@ -35,7 +35,7 @@ public:
 
     void static randomProjections(af::array X, af::array D, int k, int m, float eps);
 
-    void static constructABMatrices(af::array X, af::array D, int k, int m);
+    std::tuple<af::array, af::array> static constructABMatrices(const af::array& projections, int k, int m);
 
     af::array static findDistances(af::array X, af::array A, af::array B, float alpha = 1.2);
 
