@@ -3,10 +3,7 @@
 //
 
 #include "../../include/GsDBSCAN.h"
-#include <arrayfire.h>
 #include <cmath>
-#include <cuda_runtime.h> // TODO, need to make sure this actually exists
-#include <af/cuda.h>
 #include <cassert>
 #include <tuple>
 
@@ -48,10 +45,10 @@ void GsDBSCAN::performGsDbscan(af::array &X, int D, int minPts, int k, int m, fl
  */
 void GsDBSCAN::preChecks(af::array &X, int D, int minPts, int k, int m, float eps) {
     assert(X.dims(1) > 0);
-    assert(X.shape[1] > 0);
+    assert(X.dims(1) > 0);
     assert(D > 0);
     assert(D >= k);
-    assert(m >= minPts)
+    assert(m >= minPts);
 }
 
 /**
@@ -206,13 +203,14 @@ int GsDBSCAN::findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
 void GsDBSCAN::constructClusterGraph(af::array &distances, float eps, int k, int m) {
     af::array E = constructQueryVectorDegreeArray(distances, eps);
     af::array V = processQueryVectorDegreeArray(E);
-    af::array adjacencyList = assembleAdjacencyList(distances, E, V, A, B, eps, 1024);
+//    af::array adjacencyList = assembleAdjacencyList(distances, E, V, A, B, eps, 1024);
 
-    return adjacencyList, V;
+//    return adjacencyList, V;
 }
 
 af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E) {
     af::scan(E, 0, AF_BINARY_ADD, true); // Do an exclusive scan
+    return af::constant(1, 1, -1); // TODO, need to return the V array, this is here to satisfy the compiler.
 }
 
 /**
@@ -229,7 +227,7 @@ af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E) {
  * @return The degree array of the query vectors, with shape (datasetSize, 1).
  */
 af::array GsDBSCAN::constructQueryVectorDegreeArray(af::array &distances, float eps) {
-    return af::sum(af::lt(distances, eps), 1);
+    return af::sum( distances < eps, 1);
 }
 
 /**
@@ -261,20 +259,20 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     B.eval();
 
     // Getting device pointers
-    int *adjacencyList_d= x.device<float>();
-    int *distances_d = distances.device<float>();
-    int *E = E.device<int>();
+    float *adjacencyList_d= adjacencyList.device<float>();
+    float *distances_d = distances.device<float>();
+    int *E_d = E.device<int>();
     int *V_d = V.device<int>();
     int *A_d = A.device<int>();
     int *B_d = B.device<int>();
 
     // Getting cuda stream from af
-    cudaStream_t afCudaStream = getAfCudaStream();
+//    cudaStream_t afCudaStream = getAfCudaStream();
 
     // Now we can call the kernel
     int numBlocks = std::max(1, n / blockSize);
     blockSize = std::min(n, blockSize);
-    constructAdjacencyListForQueryVector<<numBlocks, blockSize, 0, afCudaStream>>(distances_d, adjacencyList_d, V_d, A_d, B_d, eps, n, k, m);
+//    constructAdjacencyListForQueryVector<<numBlocks, blockSize, 0, afCudaStream>>(distances_d, adjacencyList_d, V_d, A_d, B_d, eps, n, k, m);
 
     // Unlock all the af arrays
     adjacencyList.unlock();
@@ -287,50 +285,50 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     return adjacencyList;
 }
 
-/**
- * Gets the CUDA stream from ArrayFire
- *
- * For easy testing of other functions
- *
- * See https://arrayfire.org/docs/interop_cuda.htm for info on this
- *
- * @return the CUDA stream
- */
-cudaStream_t GsDBSCAN::getAfCudaStream() {
-    int afId = af::getDevice();
-    int cudaId= afcu::getNativeId(afId);
-    return afcu::getStream(cudaId);
-}
+///**
+// * Gets the CUDA stream from ArrayFire
+// *
+// * For easy testing of other functions
+// *
+// * See https://arrayfire.org/docs/interop_cuda.htm for info on this
+// *
+// * @return the CUDA stream
+// */
+//cudaStream_t GsDBSCAN::getAfCudaStream() {
+//    int afId = af::getDevice();
+//    int cudaId= afcu::getNativeId(afId);
+//    return afcu::getStream(cudaId);
+//}
 
 
-/**
- * Kernel for constructing part of the cluster graph adjacency list for a particular vector
- *
- * @param distances matrix containing the distances between each query vector and it's candidate vectors
- * @param adjacencyList
- * @param V vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
- * @param A A matrix, see constructABMatrices. Stored flat as a float array
- * @param B B matrix, see constructABMatrices. Stored flat as a float array
- * @param n number of query vectors in the dataset
- * @param eps epsilon DBSCAN density param
- */
-__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n, int k, int m) {
-    idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= n) return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
-
-    int curr_idx = V[idx];
-
-    int distances_rows = 2 * k * m;
-
-    for (int j = 0; j < distances_rows; j++) {
-        if (distances[idx * distances_rows + j] < eps) {
-            ACol = j / m;
-            BCol = j % m;
-            BRow = A[idx * 2 * k + ACol];
-            neighbourhoodVecIdx = B[BRow * m + BCol];
-
-            adjacencyList[curr_idx] = neighbourhoodVecIdx;
-            curr_idx++;
-        }
-    }
-}
+///**
+// * Kernel for constructing part of the cluster graph adjacency list for a particular vector
+// *
+// * @param distances matrix containing the distances between each query vector and it's candidate vectors
+// * @param adjacencyList
+// * @param V vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
+// * @param A A matrix, see constructABMatrices. Stored flat as a float array
+// * @param B B matrix, see constructABMatrices. Stored flat as a float array
+// * @param n number of query vectors in the dataset
+// * @param eps epsilon DBSCAN density param
+// */
+//__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n, int k, int m) {
+//    idx = blockIdx.x * blockDim.x + threadIdx.x;
+//    if (idx >= n) return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
+//
+//    int curr_idx = V[idx];
+//
+//    int distances_rows = 2 * k * m;
+//
+//    for (int j = 0; j < distances_rows; j++) {
+//        if (distances[idx * distances_rows + j] < eps) {
+//            ACol = j / m;
+//            BCol = j % m;
+//            BRow = A[idx * 2 * k + ACol];
+//            neighbourhoodVecIdx = B[BRow * m + BCol];
+//
+//            adjacencyList[curr_idx] = neighbourhoodVecIdx;
+//            curr_idx++;
+//        }
+//    }
+//}
