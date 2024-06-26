@@ -11,6 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <string>
 
 /**
  * Reads a CSV file and returns a vector of vectors of floats
@@ -18,6 +19,7 @@
  * Used for testing, can use python as a baseline to generate test data
  *
  * @param filename
+ * @return
  * @return
  */
 std::vector<std::vector<float>> readCSV(const std::string& filename) {
@@ -43,7 +45,7 @@ std::vector<std::vector<float>> readCSV(const std::string& filename) {
 af::array csvToArray(const std::string& filename) {
     std::vector<std::vector<float>> data = readCSV(filename);
     int n = data.size();
-    int m = data[0].size();
+    int m = data.at(0).size();
 
     af::array array(n, m, f32); // Create array with matching dimensions and data type (f32 for float)
     for (int i = 0; i < n; i++) {
@@ -128,18 +130,21 @@ class TestConstructingABMatrices : public gsDBSCANTest {
 };
 
 TEST_F(TestConstructingABMatrices, TestSmallInput) {
-//    int n = 100;
-//    int D = 30;
-//    int k = 5;
-//    int m = 10;
-//    af::array projections = csvToArray("data/projections.csv");
-//
-//    int a = 1;
+    int n = 100;
+    int D = 30;
+    int k = 5;
+    int m = 10;
+    std::string filename = "./data/projections.csv";
+    af::array projections = csvToArray(filename);
 
-//    std::tie(A, B) = GsDBSCAN::constructABMatrices(projections, k, m);
-//
-//    ASSERT_TRUE(A.dims(0) == n && A.dims(1) == k);
-//    ASSERT_TRUE(B.dims(0) == n && B.dims(1) == m);
+    int a = 1;
+
+    af::array A, B;
+
+    std::tie(A, B) = GsDBSCAN::constructABMatrices(projections, k, m);
+
+    ASSERT_TRUE(A.dims(0) == n && A.dims(1) == k);
+    ASSERT_TRUE(B.dims(0) == n && B.dims(1) == m);
 }
 
 class TestFindingDistances : public gsDBSCANTest {
