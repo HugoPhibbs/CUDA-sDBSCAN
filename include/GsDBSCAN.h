@@ -30,13 +30,13 @@ public:
     GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, int m, float eps, bool skip_pre_checks);
 
     // Methods corresponding to the functions
-    void performGsDbscan(af::array &X, int D, int minPts, int k, int m, float eps);
+    void performGsDbscan(af::array &X, int D, int minPts, int k, int m, float eps, float alpha=1.2);
 
     void static preChecks(af::array &X, int D, int minPts, int k, int m, float eps);
 
-    void static preProcessing(af::array &D);
+    std::tuple<af::array, af::array> static preProcessing(af::array &X, int D, int k, int m);
 
-    void static randomProjections(af::array &X, int D, int k, int m, float eps);
+    af::array static randomProjections(af::array &X, int D, int k, int m);
 
     std::tuple<af::array, af::array> static constructABMatrices(const af::array& projections, int k, int m);
 
@@ -44,13 +44,13 @@ public:
 
     int static findDistanceBatchSize(float alpha, int n, int d, int k, int m);
 
-    void static constructClusterGraph(af::array &distances, float eps, int k, int m);
-
     static af::array assembleAdjacencyList(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B, float eps, int blockSize=1024);
 
     af::array static constructQueryVectorDegreeArray(af::array &distances, float eps);
 
     af::array static processQueryVectorDegreeArray(af::array &E);
+
+    void static performClustering(af::array &adjacencyList, af::array &V);
 
 //    cudaStream_t static getAfCudaStream();
 

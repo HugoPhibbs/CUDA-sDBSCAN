@@ -26,11 +26,36 @@ GsDBSCAN::GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, in
  * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
  * @param skip_pre_checks boolean flag to skip the pre-checks
  */
-void GsDBSCAN::performGsDbscan(af::array &X, int D, int minPts, int k, int m, float eps ) {
+void GsDBSCAN::performGsDbscan(af::array &X, int D, int minPts, int k, int m, float eps, float alpha) {
     if (!skip_pre_checks) {
         preChecks(X, D, minPts, k, m, eps);
     }
     // Something something ... TODO
+
+    /*
+     * Steps:
+     *
+     * 1. Preprocessing - Perform random projections and create A and B matrices
+     * 2. Find distances between query vectors and their candidate vectors
+     * 3. Use vectors to create E and V vectors
+     * 4. Create the adjacency list
+     * 5. Finally, create the cluster graph - can use Ninh's pre-existing clustering method
+     *
+     *
+     */
+    af::array projections = GsDBSCAN::randomProjections(X, D, k, m);
+
+    af::array A, B;
+    std::tie(A, B) = GsDBSCAN::constructABMatrices(projections, k, m);
+
+    af::array distances = GsDBSCAN::findDistances(X, A, B, alpha);
+
+    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
+    af::array V = GsDBSCAN::processQueryVectorDegreeArray(E);
+
+    af::array adjacencyList = GsDBSCAN::assembleAdjacencyList(distances, E, V, A, B, eps, 1024);
+
+    // Create clusters, then return the clusters. Thats all
 }
 
 /**
@@ -52,35 +77,17 @@ void GsDBSCAN::preChecks(af::array &X, int D, int minPts, int k, int m, float ep
 }
 
 /**
- * Performs the pre-processing for the gs dbscan algorithm
- *
- * @param Y ArrayFire af::array matrix for the D random vectors
- * @return A, B matrices as per the GS-DBSCAN algorithm. A has size (n, 2*k) and B has size (2*k, m)
- */
-void GsDBSCAN::preProcessing(af::array &Y) {
-    // TODO implement me!
-
-    /*
-     * What needs to be done:
-     *
-     * Perform random projections: (use FHT from sDBSCAN for now)
-     * Construct A and B matrices
-     *
-     */
-}
-
-/**
  * Performs random projections between the X dataset and the random vector
  *
  * @param X af::array matrix for the X data points
  * @param D int for number of random vectors to generate
  * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
  * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
- * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
  * @return af::array matrix for the random projections
  */
-void GsDBSCAN::randomProjections(af::array &X, int D, int k, int m, float eps) {
+af::array GsDBSCAN::randomProjections(af::array &X, int D, int k, int m) {
     // TODO implement me!
+    return af::constant(1, 1, 1);
 }
 
 /**
@@ -88,8 +95,7 @@ void GsDBSCAN::randomProjections(af::array &X, int D, int k, int m, float eps) {
  *
  * A stores the indices of the closest and furthest random vectors per data point.
  *
- * @param X matrix containing the X dataset vectors
- * @param Y matrix containing the random vectors
+ * @param D projections, projections between query vectors and the random vectors, has shape (N, D)
  * @param k k parameter as per the DBSCAN algorithm
  * @param m m parameter as per the DBSCAN algorithm
  */
@@ -192,32 +198,11 @@ int GsDBSCAN::findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
 }
 
 /**
- * Constructs the cluster graph for the DBSCAN algorithm
- *
- * @param distances matrix containing the distances between each query vector and it's candidate vectors
- * @param eps epsilon DBSCAN density param
- * @param k k parameter of the DBSCAN algorithm
- * @param m m parameter of the DBSCAN algorithm
- * @return a vector containing the (flattened) adjacency list of the cluster graph, along with another list V containing the starting index of each query vector in the adjacency list
- */
-void GsDBSCAN::constructClusterGraph(af::array &distances, float eps, int k, int m) {
-    af::array E = constructQueryVectorDegreeArray(distances, eps);
-    af::array V = processQueryVectorDegreeArray(E);
-//    af::array adjacencyList = assembleAdjacencyList(distances, E, V, A, B, eps, 1024);
-
-//    return adjacencyList, V;
-}
-
-af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E) {
-    af::scan(E, 0, AF_BINARY_ADD, true); // Do an exclusive scan
-    return af::constant(1, 1, -1); // TODO, need to return the V array, this is here to satisfy the compiler.
-}
-
-/**
  * Calculates the degree of the query vectors as per the G-DBSCAN algorithm.
  *
  * This function is used in the construction of the cluster graph by determining how many
- * candidate vectors fall within a given epsilon distance from each query vector.
+ *
+ * Put into its own method for testability
  *
  * @param distances The matrix containing the distances between the query and candidate vectors.
  *                  Expected shape is (datasetSize, 2*k*m).
@@ -228,6 +213,31 @@ af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E) {
  */
 af::array GsDBSCAN::constructQueryVectorDegreeArray(af::array &distances, float eps) {
     return af::sum( distances < eps, 1);
+}
+
+/**
+ * Processes the vector degree array to create an exclusive scan of this vector
+ *
+ * Put into it's own method to ensure testability
+ *
+ * @param E vector degree array
+ * @return arrayfire processed array
+ */
+af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E) {
+    af::scan(E, 0, AF_BINARY_ADD, true); // Do an exclusive scan
+    return af::constant(1, 1, -1); // TODO, need to return the V array, this is here to satisfy the compiler.
+}
+
+/**
+ * Performs the actual clustering step of the algorithm
+ *
+ * I.e. returns the formed clusters based on the inputted adjacency list
+ *
+ * @param adjacencyList af array adjacency list for each of the dataset vectors as per the GsDBSCAN algorithm
+ * @param V af array containing the starting index of each of the dataset vectors within the adjacency list
+ */
+void static performClustering(af::array &adjacencyList, af::array &V) {
+    // TODO implement me!
 }
 
 /**
