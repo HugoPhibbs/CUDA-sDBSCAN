@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.3")
 set(CMAKE_CUDA_COMPILER /usr/local/cuda-11.3/bin/nvcc)
-find_package(CUDA Toolkit 11.3 REQUIRED)
+find_package(CUDAToolkit 11.3 REQUIRED)
 
 find_package(ArrayFire REQUIRED)
 
