@@ -10,7 +10,7 @@
 #include <Eigen/Dense>
 #include <arrayfire.h>
 #include <cuda_runtime.h>
-//#include <af/cuda.h>
+#include <af/cuda.h>
 #include <arrayfire.h>
 
 class GsDBSCAN {
@@ -52,7 +52,7 @@ public:
 
     void static performClustering(af::array &adjacencyList, af::array &V);
 
-//    cudaStream_t static getAfCudaStream();
+    cudaStream_t static getAfCudaStream();
 
     // Destructor if needed
     ~GsDBSCAN() = default;

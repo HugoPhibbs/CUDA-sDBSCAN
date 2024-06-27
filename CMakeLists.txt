@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.27)
-project(DbscanCEOs)
+project(DbscanCEOs LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
 
 set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.3")
-find_package(CUDAToolkit 11.3 REQUIRED)
+set(CMAKE_CUDA_COMPILER /usr/local/cuda-11.3/bin/nvcc)
+find_package(CUDA Toolkit 11.3 REQUIRED)
 
 find_package(ArrayFire REQUIRED)
 
@@ -44,6 +45,10 @@ add_executable(run_gs_dbscan_tests
         test/gsDBSCANTest.cpp
         src/dbscan/GsDBSCAN.cpp
 )
+
+
+# Set GsDBSCAN.cpp to be treated as a CUDA source file (taken from ChatGPT)
+set_source_files_properties(src/dbscan/GsDBSCAN.cpp PROPERTIES LANGUAGE CUDA)
 
 target_link_libraries(run_gs_dbscan_tests gtest gtest_main CUDA::cudart ArrayFire::af)
 target_link_libraries(${PROJECT_NAME} CUDA::cudart ArrayFire::af)

@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cassert>
 #include <tuple>
+#define AF_DEFINE_CUDA_TYPES
 
 // Constructor to initialize the DBSCAN parameters
 GsDBSCAN::GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, int m, float eps, bool skip_pre_checks)
@@ -277,12 +278,12 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     int *B_d = B.device<int>();
 
     // Getting cuda stream from af
-//    cudaStream_t afCudaStream = getAfCudaStream();
+    cudaStream_t afCudaStream = getAfCudaStream();
 
     // Now we can call the kernel
     int numBlocks = std::max(1, n / blockSize);
     blockSize = std::min(n, blockSize);
-//    constructAdjacencyListForQueryVector<<numBlocks, blockSize, 0, afCudaStream>>(distances_d, adjacencyList_d, V_d, A_d, B_d, eps, n, k, m);
+    constructAdjacencyListForQueryVector<<<numBlocks, blockSize, 0, afCudaStream>>>(distances_d, adjacencyList_d, V_d, A_d, B_d, eps, n, k, m);
 
     // Unlock all the af arrays
     adjacencyList.unlock();
@@ -295,20 +296,20 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     return adjacencyList;
 }
 
-///**
-// * Gets the CUDA stream from ArrayFire
-// *
-// * For easy testing of other functions
-// *
-// * See https://arrayfire.org/docs/interop_cuda.htm for info on this
-// *
-// * @return the CUDA stream
-// */
-//cudaStream_t GsDBSCAN::getAfCudaStream() {
-//    int afId = af::getDevice();
-//    int cudaId= afcu::getNativeId(afId);
-//    return afcu::getStream(cudaId);
-//}
+/**
+ * Gets the CUDA stream from ArrayFire
+ *
+ * For easy testing of other functions
+ *
+ * See https://arrayfire.org/docs/interop_cuda.htm for info on this
+ *
+ * @return the CUDA stream
+ */
+cudaStream_t GsDBSCAN::getAfCudaStream() {
+    int afId = af::getDevice();
+    int cudaId= afcu::getNativeId(afId);
+    return afcu::getStream(cudaId);
+}
 
 /*
  * For the above, check this issue:
@@ -319,34 +320,36 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
  */
 
 
-///**
-// * Kernel for constructing part of the cluster graph adjacency list for a particular vector
-// *
-// * @param distances matrix containing the distances between each query vector and it's candidate vectors
-// * @param adjacencyList
-// * @param V vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
-// * @param A A matrix, see constructABMatrices. Stored flat as a float array
-// * @param B B matrix, see constructABMatrices. Stored flat as a float array
-// * @param n number of query vectors in the dataset
-// * @param eps epsilon DBSCAN density param
-// */
-//__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n, int k, int m) {
-//    idx = blockIdx.x * blockDim.x + threadIdx.x;
-//    if (idx >= n) return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
-//
-//    int curr_idx = V[idx];
-//
-//    int distances_rows = 2 * k * m;
-//
-//    for (int j = 0; j < distances_rows; j++) {
-//        if (distances[idx * distances_rows + j] < eps) {
-//            ACol = j / m;
-//            BCol = j % m;
-//            BRow = A[idx * 2 * k + ACol];
-//            neighbourhoodVecIdx = B[BRow * m + BCol];
-//
-//            adjacencyList[curr_idx] = neighbourhoodVecIdx;
-//            curr_idx++;
-//        }
-//    }
-//}
+/**
+ * Kernel for constructing part of the cluster graph adjacency list for a particular vector
+ *
+ * @param distances matrix containing the distances between each query vector and it's candidate vectors
+ * @param adjacencyList
+ * @param V vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
+ * @param A A matrix, see constructABMatrices. Stored flat as a float array
+ * @param B B matrix, see constructABMatrices. Stored flat as a float array
+ * @param n number of query vectors in the dataset
+ * @param eps epsilon DBSCAN density param
+ */
+__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n, int k, int m) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
+
+    int curr_idx = V[idx];
+
+    int distances_rows = 2 * k * m;
+
+    int ACol, BCol, BRow, neighbourhoodVecIdx;
+
+    for (int j = 0; j < distances_rows; j++) {
+        if (distances[idx * distances_rows + j] < eps) {
+            ACol = j / m;
+            BCol = j % m;
+            BRow = A[idx * 2 * k + ACol];
+            neighbourhoodVecIdx = B[BRow * m + BCol];
+
+            adjacencyList[curr_idx] = neighbourhoodVecIdx;
+            curr_idx++;
+        }
+    }
+}
