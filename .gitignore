@@ -4,3 +4,5 @@ eigen*
 lib
 CMakeFiles
 CMakeCache.txt
+.cmake
+.vscode
