@@ -1,72 +1,432 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <CodeBlocks_project_file>
-	<FileVersion major="1" minor="6" />
+	<FileVersion major="1" minor="6"/>
 	<Project>
-		<Option title="DbscanCEOs" />
-		<Option pch_mode="2" />
-		<Option compiler="gcc" />
+		<Option title="DbscanCEOs"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;CMake Files\..\;CMake Files\..\..\;CMake Files\..\..\..\;CMake Files\..\..\..\..\;CMake Files\..\..\..\..\usr\;CMake Files\..\..\..\..\usr\local\;CMake Files\..\..\..\..\usr\local\share\;CMake Files\..\..\..\..\usr\local\share\ArrayFire\;CMake Files\..\..\..\..\usr\local\share\ArrayFire\cmake\;CMake Files\lib\;CMake Files\lib\googletest\;CMake Files\lib\googletest\googlemock\;CMake Files\lib\googletest\googlemock\cmake\;CMake Files\lib\googletest\googletest\;CMake Files\lib\googletest\googletest\cmake\;"/>
 		<Build>
-			<Target title="Debug">
-				<Option output="bin/Debug/DbscanCEOs" prefix_auto="1" extension_auto="1" />
-				<Option object_output="obj/Debug/" />
-				<Option type="1" />
-				<Option compiler="gcc" />
-				<Option parameters='--numPts 70000 --numDim 784 --X &quot;/home/npha145/Dataset/Clustering/mnist_all_X_Cplus&quot; --alg Optics --eps 1700 --minPts 50 --numEmbed 1024 --numProj 2048 --topKProj 2 --topMProj 1000 --dist L2 --output y_optics --sigma 2600' />
-				<Compiler>
-					<Add option="-O3" />
-					<Add option="-g" />
-					<Add option="-march=native" />
-				</Compiler>
+			<Target title="all">
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
 			</Target>
-			<Target title="Release">
-				<Option output="bin/Release/DbscanCEOs" prefix_auto="1" extension_auto="1" />
-				<Option object_output="obj/Release/" />
-				<Option type="1" />
-				<Option compiler="gcc" />
-				<Option parameters='--numPts 70000 --numDim 784 --X &quot;/home/npha145/Dataset/Clustering/mnist_all_X_cosine&quot; --alg sngDbscan --eps 0.11 --p 0.01 --minPts 50 --clusterNoise 3 --dist Cosine --numThreads 64 --output y_sngDbscan' />
+			<Target title="DbscanCEOs">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/DbscanCEOs" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
 				<Compiler>
-					<Add option="-O3" />
-					<Add option="-std=c++17" />
-					<Add option="-m64" />
-					<Add option="-fopenmp" />
-					<Add option="-march=native" />
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+					<Add directory="/usr/local/cuda-11.3/targets/x86_64-linux/include"/>
+					<Add directory="/usr/local/include"/>
 				</Compiler>
-				<Linker>
-					<Add option="-O3" />
-					<Add option="-s" />
-					<Add option="-m64" />
-					<Add option="-lgomp -pthread" />
-				</Linker>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 DbscanCEOs"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="DbscanCEOs/fast">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/DbscanCEOs" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+					<Add directory="/usr/local/cuda-11.3/targets/x86_64-linux/include"/>
+					<Add directory="/usr/local/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 DbscanCEOs/fast"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="run_gs_dbscan_tests">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/run_gs_dbscan_tests" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+					<Add directory="/usr/local/cuda-11.3/targets/x86_64-linux/include"/>
+					<Add directory="/usr/local/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 run_gs_dbscan_tests"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="run_gs_dbscan_tests/fast">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/run_gs_dbscan_tests" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+					<Add directory="/usr/local/cuda-11.3/targets/x86_64-linux/include"/>
+					<Add directory="/usr/local/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 run_gs_dbscan_tests/fast"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="list_install_components">
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 list_install_components"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install">
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 install"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install/local">
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 install/local"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install/strip">
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 install/strip"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="gmock">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/libgmock.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 gmock"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="gmock/fast">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/libgmock.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 gmock/fast"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="gmock_main">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/libgmock_main.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 gmock_main"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="gmock_main/fast">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/libgmock_main.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 gmock_main/fast"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="gtest">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/libgtest.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 gtest"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="gtest/fast">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/libgtest.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 gtest/fast"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="gtest_main">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/libgtest_main.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 gtest_main"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="gtest_main/fast">
+				<Option output="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/libgtest_main.a" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+				<Option object_output="./"/>
+				<Option type="2"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/eigen-3.4.0"/>
+					<Add directory="/usr/local/cuda-11.3/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
+					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 gtest_main/fast"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
 			</Target>
 		</Build>
-		<Compiler>
-			<Add option="-Wall" />
-			<Add option="-fexceptions" />
-			<Add directory="/home/npha145/Library/boost_1_78_0" />
-			<Add directory="/home/npha145/Library/eigen-3.4.0" />
-		</Compiler>
-		<Unit filename="Dbscan.cpp" />
-		<Unit filename="Dbscan.h" />
-		<Unit filename="Header.cpp" />
-		<Unit filename="Header.h" />
-		<Unit filename="InputParser.cpp" />
-		<Unit filename="InputParser.h" />
-		<Unit filename="Optics.cpp" />
-		<Unit filename="Optics.h" />
-		<Unit filename="Test.cpp" />
-		<Unit filename="Test.h" />
-		<Unit filename="Utilities.cpp" />
-		<Unit filename="Utilities.h" />
-		<Unit filename="fast_copy.c">
-			<Option compilerVar="CC" />
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/include/GsDBSCAN.h">
+			<Option target="DbscanCEOs"/>
 		</Unit>
-		<Unit filename="fast_copy.h" />
-		<Unit filename="fht.c">
-			<Option compilerVar="CC" />
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/include/preprocessing.h">
+			<Option target="DbscanCEOs"/>
 		</Unit>
-		<Unit filename="fht.h" />
-		<Unit filename="fht_impl.h" />
-		<Unit filename="main.cpp" />
-		<Extensions />
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/include/sDBSCAN.h">
+			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/include/sngDBSCAN.h">
+			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/include/uDBSCAN.h">
+			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/src/gmock-all.cc">
+			<Option target="gmock"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/src/gmock_main.cc">
+			<Option target="gmock_main"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/src/gtest-all.cc">
+			<Option target="gtest"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/src/gtest_main.cc">
+			<Option target="gtest_main"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/src/dbscan/DBSCAN.cpp">
+			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/src/dbscan/GsDBSCAN.cpp">
+			<Option target="DbscanCEOs"/>
+			<Option target="run_gs_dbscan_tests"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/src/dbscan/preprocessing.cpp">
+			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/src/dbscan/sDBSCAN.cpp">
+			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/src/dbscan/sngDBSCAN.cpp">
+			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/src/dbscan/uDBSCAN.cpp">
+			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/src/fast_copy.c">
+			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/src/fht/fht.c">
+			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/src/main.cpp">
+			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/test/gsDBSCANTest.cpp">
+			<Option target="run_gs_dbscan_tests"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/../../../../usr/local/share/ArrayFire/cmake/ArrayFireCUDATargets-release.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\usr\local\share\ArrayFire\cmake\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/../../../../usr/local/share/ArrayFire/cmake/ArrayFireCUDATargets.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\usr\local\share\ArrayFire\cmake\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/../../../../usr/local/share/ArrayFire/cmake/ArrayFireConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\usr\local\share\ArrayFire\cmake\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/../../../../usr/local/share/ArrayFire/cmake/ArrayFireConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\usr\local\share\ArrayFire\cmake\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/../../../../usr/local/share/ArrayFire/cmake/ArrayFireUnifiedTargets-release.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\usr\local\share\ArrayFire\cmake\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/../../../../usr/local/share/ArrayFire/cmake/ArrayFireUnifiedTargets.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\usr\local\share\ArrayFire\cmake\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\lib\googletest\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\lib\googletest\googlemock\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/cmake/gmock.pc.in">
+			<Option virtualFolder="CMake Files\lib\googletest\googlemock\cmake\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googlemock/cmake/gmock_main.pc.in">
+			<Option virtualFolder="CMake Files\lib\googletest\googlemock\cmake\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\lib\googletest\googletest\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/cmake/Config.cmake.in">
+			<Option virtualFolder="CMake Files\lib\googletest\googletest\cmake\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/cmake/gtest.pc.in">
+			<Option virtualFolder="CMake Files\lib\googletest\googletest\cmake\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/cmake/gtest_main.pc.in">
+			<Option virtualFolder="CMake Files\lib\googletest\googletest\cmake\"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/cmake/internal_utils.cmake">
+			<Option virtualFolder="CMake Files\lib\googletest\googletest\cmake\"/>
+		</Unit>
 	</Project>
 </CodeBlocks_project_file>
