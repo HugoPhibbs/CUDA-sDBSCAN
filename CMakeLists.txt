@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.27)
 project(DbscanCEOs LANGUAGES CXX CUDA C)
+#enable_language(CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -21,7 +22,11 @@ link_directories(
 
 add_subdirectory(lib/googletest)
 
-#add_definitions(-DAF_CUDA) # Enable CUDA support (not sure if this is necessary)
+# Set GsDBSCAN.cpp to be treated as a CUDA source file (taken from ChatGPT)
+set_source_files_properties(
+        src/dbscan/GsDBSCAN.cpp
+        test/gsDBSCANTest.cpp
+        PROPERTIES LANGUAGE CUDA)
 
 add_executable(${PROJECT_NAME}
         src/main.cpp
@@ -45,9 +50,5 @@ add_executable(run_gs_dbscan_tests
         src/dbscan/GsDBSCAN.cpp
 )
 
-
-# Set GsDBSCAN.cpp to be treated as a CUDA source file (taken from ChatGPT)
-set_source_files_properties(./src/dbscan/GsDBSCAN.cpp PROPERTIES LANGUAGE CUDA)
-
-target_link_libraries(run_gs_dbscan_tests gtest gtest_main CUDA::cudart ArrayFire::af)
-target_link_libraries(${PROJECT_NAME} CUDA::cudart ArrayFire::af)
+target_link_libraries(run_gs_dbscan_tests gtest gtest_main CUDA::cudart ArrayFire::afcuda)
+target_link_libraries(${PROJECT_NAME} CUDA::cudart ArrayFire::afcuda)

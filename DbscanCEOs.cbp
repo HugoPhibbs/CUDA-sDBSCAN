@@ -29,7 +29,6 @@
 					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
 					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
 					<Add directory="/usr/local/cuda-11.3/targets/x86_64-linux/include"/>
-					<Add directory="/usr/local/include"/>
 				</Compiler>
 				<MakeCommands>
 					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 DbscanCEOs"/>
@@ -50,7 +49,6 @@
 					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
 					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
 					<Add directory="/usr/local/cuda-11.3/targets/x86_64-linux/include"/>
-					<Add directory="/usr/local/include"/>
 				</Compiler>
 				<MakeCommands>
 					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 DbscanCEOs/fast"/>
@@ -71,7 +69,6 @@
 					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
 					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
 					<Add directory="/usr/local/cuda-11.3/targets/x86_64-linux/include"/>
-					<Add directory="/usr/local/include"/>
 				</Compiler>
 				<MakeCommands>
 					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 run_gs_dbscan_tests"/>
@@ -92,7 +89,6 @@
 					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest/include"/>
 					<Add directory="/home/hphi344/Documents/GS-DBSCAN-CPP/lib/googletest/googletest"/>
 					<Add directory="/usr/local/cuda-11.3/targets/x86_64-linux/include"/>
-					<Add directory="/usr/local/include"/>
 				</Compiler>
 				<MakeCommands>
 					<Build command="/usr/bin/make -f &quot;/home/hphi344/Documents/GS-DBSCAN-CPP/Makefile&quot;  VERBOSE=1 run_gs_dbscan_tests/fast"/>

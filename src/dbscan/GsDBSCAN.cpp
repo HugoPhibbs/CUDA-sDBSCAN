@@ -242,6 +242,41 @@ void static performClustering(af::array &adjacencyList, af::array &V) {
 }
 
 /**
+ * Kernel for constructing part of the cluster graph adjacency list for a particular vector
+ *
+ * @param distances matrix containing the distances between each query vector and it's candidate vectors
+ * @param adjacencyList
+ * @param V vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
+ * @param A A matrix, see constructABMatrices. Stored flat as a float array
+ * @param B B matrix, see constructABMatrices. Stored flat as a float array
+ * @param n number of query vectors in the dataset
+ * @param eps epsilon DBSCAN density param
+ */
+__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n, int k, int m) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
+
+    int curr_idx = V[idx];
+
+    int distances_rows = 2 * k * m;
+
+    int ACol, BCol, BRow, neighbourhoodVecIdx;
+
+    for (int j = 0; j < distances_rows; j++) {
+        if (distances[idx * distances_rows + j] < eps) {
+            ACol = j / m;
+            BCol = j % m;
+            BRow = A[idx * 2 * k + ACol];
+            neighbourhoodVecIdx = B[BRow * m + BCol];
+
+            adjacencyList[curr_idx] = neighbourhoodVecIdx;
+            curr_idx++;
+        }
+    }
+}
+
+
+/**
  * Assembles the adjacency list for the cluster graph
  *
  * See https://arrayfire.org/docs/interop_cuda.htm for info on this
@@ -270,7 +305,7 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     B.eval();
 
     // Getting device pointers
-    float *adjacencyList_d= adjacencyList.device<float>();
+    int *adjacencyList_d= adjacencyList.device<int>();
     float *distances_d = distances.device<float>();
     int *E_d = E.device<int>();
     int *V_d = V.device<int>();
@@ -319,37 +354,3 @@ cudaStream_t GsDBSCAN::getAfCudaStream() {
  * May need to look further into this - i.e. how to use af/cuda.h properly
  */
 
-
-/**
- * Kernel for constructing part of the cluster graph adjacency list for a particular vector
- *
- * @param distances matrix containing the distances between each query vector and it's candidate vectors
- * @param adjacencyList
- * @param V vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
- * @param A A matrix, see constructABMatrices. Stored flat as a float array
- * @param B B matrix, see constructABMatrices. Stored flat as a float array
- * @param n number of query vectors in the dataset
- * @param eps epsilon DBSCAN density param
- */
-__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n, int k, int m) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= n) return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
-
-    int curr_idx = V[idx];
-
-    int distances_rows = 2 * k * m;
-
-    int ACol, BCol, BRow, neighbourhoodVecIdx;
-
-    for (int j = 0; j < distances_rows; j++) {
-        if (distances[idx * distances_rows + j] < eps) {
-            ACol = j / m;
-            BCol = j % m;
-            BRow = A[idx * 2 * k + ACol];
-            neighbourhoodVecIdx = B[BRow * m + BCol];
-
-            adjacencyList[curr_idx] = neighbourhoodVecIdx;
-            curr_idx++;
-        }
-    }
-}
