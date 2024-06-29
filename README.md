@@ -9,6 +9,11 @@ It uses AVX to speed up the computation. This lib is part of FalconnLib.
 sDBSCAN also needs EigenLib (https://eigen.tuxfamily.org) with vectorization to fast compute distance
 and boost (https://www.boost.org/) with binary histogram
 
+# Building with CMake
+- From the root directory run:
+```bash
+cmake . -B ./cmake-build-debug
+```
 
 # Run sOptics, sDbscan, sDbscan-1NN
 
