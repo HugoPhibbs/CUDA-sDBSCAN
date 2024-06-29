@@ -225,8 +225,7 @@ af::array GsDBSCAN::constructQueryVectorDegreeArray(af::array &distances, float 
  * @return arrayfire processed array
  */
 af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E) {
-    af::scan(E, 0, AF_BINARY_ADD, true); // Do an exclusive scan
-    return af::constant(1, 1, -1); // TODO, need to return the V array, this is here to satisfy the compiler.
+    return af::scan(E, 0, AF_BINARY_ADD, true); // Do an exclusive scan// TODO, need to return the V array, this is here to satisfy the compiler.
 }
 
 /**
