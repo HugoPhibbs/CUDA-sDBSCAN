@@ -6,3 +6,4 @@ CMakeFiles
 CMakeCache.txt
 .cmake
 .vscode
+cmake_install.cmake
