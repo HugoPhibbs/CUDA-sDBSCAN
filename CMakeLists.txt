@@ -32,22 +32,18 @@ add_executable(${PROJECT_NAME}
         src/main.cpp
         src/fast_copy.c
         src/dbscan/sngDBSCAN.cpp
-        include/sngDBSCAN.h
         src/dbscan/DBSCAN.cpp
         src/dbscan/sDBSCAN.cpp
-        include/sDBSCAN.h
         src/dbscan/uDBSCAN.cpp
-        include/uDBSCAN.h
         src/dbscan/GsDBSCAN.cpp
-        include/GsDBSCAN.h
         src/dbscan/preprocessing.cpp
-        include/preprocessing.h
         src/fht/fht.c
 )
 
 add_executable(run_gs_dbscan_tests
         test/gsDBSCANTest.cpp
         src/dbscan/GsDBSCAN.cpp
+        test/TestUtils.cpp
 )
 
 target_link_libraries(run_gs_dbscan_tests gtest gtest_main CUDA::cudart ArrayFire::afcuda)
