@@ -213,7 +213,7 @@ int GsDBSCAN::findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
  * @return The degree array of the query vectors, with shape (datasetSize, 1).
  */
 af::array GsDBSCAN::constructQueryVectorDegreeArray(af::array &distances, float eps) {
-    return af::sum( distances < eps, 1);
+    return af::sum( distances < eps, 0);
 }
 
 /**
@@ -225,7 +225,7 @@ af::array GsDBSCAN::constructQueryVectorDegreeArray(af::array &distances, float 
  * @return arrayfire processed array
  */
 af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E) {
-    return af::scan(E, 0, AF_BINARY_ADD, true); // Do an exclusive scan// TODO, need to return the V array, this is here to satisfy the compiler.
+    return af::scan(E, 1, AF_BINARY_ADD, false); // Do an exclusive scan// TODO, need to return the V array, this is here to satisfy the compiler.
 }
 
 /**
