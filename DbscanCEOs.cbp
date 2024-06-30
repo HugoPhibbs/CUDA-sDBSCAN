@@ -321,6 +321,9 @@
 		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/include/GsDBSCAN.h">
 			<Option target="DbscanCEOs"/>
 		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/include/TestUtils.h">
+			<Option target="DbscanCEOs"/>
+		</Unit>
 		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/include/preprocessing.h">
 			<Option target="DbscanCEOs"/>
 		</Unit>
@@ -372,6 +375,9 @@
 		</Unit>
 		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/src/main.cpp">
 			<Option target="DbscanCEOs"/>
+		</Unit>
+		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/test/TestUtils.cpp">
+			<Option target="run_gs_dbscan_tests"/>
 		</Unit>
 		<Unit filename="/home/hphi344/Documents/GS-DBSCAN-CPP/test/gsDBSCANTest.cpp">
 			<Option target="run_gs_dbscan_tests"/>
