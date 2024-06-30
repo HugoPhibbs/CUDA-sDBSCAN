@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include "../include/GsDBSCAN.h"
+#include "../include/TestUtils.h"
 #include <Eigen/Dense>
 #include <chrono>
 #include <arrayfire.h>
@@ -12,50 +13,7 @@
 #include <sstream>
 #include <vector>
 #include <string>
-
-/**
- * Reads a CSV file and returns a vector of vectors of floats
- *
- * Used for testing, can use python as a baseline to generate test data
- *
- * @param filename
- * @return
- * @return
- */
-std::vector<std::vector<float>> readCSV(const std::string& filename) {
-    std::ifstream file(filename);
-    std::vector<std::vector<float>> data;
-    std::string line;
-
-    while (std::getline(file, line)) {
-        std::stringstream lineStream(line);
-        std::string cell;
-        std::vector<float> row;
-
-        while (std::getline(lineStream, cell, ',')) {
-            row.push_back(std::stof(cell));
-        }
-
-        data.push_back(row);
-    }
-
-    return data;
-}
-
-af::array csvToArray(const std::string& filename) {
-    std::vector<std::vector<float>> data = readCSV(filename);
-    int n = data.size();
-    int m = data.at(0).size();
-
-    af::array array(n, m, f32); // Create array with matching dimensions and data type (f32 for float)
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++) {
-            array(i, j) = data[i][j];
-        }
-    }
-
-    return array;
-}
+namespace tu = testUtils;
 
 class gsDBSCANTest : public ::testing::Test {
 
@@ -89,7 +47,7 @@ TEST_F(TestConstructingABMatrices, TestSmallInput) {
     int k = 5;
     int m = 10;
     std::string filename = "./data/projections.csv";
-    af::array projections = csvToArray(filename);
+    af::array projections = tu::csvToArray(filename);
 
     int a = 1;
 
@@ -163,12 +121,11 @@ class TestConstructQueryVectorDegreeArray : public gsDBSCANTest {
 };
 
 TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInput) {
-
     float distancesData[] = {
-        0, 1, 2, 3,
-        0, 2, 1, 0,
-        0, 2, 1, 0,
-        0, 2, 1, 0
+            0, 1, 2, 3,
+            0, 2, 1, 0,
+            1, 8, 9, 11,
+            15, 2, 6, 7
     };
 
     af::array distances(4, 4, distancesData);
@@ -176,11 +133,82 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInput) {
     float eps = 2.1;
 
     af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
+
+    float expectedData[] = {3, 4, 1, 1};
+
+    af::array expected(1, 4, expectedData);
+
+    ASSERT_TRUE(af::allTrue<bool>(expected == E));
+}
+
+TEST_F(TestConstructQueryVectorDegreeArray, TestMnist) {
+    af::array distances = tu::createMockDistances();
+
+    float eps = af::randu(1, 1).scalar<float>();
+
+    tu::Time start = tu::timeNow();
+
+    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
+
+    E.eval();
+    af::sync();
+
+    tu::printDurationSinceStart(start);
+}
+
+class TestProcessQueryVectorDegreeArray : public gsDBSCANTest {
+
+};
+
+TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInput) {
+
+    float EData[] = {3, 4, 1, 1};
+    af::array E(1, 4, EData);
+
+    float VExpectedData[] = {0, 3, 7, 8};
+
+    af::array VExpected(1, 4, VExpectedData);
+
     af::array V = GsDBSCAN::processQueryVectorDegreeArray(E);
 
-    distances.eval();
-    E.eval();
-    V.eval();
-
-    // TODO
+    ASSERT_TRUE(af::allTrue<bool>(VExpected ==  V));
 }
+
+TEST_F(TestProcessQueryVectorDegreeArray, TestMnist) {
+    af::array distances = tu::createMockDistances();
+
+    float eps = af::randu(1, 1).scalar<float>();
+
+    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
+
+    tu::Time start = tu::timeNow();
+
+    af::array V = GsDBSCAN::processQueryVectorDegreeArray(E);
+
+    V.eval();
+    af::sync();
+
+    tu::printDurationSinceStart(start);
+}
+
+\
+//TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInput) {
+//
+//    float distancesData[] = {
+//        0, 1, 2, 3,
+//        0, 2, 1, 0,
+//        0, 2, 1, 0,
+//        0, 2, 1, 0
+//    };
+//
+//    af::array distances(4, 4, distancesData);
+//
+//    float eps = 2.1;
+//
+//    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
+//    af::array V = GsDBSCAN::processQueryVectorDegreeArray(E);
+//
+//    distances.eval();
+//    E.eval();
+//    V.eval();
+//}
