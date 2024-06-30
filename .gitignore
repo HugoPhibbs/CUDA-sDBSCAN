@@ -9,4 +9,5 @@ CMakeCache.txt
 cmake_install.cmake
 Makefile
 run_gs_dbscan_tests
-.log
+*.log
+*.cdp
