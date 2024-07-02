@@ -2,11 +2,12 @@
 // Created by hphi344 on 10/05/24.
 //
 
+
 #include "../../include/GsDBSCAN.h"
 #include <cmath>
 #include <cassert>
 #include <tuple>
-#define AF_DEFINE_CUDA_TYPES
+#include <cstdio>
 
 // Constructor to initialize the DBSCAN parameters
 GsDBSCAN::GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, int m, float eps, bool skip_pre_checks)
@@ -145,6 +146,7 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
 
     af::array distances(n, 2*k*m, af::dtype::f32);
     af::array ABatch(batchSize, A.dims(1), A.type());
+    af::array ABatchRows(batchSize, 1, u16);
     af::array BBatch(batchSize, B.dims(1), B.type());
     af::array XBatch(batchSize, 2*k, m, d, X.type());
     af::array XBatchAdj(batchSize, 2*k*m, d, X.type());
@@ -153,16 +155,26 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
     af::array YBatch = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
 
     for (int i = 0; i < n; i += batchSize) {
+        printf("%d\n", batchSize);
+
         int maxBatchIdx = i + batchSize - 1;
-        ABatch = A(af::seq(i, maxBatchIdx));
+//        ABatchRows = af::seq(i, maxBatchIdx);
+        ABatch = A(af::seq(i, maxBatchIdx), af::span);
+
+        printf("%d, %d\n", ABatch.dims()[0], ABatch.dims()[1]);
+
         BBatch = B(A);
 
-        XBatch = X(BBatch); // TODO need to create XBatch before for loop?
+        XBatch = X(BBatch);
         XBatchAdj = af::moddims(XBatch, XBatch.dims(0), XBatch.dims(1) * XBatch.dims(2), XBatch.dims(3));
 
         XSubset = X(af::seq(i, maxBatchIdx), af::span);
 
         XSubsetReshaped = moddims(XSubset, XSubset.dims(0), 1, XSubset.dims(1)); // Insert new dim
+
+        printf("%d, %d, %d\n", XBatchAdj.dims()[0], XBatchAdj.dims()[1], XBatchAdj.dims()[2]);
+
+        printf("%d, %d, %d\n", XSubsetReshaped.dims()[0], XSubsetReshaped.dims()[1], XSubsetReshaped.dims()[2]);
 
         YBatch = XBatchAdj - XSubsetReshaped;
 

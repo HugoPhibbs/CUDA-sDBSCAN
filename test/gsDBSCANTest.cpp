@@ -63,7 +63,8 @@ class TestFindingDistances : public gsDBSCANTest {
 
 };
 
-TEST_F(TestFindingDistances, TestSmallInput) {
+TEST_F(TestFindingDistances, TestSmallInput)     {
+    // n = 5, d = 3
     float X_data[] = {
             0, 1, 3,
             1, 2, 0,
@@ -73,6 +74,7 @@ TEST_F(TestFindingDistances, TestSmallInput) {
     };
     af::array X(5, 3, X_data);
 
+    // k = 1
     float A_data[] = {
             0, 3,
             2, 5,
@@ -82,6 +84,7 @@ TEST_F(TestFindingDistances, TestSmallInput) {
     };
     af::array A(5, 2, A_data);
 
+    // m = 3
     float B_data[] = {
             1, 2, 3,
             0, 4, 1,
@@ -108,7 +111,7 @@ TEST_F(TestFindingDistances, TestSmallInput) {
     ASSERT_TRUE(expected.dims(0) == 5 && expected.dims(1) == 6); // Checking gtest is sane
 
 
-//    af::array distances = GsDBSCAN::findDistances(X, A, B);
+    af::array distances = GsDBSCAN::findDistances(X, A, B);
 //
 //    // Check shape is (n, 2*k*m)
 //    ASSERT_TRUE(distances.dims(0) == X.dims(0) && distances.dims(1) == A.dims(1) * B.dims(1));
@@ -190,25 +193,3 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestMnist) {
 
     tu::printDurationSinceStart(start);
 }
-
-\
-//TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInput) {
-//
-//    float distancesData[] = {
-//        0, 1, 2, 3,
-//        0, 2, 1, 0,
-//        0, 2, 1, 0,
-//        0, 2, 1, 0
-//    };
-//
-//    af::array distances(4, 4, distancesData);
-//
-//    float eps = 2.1;
-//
-//    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
-//    af::array V = GsDBSCAN::processQueryVectorDegreeArray(E);
-//
-//    distances.eval();
-//    E.eval();
-//    V.eval();
-//}
