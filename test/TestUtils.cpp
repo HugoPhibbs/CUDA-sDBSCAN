@@ -26,7 +26,7 @@ namespace testUtils {
         std::cout << "Duration: " << duration(start, timeNow()) << " microseconds" << std::endl;
     }
 
-    af::array create_mock_mnist_dataset(int n, int d) {
+    af::array createMockMnistDataset(int n, int d) {
         // Create random integers in the range [0, 255]
         af::array X = af::randu(n, d, u16) * 255;
 
