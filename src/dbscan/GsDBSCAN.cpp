@@ -32,7 +32,7 @@ void GsDBSCAN::performGsDbscan(af::array &X, int D, int minPts, int k, int m, fl
     if (!skip_pre_checks) {
         preChecks(X, D, minPts, k, m, eps);
     }
-    // Something something ... TODO
+    // Something something ...
 
     /*
      * Steps:
@@ -92,6 +92,8 @@ af::array GsDBSCAN::randomProjections(af::array &X, int D, int k, int m) {
     return af::constant(1, 1, 1);
 }
 
+
+
 /**
  * Constructs the A and B matrices as per the GS-DBSCAN algorithm
  *
@@ -137,7 +139,7 @@ std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array& 
  */
 af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, float alpha) {
     int k = A.dims(1) / 2;
-    int m = B.dims(1) / 2;
+    int m = B.dims(1);
 
     int n = X.dims(0);
     int d = X.dims(1);
@@ -161,24 +163,57 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
 //        ABatchRows = af::seq(i, maxBatchIdx);
         ABatch = A(af::seq(i, maxBatchIdx), af::span);
 
-        printf("%d, %d\n", ABatch.dims()[0], ABatch.dims()[1]);
+//        printf("%d, %d\n", ABatch.dims()[0], ABatch.dims()[1]);
 
-        BBatch = B(A);
+        BBatch = B(ABatch, af::span);
+//
+//        printf("%d, %d\n", BBatchFlat.dims()[0], BBatchFlat.dims()[1]);
+//
+//        printf("%d, %d\n", BBatch.dims()[0], BBatch.dims()[1]);
 
-        XBatch = X(BBatch);
-        XBatchAdj = af::moddims(XBatch, XBatch.dims(0), XBatch.dims(1) * XBatch.dims(2), XBatch.dims(3));
+        BBatch = af::moddims(BBatch, BBatch.dims(0) / (2*k), 2*k, BBatch.dims(1));
+
+//        af::print("Bb", BBatch);
+//
+//        printf("Bbatch %d, %d, %d\n", BBatch.dims()[0], BBatch.dims()[1], BBatch.dims()[2]);
+
+        XBatch = X(BBatch, af::span);
+
+        // Somehow entries are being 'hoped' as compared to python implementation. I reckon its something to do with the reshaping process
+//
+//        printf("%d, %d, %d, %d\n", XBatch.dims()[0], XBatch.dims()[1], XBatch.dims()[2], XBatch.dims()[3]);
+
+        XBatchAdj = af::moddims(XBatch, batchSize, 2*k*m, d);
+
+        for (int i = 0; i < XBatchAdj.dims()[0]; i++) {
+            af::print("Xi", XBatchAdj(i, af::span));
+
+            // Something freaky is going on here, YBatch does not match the Python implementation.
+        }
 
         XSubset = X(af::seq(i, maxBatchIdx), af::span);
 
         XSubsetReshaped = moddims(XSubset, XSubset.dims(0), 1, XSubset.dims(1)); // Insert new dim
 
-        printf("%d, %d, %d\n", XBatchAdj.dims()[0], XBatchAdj.dims()[1], XBatchAdj.dims()[2]);
-
-        printf("%d, %d, %d\n", XSubsetReshaped.dims()[0], XSubsetReshaped.dims()[1], XSubsetReshaped.dims()[2]);
+//        printf("%d, %d, %d\n", XBatchAdj.dims()[0], XBatchAdj.dims()[1], XBatchAdj.dims()[2]);
+//
+//        printf("%d, %d, %d\n", XSubsetReshaped.dims()[0], XSubsetReshaped.dims()[1], XSubsetReshaped.dims()[2]);
 
         YBatch = XBatchAdj - XSubsetReshaped;
+//
+//        printf("%d, %d, %d\n", YBatch.dims()[0], YBatch.dims()[1], YBatch.dims()[2]);
+
+        af::print("Yb", YBatch);
+
+        for (int i = 0; i < YBatch.dims()[0]; i++) {
+            af::print("Yi", YBatch(i, af::span));
+
+            // Something freaky is going on here, YBatch does not match the Python implementation.
+        }
 
         distances(af::seq(i, maxBatchIdx), af::span) = af::sqrt(af::sum(af::pow(YBatch, 2), 2)); // af doesn't have norms across arbitrary axes
+
+        // TODO Somehow, when the distances are calculated, the entries are getting scrambled a bit? - double check that expected is the same as in Python implementation. A little fishy
     }
 
     return distances;

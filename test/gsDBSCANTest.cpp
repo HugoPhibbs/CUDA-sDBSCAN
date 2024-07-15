@@ -66,57 +66,61 @@ class TestFindingDistances : public gsDBSCANTest {
 TEST_F(TestFindingDistances, TestSmallInput)     {
     // n = 5, d = 3
     float X_data[] = {
-            0, 1, 3,
-            1, 2, 0,
-            2, 0, 3,
-            3, 0, 1,
-            0, 0, 1
+            0, 1, 2, 3, 0,
+            1, 2, 0, 0, 0,
+            3, 0, 3, 1, 1
     };
     af::array X(5, 3, X_data);
 
     // k = 1
     float A_data[] = {
-            0, 3,
-            2, 5,
-            4, 1,
-            0, 7,
-            2, 1
+            0, 2, 4, 0, 2,
+            3, 5, 1, 7, 1
     };
     af::array A(5, 2, A_data);
+//    af::array A = af::transpose(A_temp); // Some weird niche with arrayfire that uses column major order
+
+    af::print("A", A);
 
     // m = 3
     float B_data[] = {
-            1, 2, 3,
-            0, 4, 1,
-            3, 1, 0,
-            1, 0, 2,
-            0, 2, 3,
-            1, 2, 0,
-            0, 4, 1,
-            3, 1, 2,
-            1, 0, 4,
-            0, 2, 1
+            1, 0, 3, 1, 0, 1, 0, 3, 1, 0,
+            2, 4, 1, 0, 2, 2, 4, 1, 0, 2,
+            3, 1, 0, 2, 3, 0, 1, 2, 4, 1
     };
     af::array B(10, 3, B_data);
 
     float expectedData[] = {
-            11, 5, 14, 11, 0, 5,
-            9, 0, 11, 0, 14, 11,
-            5, 0, 5, 5, 8, 14,
-            9, 5, 0, 0, 9, 5,
-            9, 6, 5, 5, 0, 6
+            11, 9, 5, 9, 9,
+            5, 0, 0, 5, 6,
+            14, 11, 5, 0, 5,
+            11, 0, 5, 0, 5,
+            0, 14, 8, 9, 0,
+            5, 11, 14, 5, 6
     };
+
     af::array expected = af::sqrt(af::array(5, 6, expectedData));
+
+    af::print("expected", expected);
 
     ASSERT_TRUE(expected.dims(0) == 5 && expected.dims(1) == 6); // Checking gtest is sane
 
-
     af::array distances = GsDBSCAN::findDistances(X, A, B);
-//
-//    // Check shape is (n, 2*k*m)
-//    ASSERT_TRUE(distances.dims(0) == X.dims(0) && distances.dims(1) == A.dims(1) * B.dims(1));
-//
-//    ASSERT_TRUE(af::allTrue<bool>(af::abs(distances - expected) < 1e-6));
+
+    af::print("distances", distances);
+
+    // Check shape is (n, 2*k*m)
+    ASSERT_TRUE(distances.dims(0) == X.dims(0) && distances.dims(1) == A.dims(1) * B.dims(1));
+
+    af::array distancesSorted = af::sort(distances, 1);
+    af::array expectedSortedData = af::sort(expected, 1);
+
+    af::print("distancesSorted", distancesSorted);
+    af::print("expectedSorted", expectedSortedData);
+
+    ASSERT_TRUE(af::allTrue<bool>(af::abs(distancesSorted - expectedSortedData) < 1e-6));
+
+
 }
 
 class TestConstructQueryVectorDegreeArray : public gsDBSCANTest {
