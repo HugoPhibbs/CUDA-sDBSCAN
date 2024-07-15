@@ -123,6 +123,18 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
 
 }
 
+TEST_F(TestFindingDistances, TestLargeInput) {
+    af::array X = tu::createMockMnistDataset();
+    af::array A, B;
+    std::tie(A, B) = tu::createMockABMatrices();
+
+    tu::Time start = tu::timeNow();
+
+    af::array distances = GsDBSCAN::findDistances(X, A, B);
+
+    tu::printDurationSinceStart(start);
+}
+
 class TestConstructQueryVectorDegreeArray : public gsDBSCANTest {
 
 };
