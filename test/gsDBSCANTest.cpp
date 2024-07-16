@@ -19,6 +19,27 @@ class gsDBSCANTest : public ::testing::Test {
 
 };
 
+class TestArraySumThirdDimension : public gsDBSCANTest {
+
+};
+
+TEST_F(TestArraySumThirdDimension, TestSmallInput) {
+    af::array array_in = af::randu(10, 5, 8, f32);
+
+    af::array expected = af::sum(array_in, 2);
+
+    af::array result = GsDBSCAN::arraySumThirdDim(array_in);
+
+    af::print("", result);
+    af::print("", expected);
+
+    ASSERT_TRUE(tu::arraysApproxEqual(expected, result));
+}
+
+TEST_F(TestArraySumThirdDimension, TestLargeInput) {
+
+}
+
 class TestCalculatingBatchSize : public gsDBSCANTest {
 
 };
