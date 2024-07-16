@@ -155,17 +155,31 @@ __global__ void sumOverThirdDimKernel(const float *g_in, float *g_out) {
     unsigned int tid = threadIdx.x;
     unsigned int g_blockIdx = blockIdx.y * gridDim.x + blockIdx.x;
     unsigned int g_tid = g_blockIdx * blockDim.x + threadIdx.x;
-    sdata[tid] = g_in[g_tid] + g_in[g_tid + g_blockIdx];
+
+//    printf("%d\n", g_tid);
+
+    sdata[tid] = g_in[g_tid];
     __syncthreads();
 
-    for (unsigned int s = blockIdx.x; s > 32; s >>=1) {
-        if (tid < s && (tid + s < blockDim.x)) {
+//    for (unsigned int s = blockDim.x/2; s > 0; s >>=1) {
+////        if (tid < s && (tid + s < blockDim.x)) {
+////            sdata[tid] += sdata[tid + s];
+////        }
+//
+//        if (tid < s) {
+//            sdata[tid] += sdata[tid + s];
+//        }
+//        __syncthreads();
+//    };
+
+    for (unsigned int s = 1; s < blockDim.x; s *= 2) {
+        if (tid % (2 * s) == 0) {
             sdata[tid] += sdata[tid + s];
         }
         __syncthreads();
-    };
+    }
 
-    if (tid < 32) warpReduce(sdata, tid);
+//    if (tid < 32) warpReduce(sdata, tid);
 
     if (tid == 0) g_out[g_blockIdx] = sdata[0];
 }
@@ -173,22 +187,23 @@ __global__ void sumOverThirdDimKernel(const float *g_in, float *g_out) {
 af::array GsDBSCAN::arraySumThirdDim(af::array &in) {
     assert(in.dims()[0] > 0 && in.dims()[2] < 1024 && "3rd dimension of input array must be less than 1024, due to CUDA block size restrictions");
 
-    af::array out = af::constant(0, in.dims(0), in.dims(1), in.type());
+    af::array out_T = af::constant(0, in.dims(1), in.dims(0), in.type());
+    af::array in_T = af::transpose(out_T);
 
-    auto *in_d = in.device<float>();
-    auto *out_d = out.device<float>();
+    auto *in_T_d = in_T.device<float>();
+    auto *out_T_d = af::transpose(out_T).device<float>();
 
     cudaStream_t afCudaStream = getAfCudaStream();
 
     dim3 gridDim2D(in.dims()[0], in.dims()[1]);
     unsigned int numThreads = in.dims()[2];
 
-    sumOverThirdDimKernel<<<gridDim2D, numThreads, numThreads * sizeof(float), afCudaStream>>>(in_d, out_d);
+    sumOverThirdDimKernel<<<gridDim2D, numThreads, numThreads * sizeof(float), afCudaStream>>>(in_T_d, out_T_d);
 
-    in.unlock();
-    out.unlock();
+    in_T.unlock();
+    out_T.unlock();
 
-    return out;
+    return af::transpose(out_T);
 }
 
 
