@@ -30,6 +30,10 @@ namespace testUtils {
 
     af::array createMockDistances(int n = 70000, int D = 1024);
 
+    bool arraysEqual(const af::array &a, const af::array &b);
+
+    bool arraysApproxEqual(const af::array &a, const af::array &b, double eps=1e-6);
+
     std::vector<std::vector<float>> readCSV(const std::string &filename);
 
     af::array csvToArray(const std::string& filename);

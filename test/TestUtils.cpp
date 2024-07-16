@@ -61,6 +61,14 @@ namespace testUtils {
         return distances;
     }
 
+    bool arraysEqual(const af::array &a, const af::array &b) {
+        return af::allTrue<bool>(a == b);
+    }
+
+    bool arraysApproxEqual(const af::array &a, const af::array &b, double eps) {
+        return af::allTrue<bool>(af::abs(a - b) <= eps);
+    }
+
     /**
      * Reads a CSV file and returns a vector of vectors of floats
      *
