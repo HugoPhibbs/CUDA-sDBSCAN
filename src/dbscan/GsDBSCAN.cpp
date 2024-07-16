@@ -188,10 +188,10 @@ af::array GsDBSCAN::arraySumThirdDim(af::array &in) {
     assert(in.dims()[0] > 0 && in.dims()[2] < 1024 && "3rd dimension of input array must be less than 1024, due to CUDA block size restrictions");
 
     af::array out_T = af::constant(0, in.dims(1), in.dims(0), in.type());
-    af::array in_T = af::transpose(out_T);
+    af::array in_T = af::transpose(in);
 
     auto *in_T_d = in_T.device<float>();
-    auto *out_T_d = af::transpose(out_T).device<float>();
+    auto *out_T_d = out_T.device<float>();
 
     cudaStream_t afCudaStream = getAfCudaStream();
 
