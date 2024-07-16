@@ -8,6 +8,8 @@
 #include <cassert>
 #include <tuple>
 #include <cstdio>
+#include <iostream>
+#include <thrust/version.h>
 
 // Constructor to initialize the DBSCAN parameters
 GsDBSCAN::GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, int m, float eps, bool skip_pre_checks)
@@ -129,6 +131,67 @@ std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array& 
     return std::make_tuple(A, B);
 }
 
+void printDevicePointer(af::array& arr) {
+    // Lock the array to prevent ArrayFire from freeing the memory
+    void* ptr = arr.device<void>();
+    // Print the device pointer
+    std::cout << "Device pointer for array: " << ptr << std::endl;
+    // Unlock the array after use
+    arr.unlock();
+}
+
+__device__ void warpReduce(volatile float* sdata, unsigned int tid) {
+    sdata[tid] += sdata[tid + 32];
+    sdata[tid] += sdata[tid + 16];
+    sdata[tid] += sdata[tid + 8];
+    sdata[tid] += sdata[tid + 4];
+    sdata[tid] += sdata[tid + 2];
+    sdata[tid] += sdata[tid + 1];
+}
+
+__global__ void sumOverThirdDimKernel(const float *g_in, float *g_out) {
+    extern __shared__ float sdata[];
+
+    unsigned int tid = threadIdx.x;
+    unsigned int g_blockIdx = blockIdx.y * gridDim.x + blockIdx.x;
+    unsigned int g_tid = g_blockIdx * blockDim.x * 2 + threadIdx.x;
+    sdata[tid] = g_in[g_tid] + g_in[g_tid + g_blockIdx];
+    __syncthreads();
+
+    for (unsigned int s = blockIdx.x/2; s > 32; s >>=1) {
+        if (tid < s && (tid + s < blockDim.x)) {
+            sdata[tid] += sdata[tid + s];
+        }
+        __syncthreads();
+    };
+
+    if (tid < 32) warpReduce(sdata, tid);
+
+    if (tid == 9) g_out[g_blockIdx] = sdata[0];
+}
+
+af::array GsDBSCAN::arraySumThirdDim(af::array &in) {
+    assert(in.dims()[0] > 0 && in.dims()[2] < 1024 && "3rd dimension of input array must be less than 1024, due to CUDA block size restrictions");
+
+    af::array out = af::constant(0, in.dims(0), in.dims(1), in.type());
+
+    auto *in_d = in.device<float>();
+    auto *out_d = out.device<float>();
+
+    cudaStream_t afCudaStream = getAfCudaStream();
+
+    dim3 gridDim2D(in.dims()[1] / 2, in.dims()[0]);
+    unsigned int numThreads = in.dims()[2];
+
+    sumOverThirdDimKernel<<<gridDim2D, numThreads, numThreads * sizeof(float), afCudaStream>>>(in_d, out_d);
+
+    in.unlock();
+    out.unlock();
+
+    return out;
+}
+
+
 /**
  * Finds the distances between each of the query points and their candidate neighbourhood vectors
  *
@@ -138,6 +201,7 @@ std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array& 
  * @param alpha float for the alpha parameter to tune the batch size
  */
 af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, float alpha) {
+
     int k = A.dims(1) / 2;
     int m = B.dims(1);
 
@@ -151,7 +215,7 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
     af::array ABatchRows(batchSize, 1, u16);
     af::array BBatch(batchSize, B.dims(1), B.type());
     af::array XBatch(batchSize, 2*k, m, d, X.type());
-    af::array XBatchAdj(batchSize, 2*k*m, d, X.type());
+    af::array XBatchAdj(batchSize, 2*k*m, d, X.type()); // This is very large, around 7gb. Possible to do this without explicitly allocating the memory?
     af::array XSubset(batchSize, d, X.type());
     af::array XSubsetReshaped = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
     af::array YBatch = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
@@ -159,6 +223,8 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
     af::array M;
 
     printf("%d", batchSize);
+
+
 
     for (int i = 0; i < n; i += batchSize) {
         int maxBatchIdx = i + batchSize - 1;
@@ -180,10 +246,51 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
 
         // The below code takes way too long -- much slower than cupy implementation
 //        distances(af::seq(i, maxBatchIdx), af::span);
-        af::array M = af::sqrt(af::sum(af::pow(YBatch, 2), 2)); // af doesn't have norms across arbitrary axes
+//            M = af::sqrt(af::sum(af::pow(YBatch, 2), 2)); // af doesn't have norms across arbitrary axes
 //
+
+        // Measure time for af::pow
+        auto start = std::chrono::high_resolution_clock::now();
+        af::array YBatchSquared = af::pow(YBatch, 2);
+        af::sync();
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end - start;
+        std::cout << "Time for af::pow: " << elapsed.count() << " seconds" << std::endl;
+
+        // Measure time for af::sum
+        start = std::chrono::high_resolution_clock::now();
+        af::array YBatchSum = af::sum(YBatchSquared, 2);
+        af::sync();
+        end = std::chrono::high_resolution_clock::now();
+        elapsed = end - start;
+        std::cout << "Time for af::sum: " << elapsed.count() << " seconds" << std::endl;
+
+// Just as a reference, thrust is around 10 times faster than arrayfire with sum - so will need to use thrust for this.
+
+        // Measure time for af::sqrt
+        start = std::chrono::high_resolution_clock::now();
+        af::array YBatchDistances = af::sqrt(YBatchSum);
+        af::sync();
+        end = std::chrono::high_resolution_clock::now();
+        elapsed = end - start;
+        std::cout << "Time for af::sqrt: " << elapsed.count() << " seconds" << std::endl;
+        af::sync();
 //        distances(af::seq(i, maxBatchIdx), af::span) = af::norm(YBatch, AF_NORM_VECTOR_2, 2); // af doesn't have norms across arbitrary'
 
+        distances(af::seq(i, maxBatchIdx), af::span) = M;
+
+        printDevicePointer(distances);
+        printDevicePointer(YBatch);
+        printDevicePointer(ABatch);
+        printDevicePointer(BBatch);
+        printDevicePointer(X);
+        printDevicePointer(A);
+        printDevicePointer(B);
+        printDevicePointer(XBatchAdj);
+        printDevicePointer(X);
+        printDevicePointer(M);
+
+        af::printMemInfo();
         // TODO find a way to do assignment of distance with norm, instead of af::sqrt...
         printf("%d", maxBatchIdx);
     }

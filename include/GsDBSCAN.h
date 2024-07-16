@@ -40,6 +40,8 @@ public:
 
     std::tuple<af::array, af::array> static constructABMatrices(const af::array& projections, int k, int m);
 
+    static af::array arraySumThirdDim(af::array &in);
+
     af::array static findDistances(af::array &X, af::array &A, af::array &B, float alpha = 1.2);
 
     int static findDistanceBatchSize(float alpha, int n, int d, int k, int m);
