@@ -154,11 +154,11 @@ __global__ void sumOverThirdDimKernel(const float *g_in, float *g_out) {
 
     unsigned int tid = threadIdx.x;
     unsigned int g_blockIdx = blockIdx.y * gridDim.x + blockIdx.x;
-    unsigned int g_tid = g_blockIdx * blockDim.x * 2 + threadIdx.x;
+    unsigned int g_tid = g_blockIdx * blockDim.x + threadIdx.x;
     sdata[tid] = g_in[g_tid] + g_in[g_tid + g_blockIdx];
     __syncthreads();
 
-    for (unsigned int s = blockIdx.x/2; s > 32; s >>=1) {
+    for (unsigned int s = blockIdx.x; s > 32; s >>=1) {
         if (tid < s && (tid + s < blockDim.x)) {
             sdata[tid] += sdata[tid + s];
         }
@@ -167,7 +167,7 @@ __global__ void sumOverThirdDimKernel(const float *g_in, float *g_out) {
 
     if (tid < 32) warpReduce(sdata, tid);
 
-    if (tid == 9) g_out[g_blockIdx] = sdata[0];
+    if (tid == 0) g_out[g_blockIdx] = sdata[0];
 }
 
 af::array GsDBSCAN::arraySumThirdDim(af::array &in) {
@@ -180,7 +180,7 @@ af::array GsDBSCAN::arraySumThirdDim(af::array &in) {
 
     cudaStream_t afCudaStream = getAfCudaStream();
 
-    dim3 gridDim2D(in.dims()[1] / 2, in.dims()[0]);
+    dim3 gridDim2D(in.dims()[0], in.dims()[1]);
     unsigned int numThreads = in.dims()[2];
 
     sumOverThirdDimKernel<<<gridDim2D, numThreads, numThreads * sizeof(float), afCudaStream>>>(in_d, out_d);
