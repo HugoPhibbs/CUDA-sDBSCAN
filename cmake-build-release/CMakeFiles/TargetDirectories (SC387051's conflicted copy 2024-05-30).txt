@@ -1,3 +1,0 @@
-/home/npha145/Dropbox (Uni of Auckland)/Working/_Code/C++/sDbscan/cmake-build-release/CMakeFiles/yourProj.dir
-/home/npha145/Dropbox (Uni of Auckland)/Working/_Code/C++/sDbscan/cmake-build-release/CMakeFiles/edit_cache.dir
-/home/npha145/Dropbox (Uni of Auckland)/Working/_Code/C++/sDbscan/cmake-build-release/CMakeFiles/rebuild_cache.dir
