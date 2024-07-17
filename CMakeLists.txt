@@ -1,9 +1,18 @@
 cmake_minimum_required(VERSION 3.27)
 project(DbscanCEOs LANGUAGES CXX CUDA C)
 #enable_language(CUDA)
+project(sDbscan)
 
 set(CMAKE_CXX_STANDARD 17)
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Boost 1.71 REQUIRED NO_MODULE)
 
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
 set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.3")
 find_package(CUDAToolkit 11.3 REQUIRED)
 
@@ -30,6 +39,8 @@ set_source_files_properties(
 
 add_executable(${PROJECT_NAME}
         src/main.cpp
+        src/Utilities.cpp
+        src/sDbscan.cpp
         src/fast_copy.c
         src/dbscan/sngDBSCAN.cpp
         src/dbscan/DBSCAN.cpp
@@ -46,5 +57,6 @@ add_executable(run_gs_dbscan_tests
         test/TestUtils.cpp
 )
 
+
 target_link_libraries(run_gs_dbscan_tests gtest gtest_main CUDA::cudart ArrayFire::afcuda)
-target_link_libraries(${PROJECT_NAME} CUDA::cudart ArrayFire::afcuda)
+target_link_libraries(${PROJECT_NAME} CUDA::cudart ArrayFire::afcuda Eigen3::Eigen)

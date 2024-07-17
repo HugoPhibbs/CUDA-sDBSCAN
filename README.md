@@ -1,34 +1,59 @@
-This is a C++ implementation of scalable DBSCAN and OPTICS, called sDBSCAN and sOPTICS, in high dimensional space.
-sDBSCAN and sOPTICS use a significantly large number of random projection vectors to utilize the neighborhood preserving property of a few random vectors.
-This lead to a multi-thread friendly implementation with significant speedup compared to scikit-learn.
+## sDbscan - A scalable density-based clustering libraries
+
+sDbscan is a DBSCAN library, built on top of random projection method [CEOs](https://dl.acm.org/doi/10.1145/3447548.3467345) to fast approximate neighborhood of each point with cosine distance.
+The random projection property bases on the asymptotic property of the concomitant of extreme order statistics where the projections of $x$ onto closest or furthest vector to $q$ preserves the dot product $x^T q$.
+sDbscan utilizes many random projection vectors and uses the [FFHT](https://github.com/FALCONN-LIB/FFHT) to speed up the Gaussian matrix-vector multiplication.
+
+sDbscan supports Cosine, and L1, L2, Chi2, Jensen-Shannon distance (via kernel embeddings).
+sDbscan also implements sOPTICS for visualizing and selecting relevant metrics (via randomized kernel embedding) and parameter of $\epsilon$.
+sDbscan supports multi-threading by adding only ```#pragma omp parallel for``` when discovering the neighborhoods.
+We call [Eigen](https://eigen.tuxfamily.org/index.php?title=Main_Page) that supports SIMD dot product computation and [Boost](https://www.boost.org/) with binary histogram
+
+sDbscan also features [sngDbscan](https://github.com/jenniferjang/subsampled_neighborhood_graph_dbscan).
 
 
-sDBSCAN and sOPTICS use FFHT (Fast Fast Hadamard Transform) (https://github.com/FALCONN-LIB/FFHT) that provides a heavily optimized C99 implementation of the Fast Hadamard Transform.
-It uses AVX to speed up the computation. This lib is part of FalconnLib.
+## Prerequisites
 
-sDBSCAN also needs EigenLib (https://eigen.tuxfamily.org) with vectorization to fast compute distance
-and boost (https://www.boost.org/) with binary histogram
+* A compiler with C++17 support
+* CMake >= 3.27 (test on Ubuntu 20.04 and Python3)
+* Ninja >= 1.10 
+* Eigen >= 3.3
+* Boost >= 1.71
+* Pybinding11 (https://pypi.org/project/pybind11/) 
+* Array Fire
+* Google Test
 
-# Building with CMake
-- From the root directory run:
+## Installation
+
+Just clone this repository and run
+
 ```bash
-cmake . -B ./cmake-build-debug
+python3 setup.py install
 ```
 
-# Run sOptics, sDbscan, sDbscan-1NN
+or 
 
-./DbscanCEOs --numPts 8100000 --numDim 784 --X "/home/npha145/Dataset/Clustering/mnist8m_X_cosine" --alg sOptics --eps 0.25 --minPts 50 --numProj 1024 --topKProj 10 --topMProj 50 --dist Cosine  --output y_optics --numThreads 64
-
-./DbscanCEOs --numPts 8100000 --numDim 784 --X "/home/npha145/Dataset/Clustering/mnist8m_X_cosine" --alg sDbscan --eps 0.16 --minPts 50 --numProj 1024 --topKProj 10 --topMProj 50 --dist Cosine --clusterNoise 0 --output y_dbscan --numThreads 64
-
-./DbscanCEOs --numPts 8100000 --numDim 784 --X "/home/npha145/Dataset/Clustering/mnist8m_X_cosine" --alg sDbscan_1NN --eps 0.16 --minPts 50 --numProj 1024 --topKProj 10 --topMProj 50 --dist Cosine --output y_dbscan --numThreads 64
-
-See the Compile.sh for compiling and running scripts.
+```bash
+mkdir build && cd build && cmake .. && make
+```
 
 
-# Configuration
-Please make sure that you have the following libraries installed:
-- Eigen3
-- Google Test
-- Array Fire
+## Test call
+
+
+Dataset must be d x n matrix.
+
+See test/test_sDbscan.py or test/plotOptics.py for Python examples and src/main.cpp for C++ example.
+
+
+## Authors
+
+It is mainly developed by Ninh Pham. It grew out of a master research project of Haochuan Xu.
+If you want to cite sDbscan in a publication, please use
+
+> [sDbscan](https://arxiv.org/pdf/2402.15679)
+> Haochuan Xu, Ninh Pham
+> ArXiv 2024
+
+
 
