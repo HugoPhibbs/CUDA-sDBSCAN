@@ -12,7 +12,7 @@ extern "C" {
 #include "fht_avx.c"
 #define VECTOR_WIDTH (32u)
 #else
-#include "../src/fht/fht_sse.c"
+#include "fht_sse.c"
 #define VECTOR_WIDTH (16u)
 #endif
 

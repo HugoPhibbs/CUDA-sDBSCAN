@@ -2,8 +2,9 @@
 // Created by npha145 on 22/05/24.
 //
 
-#include "sDbscan.h"
-#include "Utilities.h"
+
+#include "../../include/sDbscan.h"
+#include "../../include/Utilities.h"
 
 /**
  * Maintain the projection matrix MATRIX_FHT for parallel processing.
