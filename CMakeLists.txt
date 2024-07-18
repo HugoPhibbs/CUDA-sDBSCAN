@@ -13,7 +13,7 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
-set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.3")
+set(CUDA_TOOLKIT_ROOT_DIR $ENV{CUDA_HOME})
 find_package(CUDAToolkit 11.3 REQUIRED)
 
 find_package(ArrayFire REQUIRED)
@@ -40,11 +40,10 @@ set_source_files_properties(
 add_executable(${PROJECT_NAME}
         src/main.cpp
         src/Utilities.cpp
-        src/sDbscan.cpp
+        src/dbscan/sDbscan.cpp
         src/fast_copy.c
         src/dbscan/sngDBSCAN.cpp
         src/dbscan/DBSCAN.cpp
-        src/dbscan/sDBSCAN.cpp
         src/dbscan/uDBSCAN.cpp
         src/dbscan/GsDBSCAN.cpp
         src/dbscan/preprocessing.cpp
