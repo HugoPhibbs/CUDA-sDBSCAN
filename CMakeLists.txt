@@ -4,7 +4,7 @@ project(DbscanCEOs LANGUAGES CXX CUDA C)
 project(sDbscan)
 
 set(CMAKE_CXX_STANDARD 17)
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Boost 1.71 REQUIRED NO_MODULE)
 
 find_package(OpenMP)
@@ -14,7 +14,7 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 set(CUDA_TOOLKIT_ROOT_DIR $ENV{CUDA_HOME})
-find_package(CUDAToolkit 11.3 REQUIRED)
+find_package(CUDAToolkit 11.8 REQUIRED)
 
 find_package(ArrayFire REQUIRED)
 
