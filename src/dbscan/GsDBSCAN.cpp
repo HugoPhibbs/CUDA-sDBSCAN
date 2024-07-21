@@ -32,9 +32,9 @@ GsDBSCAN::GsDBSCAN(const af::array &X, int D, int minPts, int k, int m, float ep
  * @param skip_pre_checks boolean flag to skip the pre-checks
  */
 void GsDBSCAN::performGsDbscan() {
-    if (!skip_pre_checks) {
-        preChecks(X, D, minPts, k, m, eps);
-    }
+//    if (!skip_pre_checks) {
+//        preChecks(X, D, minPts, k, m, eps);
+//    }
     // Something something ...
 
     /*
@@ -48,7 +48,8 @@ void GsDBSCAN::performGsDbscan() {
      *
      *
      */
-    af::array projections = GsDBSCAN::randomProjections(X, D, k, m);
+//    af::array projections = GsDBSCAN::randomProjections(X, D, k, m, distanceMetric, sigma, seed, fhtDim, nRotate);
+    af::array projections = af::constant(D, k, af::dtype::f32);
 
     af::array A, B;
     std::tie(A, B) = GsDBSCAN::constructABMatrices(projections, k, m);
@@ -353,19 +354,12 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
 
     af::array distances(n, 2*k*m, af::dtype::f32);
     af::array ABatch(batchSize, A.dims(1), A.type());
-    af::array ABatchRows(batchSize, 1, u16);
     af::array BBatch(batchSize, B.dims(1), B.type());
     af::array XBatch(batchSize, 2*k, m, d, X.type());
     af::array XBatchAdj(batchSize, 2*k*m, d, X.type()); // This is very large, around 7gb. Possible to do this without explicitly allocating the memory?
     af::array XSubset(batchSize, d, X.type());
     af::array XSubsetReshaped = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
     af::array YBatch = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
-
-    af::array M;
-
-    printf("%d", batchSize);
-
-
 
     for (int i = 0; i < n; i += batchSize) {
         int maxBatchIdx = i + batchSize - 1;
@@ -385,61 +379,76 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
 
         YBatch = XBatchAdj - XSubsetReshaped;
 
-        // The below code takes way too long -- much slower than cupy implementation
-//        distances(af::seq(i, maxBatchIdx), af::span);
-//            M = af::sqrt(af::sum(af::pow(YBatch, 2), 2)); // af doesn't have norms across arbitrary axes
-//
+        // sqrt(sum(sq(...)))
 
-        // Measure time for af::pow
-        auto start = std::chrono::high_resolution_clock::now();
-        af::array YBatchSquared = af::pow(YBatch, 2);
-        af::sync();
-        auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed = end - start;
-        std::cout << "Time for af::pow: " << elapsed.count() << " seconds" << std::endl;
-
-        // Measure time for af::sum
-        start = std::chrono::high_resolution_clock::now();
-        af::array YBatchSum = af::sum(YBatchSquared, 2);
-        af::sync();
-        end = std::chrono::high_resolution_clock::now();
-        elapsed = end - start;
-        std::cout << "Time for af::sum: " << elapsed.count() << " seconds" << std::endl;
-
-// Just as a reference, thrust is around 10 times faster than arrayfire with sum - so will need to use thrust for this.
-
-        // Measure time for af::sqrt
-        start = std::chrono::high_resolution_clock::now();
-        af::array YBatchDistances = af::sqrt(YBatchSum);
-        af::sync();
-        end = std::chrono::high_resolution_clock::now();
-        elapsed = end - start;
-        std::cout << "Time for af::sqrt: " << elapsed.count() << " seconds" << std::endl;
-        af::sync();
-//        distances(af::seq(i, maxBatchIdx), af::span) = af::norm(YBatch, AF_NORM_VECTOR_2, 2); // af doesn't have norms across arbitrary'
-
-        distances(af::seq(i, maxBatchIdx), af::span) = M;
-
-        printDevicePointer(distances);
-        printDevicePointer(YBatch);
-        printDevicePointer(ABatch);
-        printDevicePointer(BBatch);
-        printDevicePointer(X);
-        printDevicePointer(A);
-        printDevicePointer(B);
-        printDevicePointer(XBatchAdj);
-        printDevicePointer(X);
-        printDevicePointer(M);
-
-        af::printMemInfo();
-        // TODO find a way to do assignment of distance with norm, instead of af::sqrt...
-        printf("%d", maxBatchIdx);
+        distances(af::seq(i, maxBatchIdx), af::span) = af::norm(YBatch, AF_NORM_VECTOR_2, 2); // af doesn't have norms across arbitrary'
     }
 
-    //    return distances;
-    return M;
+    return distances;
 }
 
+af::array GsDBSCAN::findDistancesMatX(af::array X, af::array A, af::array B, float alpha) {
+    const int k = A.dims()[1] / 2;
+    const int m = B.dims()[1];
+
+    int n = X.dims(0);
+    int d = X.dims(1);
+
+    const int batchSize = GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
+
+    af::array distances(n, 2*k*m, af::dtype::f32);
+    af::array ABatch(batchSize, A.dims(1), A.type());
+    af::array BBatch(batchSize, B.dims(1), B.type());
+    af::array XBatch(batchSize, 2*k, m, d, X.type());
+    af::array XBatchAdj(batchSize, 2*k*m, d, X.type()); // This is very large, around 7gb. Possible to do this without explicitly allocating the memory?
+    af::array XSubset(batchSize, d, X.type());
+    af::array XSubsetReshaped = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
+    af::array YBatch = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
+//
+//    matx::tensor_t<float, {}> YBatch_t = matx::make_tensor<float>( {batchSize, 2 * k * m, d});
+
+    auto distancesBatch_t = matx::make_tensor<float>({batchSize, 2 * k * m});
+//    auto YBatch_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
+
+    af::array distancesBatch = af::constant(-1, batchSize, 2*k*m, af::dtype::f32);
+
+    for (int i = 0; i < n; i += batchSize) {
+        int maxBatchIdx = i + batchSize - 1;
+        ABatch = A(af::seq(i, maxBatchIdx), af::span);
+
+        BBatch = B(ABatch, af::span);
+
+        BBatch = af::moddims(BBatch, BBatch.dims(0) / (2*k), 2*k, BBatch.dims(1));
+
+        XBatch = X(BBatch, af::span);
+
+        XBatchAdj = af::moddims(XBatch, batchSize, 2*k*m, d);
+
+        XSubset = X(af::seq(i, maxBatchIdx), af::span);
+
+        XSubsetReshaped = moddims(XSubset, XSubset.dims(0), 1, XSubset.dims(1)); // Insert new dim
+
+        YBatch = XBatchAdj - XSubsetReshaped;
+
+        printf("ici");
+
+        YBatch.eval();
+
+        auto YBatch_t = matx::make_tensor<float>(YBatch.device<float>(), {batchSize, 2*k*m, d});
+
+        (distancesBatch_t = matx::matrix_norm(YBatch_t, {2}, matx::NormOrder::FROB)).run();
+
+        // Seems to fail here
+
+        float *a = distancesBatch_t.Data();
+
+//        distances(af::seq(i, maxBatchIdx), af::span) = af::array(distancesBatch_t.Data()); // af doesn't have norms across arbitrary'
+
+        YBatch.unlock(); // Pretty sure this needs to be done.:
+    }
+
+    return distances;
+}
 /**
  * Calculates the batch size for distance calculations
  *
