@@ -13,3 +13,5 @@ run_gs_dbscan_tests
 *.log
 *.cdp
 build
+obj
+bin
