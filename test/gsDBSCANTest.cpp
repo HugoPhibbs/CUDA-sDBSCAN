@@ -101,7 +101,7 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
     af::array A(5, 2, A_data);
 //    af::array A = af::transpose(A_temp); // Some weird niche with arrayfire that uses column major order
 
-    af::print("A", A);
+//    af::print("A", A);
 
     // m = 3
     float B_data[] = {
@@ -122,13 +122,13 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
 
     af::array expected = af::sqrt(af::array(5, 6, expectedData));
 
-    af::print("expected", expected);
+//    af::print("expected", expected);
 
     ASSERT_TRUE(expected.dims(0) == 5 && expected.dims(1) == 6); // Checking gtest is sane
 
-    af::array distances = GsDBSCAN::findDistances(X, A, B);
+    af::array distances = GsDBSCAN::findDistancesMatX(X, A, B);
 
-    af::print("distances", distances);
+//    af::print("distances", distances);
 
     // Check shape is (n, 2*k*m)
     ASSERT_TRUE(distances.dims(0) == X.dims(0) && distances.dims(1) == A.dims(1) * B.dims(1));
@@ -136,11 +136,10 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
     af::array distancesSorted = af::sort(distances, 1);
     af::array expectedSortedData = af::sort(expected, 1);
 
-    af::print("distancesSorted", distancesSorted);
-    af::print("expectedSorted", expectedSortedData);
+//    af::print("distancesSorted", distancesSorted);
+//    af::print("expectedSorted", expectedSortedData);
 
     ASSERT_TRUE(af::allTrue<bool>(af::abs(distancesSorted - expectedSortedData) < 1e-6));
-
 
 }
 
@@ -229,4 +228,9 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestMnist) {
     af::sync();
 
     tu::printDurationSinceStart(start);
+}
+
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
