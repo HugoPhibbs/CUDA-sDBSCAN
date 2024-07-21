@@ -7,7 +7,9 @@ set(CMAKE_CXX_STANDARD 17)
 SET(CMAKE_CUDA_ARCHITECTURES 86)
 set(CMAKE_CUDA_COMPILER "/usr/local/cuda-11.8/bin/nvcc") # Somehow CLion needs this here (smh)
 #SET(CMAKE_C_COMPILER "/usr/bin/g++")
-add_definitions(-DINDEX_64_BIT)
+#add_definitions(-DINDE     X_64_BIT)
+
+SET(CMAKE_BUILD_TYPE Debug)
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Boost 1.71 REQUIRED NO_MODULE)
@@ -71,5 +73,5 @@ add_executable(run_gs_dbscan_tests
 )
 
 
-target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL gtest gtest_main CUDA::cudart ArrayFire::afcuda)
-target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda Eigen3::Eigen)
+target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL gtest gtest_main CUDA::cudart ArrayFire::afcuda matx::matx)
+target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda Eigen3::Eigen matx::matx)
