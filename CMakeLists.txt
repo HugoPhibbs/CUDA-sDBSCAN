@@ -4,8 +4,23 @@ project(DbscanCEOs LANGUAGES CXX CUDA C)
 project(sDbscan)
 
 set(CMAKE_CXX_STANDARD 17)
+SET(CMAKE_CUDA_ARCHITECTURES 86)
+set(CMAKE_CUDA_COMPILER "/usr/local/cuda-11.8/bin/nvcc") # Somehow CLion needs this here (smh)
+#SET(CMAKE_C_COMPILER "/usr/bin/g++")
+add_definitions(-DINDEX_64_BIT)
+
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Boost 1.71 REQUIRED NO_MODULE)
+
+# CCCL
+include(cmake/CPM.cmake)
+
+# This will automatically clone CCCL from GitHub and make the exported cmake targets available
+CPMAddPackage(
+    NAME CCCL
+    GITHUB_REPOSITORY nvidia/cccl
+    GIT_TAG v2.4.0
+)
 
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -16,7 +31,11 @@ endif()
 set(CUDA_TOOLKIT_ROOT_DIR $ENV{CUDA_HOME})
 find_package(CUDAToolkit 11.8 REQUIRED)
 
+# ArrayFire
 find_package(ArrayFire REQUIRED)
+
+# MatX https://github.com/NVIDIA/MatX
+find_package(matx CONFIG REQUIRED)
 
 include_directories(
         ${PROJECT_SOURCE_DIR}/lib/eigen-3.4.0
@@ -31,7 +50,6 @@ link_directories(
 
 add_subdirectory(lib/googletest)
 
-# Set GsDBSCAN.cpp to be treated as a CUDA source file (taken from ChatGPT)
 set_source_files_properties(
         src/dbscan/GsDBSCAN.cpp
         test/gsDBSCANTest.cpp
@@ -42,11 +60,7 @@ add_executable(${PROJECT_NAME}
         src/Utilities.cpp
         src/dbscan/sDbscan.cpp
         src/fast_copy.c
-        src/dbscan/sngDBSCAN.cpp
-        src/dbscan/DBSCAN.cpp
-        src/dbscan/uDBSCAN.cpp
         src/dbscan/GsDBSCAN.cpp
-        src/dbscan/preprocessing.cpp
         src/fht/fht.c
 )
 
@@ -57,5 +71,5 @@ add_executable(run_gs_dbscan_tests
 )
 
 
-target_link_libraries(run_gs_dbscan_tests gtest gtest_main CUDA::cudart ArrayFire::afcuda)
-target_link_libraries(${PROJECT_NAME} CUDA::cudart ArrayFire::afcuda Eigen3::Eigen)
+target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL gtest gtest_main CUDA::cudart ArrayFire::afcuda)
+target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda Eigen3::Eigen)
