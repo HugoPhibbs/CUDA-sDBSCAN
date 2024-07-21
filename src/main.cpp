@@ -1,8 +1,8 @@
 ﻿#include <iostream>
-#include "Header.h"
-#include "Utilities.h"
+#include "../../include/Header.h"
+#include "../../include/Utilities.h"
 
-#include "sDbscan.h"
+#include "../../include/sDbscan.h"
 
 #include <time.h> // for time(0) to generate different random number
 #include <stdlib.h>

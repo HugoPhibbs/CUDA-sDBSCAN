@@ -1,7 +1,7 @@
-#include "Utilities.h"
-#include "Header.h"
+#include "../../include/Utilities.h"
+#include "../../include/Header.h"
 
-#include <fstream> // fscanf, fopen, ofstream
+#include <fstream> //s fscanf, fopen, ofstream
 #include <sstream>
 
 
