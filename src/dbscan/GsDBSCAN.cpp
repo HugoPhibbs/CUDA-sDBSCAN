@@ -436,7 +436,7 @@ af::array GsDBSCAN::findDistancesMatX(af::array X, af::array A, af::array B, flo
 
         auto YBatch_t = matx::make_tensor<float>(YBatch.device<float>(), {batchSize, 2*k*m, d});
 
-        (distancesBatch_t = matx::matrix_norm(YBatch_t, {2}, matx::NormOrder::FROB)).run();
+        (distancesBatch_t = matx::matrix_norm(YBatch_t, {2}, matx::NormOrder::FROB)).run(); // TODO Get cuda streamn
 
         // Seems to fail here
 
