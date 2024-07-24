@@ -95,28 +95,19 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
     af::array X(5, 3, X_data);
 
     // k = 1
-    float A_data[] = {
+    int A_data[] = {
             0, 2, 4, 0, 2,
             3, 5, 1, 7, 1
     };
     af::array A(5, 2, A_data);
-//    af::array A = af::transpose(A_temp); // Some weird niche with arrayfire that uses column major order
-
-//    af::print("A", A);
 
     // m = 3
-    float B_data[] = {
+    int B_data[] = {
             1, 0, 3, 1, 0, 1, 0, 3, 1, 0,
             2, 4, 1, 0, 2, 2, 4, 1, 0, 2,
             3, 1, 0, 2, 3, 0, 1, 2, 4, 1
     };
     af::array B(10, 3, B_data);
-
-    af::print("B", B);
-
-    matx::tensor_t B_t =  matx::make_tensor<float>(af::transpose(B).device<float>(), {10, 3});
-
-    matx::print(B_t);
 
     float expectedData[] = {
             11, 9, 5, 9, 9,
@@ -134,9 +125,7 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
 
     ASSERT_TRUE(expected.dims(0) == 5 && expected.dims(1) == 6); // Checking gtest is sane
 
-    af::array distances = GsDBSCAN::findDistancesMatX(X, A, B);
-
-//    af::print("distances", distances);
+//    af::array distances = findDistancesMatX(X, A, B);
 
     // Check shape is (n, 2*k*m)
     ASSERT_TRUE(distances.dims(0) == X.dims(0) && distances.dims(1) == A.dims(1) * B.dims(1));
