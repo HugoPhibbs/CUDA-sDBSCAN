@@ -414,7 +414,7 @@ matx::tensor_t<float, 2>  GsDBSCAN::findDistancesMatX(af::array X, af::array A, 
     auto YBatch_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
     auto distancesBatch_t = matx::make_tensor<float>({batchSize, 2 * k * m});
 
-    auto distances_t = matx::zeros<float>({n, 2 * k * m});
+    auto distances_t = matx::make_tensor<float>({n, 2*k*m});
 
     for (int i = 0; i < n; i += batchSize) {
         int maxBatchIdx = i + batchSize - 1; // Index within X along the ROWS
