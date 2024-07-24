@@ -387,61 +387,75 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
     return distances;
 }
 
-matx::tensor_t<float, 2>  GsDBSCAN::findDistancesMatX(af::array X, af::array A, af::array B, float alpha) {
+af::array  GsDBSCAN::findDistancesMatX(af::array X, af::array A, af::array B, float alpha) {
     const int k = A.dims()[1] / 2;
     const int m = B.dims()[1];
 
-    auto cudaStream = getAfCudaStream();
-
     int n = X.dims(0);
     int d = X.dims(1);
+
+    auto cudaStream = getAfCudaStream();
 
     const int batchSize = GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
 
     auto AFlat_t = matx::make_tensor<int>(af::transpose(A).device<int>(), {A.dims(0) * A.dims(1)});
     auto B_t = matx::make_tensor<int>(af::transpose(B).device<int>(), {B.dims(0), B.dims(1)});
 
-    print(B_t);
-
     auto X_t = matx::make_tensor<float>(af::transpose(X).device<float>(), {X.dims(0), X.dims(1)});
     auto ABatchFlat_t = matx::make_tensor<int>( {batchSize * 2 * k});
     auto BBatch_t = matx::make_tensor<int>( {ABatchFlat_t.Size(0), m});
 
     auto XBatch_t = matx::make_tensor<float>( {2*batchSize*k*m, d});
-    auto XBatchAdj_t = matx::make_tensor<float>( {batchSize, 2*k*m, d});
     auto XSubset_t = matx::make_tensor<float>( {batchSize, d});
-//    auto XSubsetReshaped_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
     auto YBatch_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
     auto distancesBatch_t = matx::make_tensor<float>({batchSize, 2 * k * m});
 
     auto distances_t = matx::make_tensor<float>({n, 2*k*m});
 
+    float *distancesBatch_t_ptr = new float[batchSize * 2 * k * m];
+
     for (int i = 0; i < n; i += batchSize) {
         int maxBatchIdx = i + batchSize - 1; // Index within X along the ROWS
 
+        (XSubset_t = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd})).run(cudaStream);
 
-        XSubset_t = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd});
+        (ABatchFlat_t = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k})).run(cudaStream);
 
-        ABatchFlat_t = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k});
-
-        BBatch_t = matx::remap<0>(B_t, ABatchFlat_t);
-        XBatch_t = matx::remap<0>(X_t, matx::reshape(BBatch_t, {2*batchSize*k*m}));
+        (BBatch_t = matx::remap<0>(B_t, ABatchFlat_t)).run(cudaStream);
+        (XBatch_t = matx::remap<0>(X_t, matx::reshape(BBatch_t, {2*batchSize*k*m}))).run(cudaStream);
 
         auto XBatchReshaped_t = matx::reshape(XBatch_t, {batchSize, 2*k*m, d});
         auto XSubsetReshaped_t = matx::reshape(XSubset_t, {batchSize, 1, d});
 
-        YBatch_t = XBatchReshaped_t - XSubsetReshaped_t;
+        (YBatch_t = XBatchReshaped_t - matx::repmat(XSubsetReshaped_t, {1, 2*k*m, 1})).run(cudaStream); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
 
-        distancesBatch_t = matx::matrix_norm(YBatch_t, {2}, matx::NormOrder::L2);
+        (distancesBatch_t = matx::vector_norm(YBatch_t, {2}, matx::NormOrder::L2)).run(cudaStream);
 
-        matx::slice(distances_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}) = distancesBatch_t; // TODO not sure if this line actually done anything.
+        // TODO, figure out why I need to do .run(stream), on all the above, and not deferred for the line above
+//        matx::print(distancesBatch_t);
+
+        distancesBatch_t_ptr = matx::transpose(distancesBatch_t).Data();
+
+        (matx::slice(distances_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}) = distancesBatch_t).run(cudaStream); // TODO not sure if this line actually done anything.
     }
 
     // TODO, see if these is anything else I need to do with Arrayfire integration
     A.unlock();
     B.unlock();
 
-    return distances_t; // Just to return something that doesn't upset the compiler
+    float *distances_ptr = (matx::transpose(distances_t)).Data();
+    af::array distances_af = af::array(n, 2*k*m, distances_ptr);
+
+    print("w/ tranpose", distances_af);
+
+    float *distance_af_x = distances_t.Data();
+    af::print("no transpose", af::array(n, 2*k*m, distance_af_x));
+
+    // TODO take transpose above, to account for column/row major order
+
+    af::print("last_distances_batch", af::array(batchSize, 2*k*m, distancesBatch_t_ptr)); // We require the transposing stuff since af arrays are
+
+    return distances_af;
 }
 
 

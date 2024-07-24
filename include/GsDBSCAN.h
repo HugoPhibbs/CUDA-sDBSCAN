@@ -54,7 +54,7 @@ public:
 
     af::array static findDistances(af::array &X, af::array &A, af::array &B, float alpha = 1.2);
 
-    matx::tensor_t<float, 2> findDistancesMatX(af::array X, af::array A, af::array B, float alpha = 1.2);
+    af::array static findDistancesMatX(af::array X, af::array A, af::array B, float alpha = 1.2);
 
     int static findDistanceBatchSize(float alpha, int n, int d, int k, int m);
 

@@ -125,7 +125,9 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
 
     ASSERT_TRUE(expected.dims(0) == 5 && expected.dims(1) == 6); // Checking gtest is sane
 
-//    af::array distances = findDistancesMatX(X, A, B);
+    af::array distances = GsDBSCAN::findDistancesMatX(X, A, B);
+
+    af::print("distances", af::pow(distances, 2));
 
     // Check shape is (n, 2*k*m)
     ASSERT_TRUE(distances.dims(0) == X.dims(0) && distances.dims(1) == A.dims(1) * B.dims(1));
