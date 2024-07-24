@@ -404,17 +404,40 @@ af::array GsDBSCAN::findDistancesMatX(af::array X, af::array A, af::array B, flo
     af::array XSubset(batchSize, d, X.type());
     af::array XSubsetReshaped = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
     af::array YBatch = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
+    af::array distancesBatch = af::constant(-1, batchSize, 2*k*m, af::dtype::f32);
+
+
+
 //
 //    matx::tensor_t<float, {}> YBatch_t = matx::make_tensor<float>( {batchSize, 2 * k * m, d});
 
-    auto distancesBatch_t = matx::make_tensor<float>({batchSize, 2 * k * m});
+//    auto distancesBatch_t = matx::make_tensor<float>({batchSize, 2 * k * m});
+
 //    auto YBatch_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
 
-    af::array distancesBatch = af::constant(-1, batchSize, 2*k*m, af::dtype::f32);
+    auto A_t = matx::make_tensor<int>(af::transpose(A).device<int>(), {A.dims(0), A.dims(1)});
+    auto B_t = matx::make_tensor<int>(af::transpose(B).device<int>(), {B.dims(0), B.dims(1)});
+    auto ABatch_t = matx::make_tensor<float>( {batchSize, A.dims(1)});
+    auto BBatch_t = matx::make_tensor<float>( {batchSize, B.dims(1)});
+    auto XBatch_t = matx::make_tensor<float>( {batchSize, 2*k, m, d});
+    auto XBatchAdj_t = matx::make_tensor<float>( {batchSize, 2*k*m, d});
+    auto XSubset_t = matx::make_tensor<float>( {batchSize, d});
+    auto XSubsetReshaped_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
+    auto YBatch_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
+    auto distancesBatch_t = matx::make_tensor<float>({batchSize, 2 * k * m});
 
     for (int i = 0; i < n; i += batchSize) {
+
+        auto afCudaStream = getAfCudaStream();
+
         int maxBatchIdx = i + batchSize - 1;
-        ABatch = A(af::seq(i, maxBatchIdx), af::span);
+//        ABatch = A(af::seq(i, maxBatchIdx), af::span);
+//        ABatch_t = matx::slice(A_t, {i, maxBatchIdx}, {matx::matxEnd, matx::matxEnd});
+//
+//
+//
+//        (BBatch_t = matx::select(B_t, ABatch_t)).run(afCudaStream);
+
 
         BBatch = B(ABatch, af::span);
 
@@ -430,25 +453,34 @@ af::array GsDBSCAN::findDistancesMatX(af::array X, af::array A, af::array B, flo
 
         YBatch = XBatchAdj - XSubsetReshaped;
 
-        printf("ici");
-
         YBatch.eval();
+//
+//        af::print("YBatch", YBatch(0, af::span));
+//        af::print("YBatch", YBatch(1, af::span));
 
-        auto YBatch_t = matx::make_tensor<float>(YBatch.device<float>(), {batchSize, 2*k*m, d});
 
-        (distancesBatch_t = matx::matrix_norm(YBatch_t, {2}, matx::NormOrder::FROB)).run(); // TODO Get cuda streamn
 
-        // Seems to fail here
+//        auto YBatch_t = matx::make_tensor<float>(af::transpose(YBatch).device<float>(), {batchSize, 2*k*m, d});
+////        auto YBatch_t = matx::make_tensor<float>(YBatch.device<float>(), {batchSize, 2*k*m, d});
+//
+//        printf("YBatch_t");
+//        matx::print(YBatch_t);
+//
+//        float *a = distancesBatch_t.Data();
+//
+//        (distancesBatch_t = matx::vector_norm(YBatch_t, {2}, matx::NormOrder::L2)).run(afCudaStream); // TODO Get cuda streamn
 
-        float *a = distancesBatch_t.Data();
+//        float *a = distancesBatch_t.Data();
+//
+//        distances(af::seq(i, maxBatchIdx), af::span) = af::array(batchSize, 2*k*m, a); // af doesn't have norms across arbitrary'
 
-//        distances(af::seq(i, maxBatchIdx), af::span) = af::array(distancesBatch_t.Data()); // af doesn't have norms across arbitrary'
-
-        YBatch.unlock(); // Pretty sure this needs to be done.:
+        YBatch.unlock(); // Pretty sure this needs to be done
     }
 
     return distances;
 }
+
+
 /**
  * Calculates the batch size for distance calculations
  *

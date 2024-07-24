@@ -13,6 +13,7 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <matx.h>
 namespace tu = testUtils;
 
 class gsDBSCANTest : public ::testing::Test {
@@ -111,6 +112,12 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
     };
     af::array B(10, 3, B_data);
 
+    af::print("B", B);
+
+    matx::tensor_t B_t =  matx::make_tensor<float>(af::transpose(B).device<float>(), {10, 3});
+
+    matx::print(B_t);
+
     float expectedData[] = {
             11, 9, 5, 9, 9,
             5, 0, 0, 5, 6,
@@ -121,6 +128,7 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
     };
 
     af::array expected = af::sqrt(af::array(5, 6, expectedData));
+
 
 //    af::print("expected", expected);
 
@@ -133,8 +141,16 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
     // Check shape is (n, 2*k*m)
     ASSERT_TRUE(distances.dims(0) == X.dims(0) && distances.dims(1) == A.dims(1) * B.dims(1));
 
+    // May have something going on with column ordering
+    af::print("distances", distances);
+    af::print("expected", expected);
     af::array distancesSorted = af::sort(distances, 1);
+
+    af::print("distancesSorted", distancesSorted);
+
     af::array expectedSortedData = af::sort(expected, 1);
+
+    af::print("expectedSortedData", expectedSortedData);
 
 //    af::print("distancesSorted", distancesSorted);
 //    af::print("expectedSorted", expectedSortedData);
