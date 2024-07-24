@@ -353,8 +353,8 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
     int batchSize = GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
 
     af::array distances(n, 2*k*m, af::dtype::f32);
-    af::array ABatch(batchSize, A.dims(1), A.type());
-    af::array BBatch(batchSize, B.dims(1), B.type());
+    af::array ABatch(batchSize, 2 * k, A.type());
+    af::array BBatch(batchSize, m, B.type());
     af::array XBatch(batchSize, 2*k, m, d, X.type());
     af::array XBatchAdj(batchSize, 2*k*m, d, X.type()); // This is very large, around 7gb. Possible to do this without explicitly allocating the memory?
     af::array XSubset(batchSize, d, X.type());
@@ -387,97 +387,61 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
     return distances;
 }
 
-af::array GsDBSCAN::findDistancesMatX(af::array X, af::array A, af::array B, float alpha) {
+matx::tensor_t<float, 2>  GsDBSCAN::findDistancesMatX(af::array X, af::array A, af::array B, float alpha) {
     const int k = A.dims()[1] / 2;
     const int m = B.dims()[1];
+
+    auto cudaStream = getAfCudaStream();
 
     int n = X.dims(0);
     int d = X.dims(1);
 
     const int batchSize = GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
 
-    af::array distances(n, 2*k*m, af::dtype::f32);
-    af::array ABatch(batchSize, A.dims(1), A.type());
-    af::array BBatch(batchSize, B.dims(1), B.type());
-    af::array XBatch(batchSize, 2*k, m, d, X.type());
-    af::array XBatchAdj(batchSize, 2*k*m, d, X.type()); // This is very large, around 7gb. Possible to do this without explicitly allocating the memory?
-    af::array XSubset(batchSize, d, X.type());
-    af::array XSubsetReshaped = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
-    af::array YBatch = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
-    af::array distancesBatch = af::constant(-1, batchSize, 2*k*m, af::dtype::f32);
-
-
-
-//
-//    matx::tensor_t<float, {}> YBatch_t = matx::make_tensor<float>( {batchSize, 2 * k * m, d});
-
-//    auto distancesBatch_t = matx::make_tensor<float>({batchSize, 2 * k * m});
-
-//    auto YBatch_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
-
-    auto A_t = matx::make_tensor<int>(af::transpose(A).device<int>(), {A.dims(0), A.dims(1)});
+    auto AFlat_t = matx::make_tensor<int>(af::transpose(A).device<int>(), {A.dims(0) * A.dims(1)});
     auto B_t = matx::make_tensor<int>(af::transpose(B).device<int>(), {B.dims(0), B.dims(1)});
-    auto ABatch_t = matx::make_tensor<float>( {batchSize, A.dims(1)});
-    auto BBatch_t = matx::make_tensor<float>( {batchSize, B.dims(1)});
-    auto XBatch_t = matx::make_tensor<float>( {batchSize, 2*k, m, d});
+
+    print(B_t);
+
+    auto X_t = matx::make_tensor<float>(af::transpose(X).device<float>(), {X.dims(0), X.dims(1)});
+    auto ABatchFlat_t = matx::make_tensor<int>( {batchSize * 2 * k});
+    auto BBatch_t = matx::make_tensor<int>( {ABatchFlat_t.Size(0), m});
+
+    auto XBatch_t = matx::make_tensor<float>( {2*batchSize*k*m, d});
     auto XBatchAdj_t = matx::make_tensor<float>( {batchSize, 2*k*m, d});
     auto XSubset_t = matx::make_tensor<float>( {batchSize, d});
-    auto XSubsetReshaped_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
+//    auto XSubsetReshaped_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
     auto YBatch_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
     auto distancesBatch_t = matx::make_tensor<float>({batchSize, 2 * k * m});
 
+    auto distances_t = matx::zeros<float>({n, 2 * k * m});
+
     for (int i = 0; i < n; i += batchSize) {
-
-        auto afCudaStream = getAfCudaStream();
-
-        int maxBatchIdx = i + batchSize - 1;
-//        ABatch = A(af::seq(i, maxBatchIdx), af::span);
-//        ABatch_t = matx::slice(A_t, {i, maxBatchIdx}, {matx::matxEnd, matx::matxEnd});
-//
-//
-//
-//        (BBatch_t = matx::select(B_t, ABatch_t)).run(afCudaStream);
+        int maxBatchIdx = i + batchSize - 1; // Index within X along the ROWS
 
 
-        BBatch = B(ABatch, af::span);
+        XSubset_t = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd});
 
-        BBatch = af::moddims(BBatch, BBatch.dims(0) / (2*k), 2*k, BBatch.dims(1));
+        ABatchFlat_t = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k});
 
-        XBatch = X(BBatch, af::span);
+        BBatch_t = matx::remap<0>(B_t, ABatchFlat_t);
+        XBatch_t = matx::remap<0>(X_t, matx::reshape(BBatch_t, {2*batchSize*k*m}));
 
-        XBatchAdj = af::moddims(XBatch, batchSize, 2*k*m, d);
+        auto XBatchReshaped_t = matx::reshape(XBatch_t, {batchSize, 2*k*m, d});
+        auto XSubsetReshaped_t = matx::reshape(XSubset_t, {batchSize, 1, d});
 
-        XSubset = X(af::seq(i, maxBatchIdx), af::span);
+        YBatch_t = XBatchReshaped_t - XSubsetReshaped_t;
 
-        XSubsetReshaped = moddims(XSubset, XSubset.dims(0), 1, XSubset.dims(1)); // Insert new dim
+        distancesBatch_t = matx::matrix_norm(YBatch_t, {2}, matx::NormOrder::L2);
 
-        YBatch = XBatchAdj - XSubsetReshaped;
-
-        YBatch.eval();
-//
-//        af::print("YBatch", YBatch(0, af::span));
-//        af::print("YBatch", YBatch(1, af::span));
-
-
-
-//        auto YBatch_t = matx::make_tensor<float>(af::transpose(YBatch).device<float>(), {batchSize, 2*k*m, d});
-////        auto YBatch_t = matx::make_tensor<float>(YBatch.device<float>(), {batchSize, 2*k*m, d});
-//
-//        printf("YBatch_t");
-//        matx::print(YBatch_t);
-//
-//        float *a = distancesBatch_t.Data();
-//
-//        (distancesBatch_t = matx::vector_norm(YBatch_t, {2}, matx::NormOrder::L2)).run(afCudaStream); // TODO Get cuda streamn
-
-//        float *a = distancesBatch_t.Data();
-//
-//        distances(af::seq(i, maxBatchIdx), af::span) = af::array(batchSize, 2*k*m, a); // af doesn't have norms across arbitrary'
-
-        YBatch.unlock(); // Pretty sure this needs to be done
+        matx::slice(distances_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}) = distancesBatch_t; // TODO not sure if this line actually done anything.
     }
 
-    return distances;
+    // TODO, see if these is anything else I need to do with Arrayfire integration
+    A.unlock();
+    B.unlock();
+
+    return distances_t; // Just to return something that doesn't upset the compiler
 }
 
 
