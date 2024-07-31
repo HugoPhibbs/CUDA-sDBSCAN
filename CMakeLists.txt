@@ -73,5 +73,5 @@ add_executable(run_gs_dbscan_tests
 )
 
 
-target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL gtest gtest_main CUDA::cudart ArrayFire::afcuda matx::matx)
+target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main)
 target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda Eigen3::Eigen matx::matx)
