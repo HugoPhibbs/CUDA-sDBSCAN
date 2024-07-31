@@ -8,12 +8,14 @@
 #include <Eigen/Dense>
 #include <chrono>
 #include <arrayfire.h>
+#include <af/cuda.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <vector>
 #include <string>
 #include <matx.h>
+#include <cmath>
 namespace tu = testUtils;
 
 class gsDBSCANTest : public ::testing::Test {
@@ -125,7 +127,7 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
 
     ASSERT_TRUE(expected.dims(0) == 5 && expected.dims(1) == 6); // Checking gtest is sane
 
-    af::array distances = GsDBSCAN::findDistancesMatX(X, A, B);
+    af::array distances = GsDBSCAN::findDistances(X, A, B);
 
     af::print("distances", af::pow(distances, 2));
 
@@ -147,6 +149,92 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
 //    af::print("expectedSorted", expectedSortedData);
 
     ASSERT_TRUE(af::allTrue<bool>(af::abs(distancesSorted - expectedSortedData) < 1e-6));
+
+}
+
+// Function to allocate memory on the device and copy data from the host
+float* hostArrayToCudaArrayFloat(const float* hostArray, size_t numElements) {
+    float* deviceArray;
+    size_t size = sizeof(float) * numElements;
+    cudaMalloc(&deviceArray, size);
+    cudaMemcpy(deviceArray, hostArray, size, cudaMemcpyHostToDevice);
+    return deviceArray;
+}
+
+int* hostArrayToCudaArrayInt(const int* hostArray, size_t numElements) {
+    int* deviceArray;
+    size_t size = sizeof(int) * numElements;
+    cudaMalloc(&deviceArray, size);
+    cudaMemcpy(deviceArray, hostArray, size, cudaMemcpyHostToDevice);
+    return deviceArray;
+}
+
+TEST_F(TestFindingDistances, TestSmallInputMatx) {
+    float X[15] = {
+            0, 1, 3,
+            1, 2, 0,
+            2, 0, 3,
+            3, 0, 1,
+            0, 0, 1
+    };
+
+    float *X_d = hostArrayToCudaArrayFloat(X, 15);
+
+    int A[10] = {
+            0, 3,
+            2, 5,
+            4, 1,
+            0, 7,
+            2, 1
+    };
+
+    int *A_d = hostArrayToCudaArrayInt(A, 10);
+
+    int B[30] = {
+            1, 2, 3,
+            0, 4, 1,
+            3, 1, 0,
+            1, 0, 2,
+            0, 2, 3,
+            1, 2, 0,
+            0, 4, 1,
+            3, 1, 2,
+            1, 0, 4,
+            0, 2, 1
+    };
+
+    int *B_d = hostArrayToCudaArrayInt(B, 30);
+
+    auto X_t = matx::make_tensor<float>(X_d, {5, 3}, true);
+
+    print(X_t);
+
+    auto A_t = matx::make_tensor<int>(A_d, {5, 2}, true);
+    auto B_t = matx::make_tensor<int>(B_d, {10, 3}, true);
+
+    auto distances_t = GsDBSCAN::findDistancesMatX(X_t, A_t, B_t);
+
+    cuStreamSynchronize(GsDBSCAN::getAfCudaStream());
+
+    float *distances_ptr = distances_t.Data();
+
+    float expected_squared[] = {
+            11, 5, 14, 11, 0, 5,
+            9, 0, 11, 0, 14, 11,
+            5, 0, 5, 5, 8, 14,
+            9, 5, 0, 0, 9, 5,
+            9, 6, 5, 5, 0, 6
+    };
+
+    for (int i = 0; i < 5*6; i++) {
+        ASSERT_NEAR(std::sqrt(expected_squared[i]), distances_ptr[i], 1e-6);
+    }
+}
+
+TEST_F(TestFindingDistances, TestLargeInputMatX) {
+
+    tu::Time start = tu::timeNow();
+
 
 }
 

@@ -10,6 +10,7 @@
 #include <arrayfire.h>
 #include <chrono>
 #include <iostream>
+#include <matx.h>
 
 namespace testUtils {
     using Time = std::chrono::time_point<std::chrono::high_resolution_clock>;
@@ -29,6 +30,14 @@ namespace testUtils {
     af::array createMockRandomVectorsSet(int D = 1024, int d = 784);
 
     af::array createMockDistances(int n = 70000, int D = 1024);
+
+    auto createMockDistancesMatX(int n = 70000, int D = 1024) {
+        auto distances = matx::random<float>({n, D}, matx::UNIFORM);
+
+        distances.run();
+
+        return distances;
+    }
 
     bool arraysEqual(const af::array &a, const af::array &b);
 
