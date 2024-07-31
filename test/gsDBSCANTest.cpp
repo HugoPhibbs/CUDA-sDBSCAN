@@ -2,20 +2,17 @@
 // Created by hphi344 on 10/05/24.
 //
 #include <gtest/gtest.h>
-
-#include "../include/GsDBSCAN.h"
-#include "../include/TestUtils.h"
-#include <Eigen/Dense>
+#include <matx.h>
 #include <chrono>
 #include <arrayfire.h>
 #include <af/cuda.h>
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include <vector>
 #include <string>
-#include <matx.h>
 #include <cmath>
+
+#include "../include/GsDBSCAN.h"
+#include "../include/TestUtils.h"
+
 namespace tu = testUtils;
 
 class gsDBSCANTest : public ::testing::Test {
@@ -234,6 +231,14 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
 TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
     tu::Time start = tu::timeNow();
+
+//    std::tie(A, B) = tu::createMockABMatricesMatX();
+
+    auto A = tu::createMockAMatrixMatX();
+    auto B = tu::createMockBMatrixMatX();
+    auto X = tu::createMockMnistDatasetMatX();
+
+    auto distances = GsDBSCAN::findDistancesMatX(X, A, B);
 
 
 }

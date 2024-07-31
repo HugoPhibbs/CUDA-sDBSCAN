@@ -38,9 +38,11 @@ namespace testUtils {
 
     // Function to create mock A and B matrices
     std::pair<af::array, af::array> createMockABMatrices(int n, int k, int m, int D) {
-        af::array A = af::randu(n, 2 * k, u32) * (2 * (D - 1));
+        af::array A = af::randu(n, 2 * k, f32) * (2 * (D - 1));
+        A = A.as(u32);
 
-        af::array B = af::randu(2 * D, m, u32) * (n - 1);
+        af::array B = af::randu(2 * D, m, f32) * (n - 1);
+        B = B.as(u32);
 
         return std::make_pair(A, B);
     }

@@ -7,7 +7,6 @@
 
 #include "Header.h"
 #include "Utilities.h"
-#include <Eigen/Dense>
 #include <arrayfire.h>
 #include <cuda_runtime.h>
 #include <af/cuda.h>
