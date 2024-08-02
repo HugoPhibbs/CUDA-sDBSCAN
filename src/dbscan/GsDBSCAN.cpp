@@ -9,6 +9,10 @@
 #include <tuple>
 #include <cstdio>
 #include <iostream>
+#include <iomanip>
+#include "../../include/TestUtils.h"
+
+namespace tu = testUtils;
 
 // Constructor to initialize the DBSCAN parameters
 GsDBSCAN::GsDBSCAN(const af::array &X, int D, int minPts, int k, int m, float eps, bool skip_pre_checks, float sigma, int seed, string distanceMetric, float batchAlpha, int fhtDim, int nRotate, bool clusterNoise)
@@ -258,82 +262,6 @@ std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array& 
     return std::make_tuple(A, B);
 }
 
-void printDevicePointer(af::array& arr) {
-    // Lock the array to prevent ArrayFire from freeing the memory
-    void* ptr = arr.device<void>();
-    // Print the device pointer
-    std::cout << "Device pointer for array: " << ptr << std::endl;
-    // Unlock the array after use
-    arr.unlock();
-}
-
-__device__ void warpReduce(volatile float* sdata, unsigned int tid) {
-    sdata[tid] += sdata[tid + 32];
-    sdata[tid] += sdata[tid + 16];
-    sdata[tid] += sdata[tid + 8];
-    sdata[tid] += sdata[tid + 4];
-    sdata[tid] += sdata[tid + 2];
-    sdata[tid] += sdata[tid + 1];
-}
-
-__global__ void sumOverThirdDimKernel(const float *g_in, float *g_out) {
-    extern __shared__ float sdata[];
-
-    unsigned int tid = threadIdx.x;
-    unsigned int g_blockIdx = blockIdx.y * gridDim.x + blockIdx.x;
-    unsigned int g_tid = g_blockIdx * blockDim.x + threadIdx.x;
-
-//    printf("%d\n", g_tid);
-
-    sdata[tid] = g_in[g_tid];
-    __syncthreads();
-
-//    for (unsigned int s = blockDim.x/2; s > 0; s >>=1) {
-////        if (tid < s && (tid + s < blockDim.x)) {
-////            sdata[tid] += sdata[tid + s];
-////        }
-//
-//        if (tid < s) {
-//            sdata[tid] += sdata[tid + s];
-//        }
-//        __syncthreads();
-//    };
-
-    for (unsigned int s = 1; s < blockDim.x; s *= 2) {
-        if (tid % (2 * s) == 0) {
-            sdata[tid] += sdata[tid + s];
-        }
-        __syncthreads();
-    }
-
-//    if (tid < 32) warpReduce(sdata, tid);
-
-    if (tid == 0) g_out[g_blockIdx] = sdata[0];
-}
-
-af::array GsDBSCAN::arraySumThirdDim(af::array &in) {
-    assert(in.dims()[0] > 0 && in.dims()[2] < 1024 && "3rd dimension of input array must be less than 1024, due to CUDA block size restrictions");
-
-    af::array out_T = af::constant(0, in.dims(1), in.dims(0), in.type());
-    af::array in_T = af::transpose(in);
-
-    auto *in_T_d = in_T.device<float>();
-    auto *out_T_d = out_T.device<float>();
-
-    cudaStream_t afCudaStream = getAfCudaStream();
-
-    dim3 gridDim2D(in.dims()[0], in.dims()[1]);
-    unsigned int numThreads = in.dims()[2];
-
-    sumOverThirdDimKernel<<<gridDim2D, numThreads, numThreads * sizeof(float), afCudaStream>>>(in_T_d, out_T_d);
-
-    in_T.unlock();
-    out_T.unlock();
-
-    return af::transpose(out_T); // We require the transposing stuff since af arrays are column-major by default
-}
-
-
 /**
  * Finds the distances between each of the query points and their candidate neighbourhood vectors
  *
@@ -352,11 +280,12 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
 
     int batchSize = GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
 
-    af::array distances(n, 2*k*m, af::dtype::f32);
+    af::array distances(n, 2 * k * m, af::dtype::f32);
     af::array ABatch(batchSize, 2 * k, A.type());
     af::array BBatch(batchSize, m, B.type());
-    af::array XBatch(batchSize, 2*k, m, d, X.type());
-    af::array XBatchAdj(batchSize, 2*k*m, d, X.type()); // This is very large, around 7gb. Possible to do this without explicitly allocating the memory?
+    af::array XBatch(batchSize, 2 * k, m, d, X.type());
+    af::array XBatchAdj(batchSize, 2 * k * m, d,
+                        X.type()); // This is very large, around 7gb. Possible to do this without explicitly allocating the memory?
     af::array XSubset(batchSize, d, X.type());
     af::array XSubsetReshaped = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
     af::array YBatch = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
@@ -367,11 +296,11 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
 
         BBatch = B(ABatch, af::span);
 
-        BBatch = af::moddims(BBatch, BBatch.dims(0) / (2*k), 2*k, BBatch.dims(1));
+        BBatch = af::moddims(BBatch, BBatch.dims(0) / (2 * k), 2 * k, BBatch.dims(1));
 
         XBatch = X(BBatch, af::span);
 
-        XBatchAdj = af::moddims(XBatch, batchSize, 2*k*m, d);
+        XBatchAdj = af::moddims(XBatch, batchSize, 2 * k * m, d);
 
         XSubset = X(af::seq(i, maxBatchIdx), af::span);
 
@@ -381,14 +310,38 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
 
         // sqrt(sum(sq(...)))
 
-        distances(af::seq(i, maxBatchIdx), af::span) = af::norm(YBatch, AF_NORM_VECTOR_2, 2); // af doesn't have norms across arbitrary'
+        distances(af::seq(i, maxBatchIdx), af::span) = af::norm(YBatch, AF_NORM_VECTOR_2,
+                                                                2); // af doesn't have norms across arbitrary'
     }
 
     return distances;
 }
 
+void printCudaMemoryUsage() {
+    size_t free_mem, total_mem;
+    cudaError_t error;
+
+    cudaDeviceSynchronize();
+
+    // Get memory information
+    error = cudaMemGetInfo(&free_mem, &total_mem);
+    if (error != cudaSuccess) {
+        std::cerr << "cudaMemGetInfo failed: " << cudaGetErrorString(error) << std::endl;
+        return;
+    }
+
+    // Convert bytes to gigabytes
+    double free_mem_gb = static_cast<double>(free_mem) / (1024.0 * 1024.0 * 1024.0);
+    double total_mem_gb = static_cast<double>(total_mem) / (1024.0 * 1024.0 * 1024.0);
+    double used_mem_gb = total_mem_gb - free_mem_gb;
+
+    std::cout << std::fixed << std::setprecision(2);
+    std::cout << "Memory Usage: " << used_mem_gb << " GB used, "
+              << free_mem_gb << " GB free, " << total_mem_gb << " GB total" << std::endl;
+}
+
 matx::tensor_t<float, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<float, 2> &X_t, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t, float alpha) {
-    const int k = B_t.Shape()[1] / 2;
+    const int k = A_t.Shape()[1] / 2;
     const int m = B_t.Shape()[1];
 
     const int n = X_t.Shape()[0];
@@ -410,27 +363,96 @@ matx::tensor_t<float, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<float, 2> &
 
     for (int i = 0; i < n; i += batchSize) {
         int maxBatchIdx = i + batchSize - 1; // Index within X along the ROWS
+//
+//        cudaDeviceSynchronize();
+//
+//        auto start = tu::timeNow();
 
-        (XSubset_t = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd})).run();
+//        (XSubset_t = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd})).run();
+        XSubset_t = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd});
 
-        (ABatchFlat_t = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k})).run();
+//        cudaDeviceSynchronize();
+//        tu::printDurationSinceStart(start, "XSubset_t");
+//
+//        start = tu::timeNow();
 
-        print(X_t);
+//        (ABatchFlat_t = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k})).run();
+        ABatchFlat_t = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k});
 
-        (BBatch_t = matx::remap<0>(B_t, ABatchFlat_t)).run();
-        (XBatch_t = matx::remap<0>(X_t, matx::reshape(BBatch_t, {2*batchSize*k*m}))).run();
+//        cudaDeviceSynchronize();
+//        tu::printDurationSinceStart(start, "ABatchFlat_t");
+//
+//        start = tu::timeNow();
 
-//        matx::print(XBatch_t);
+//        (BBatch_t = matx::remap<0>(B_t, ABatchFlat_t)).run();
+        BBatch_t = matx::remap<0>(B_t, ABatchFlat_t);
+
+//        cudaDeviceSynchronize();
+//        tu::printDurationSinceStart(start, "BBatch_t");
+//
+//        start = tu::timeNow();
+
+        auto BBatch_t_flat = matx::flatten(BBatch_t);
+
+//        BBatch_t_flat.run();
+//
+//        cudaDeviceSynchronize();
+//        tu::printDurationSinceStart(start, "BBatch_t_flat");
+//
+//        start = tu::timeNow();
+
+//        (XBatch_t = matx::remap<0>(X_t, BBatch_t_flat)).run();
+        XBatch_t = matx::remap<0>(X_t, BBatch_t_flat);
+
+//        cudaDeviceSynchronize();
+//        tu::printDurationSinceStart(start, "XBatch_t");
+//
+//        start = tu::timeNow();
+
         auto XBatchReshaped_t = matx::reshape(XBatch_t, {batchSize, 2*k*m, d});
+//
+//        XBatchReshaped_t.run();
+//
+//        cudaDeviceSynchronize();
+//        tu::printDurationSinceStart(start, "XBatchReshaped_t");
+//
+//        start = tu::timeNow();
+
         auto XSubsetReshaped_t = matx::reshape(XSubset_t, {batchSize, 1, d});
 
-        (YBatch_t = XBatchReshaped_t - matx::repmat(XSubsetReshaped_t, {1, 2*k*m, 1})).run(); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
+//        XSubsetReshaped_t.run();
+//
+//        cudaDeviceSynchronize();
+//        tu::printDurationSinceStart(start, "XSubsetReshaped_t");
 
-        (distancesBatch_t = matx::vector_norm(YBatch_t, {2}, matx::NormOrder::L2)).run();
+//        (YBatch_t = XBatchReshaped_t - matx::repmat(XSubsetReshaped_t, {1, 2*k*m, 1})).run(); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
 
-        // TODO, figure out why I need to do .run(stream), on all the above, and not deferred for the line above
+        YBatch_t = XBatchReshaped_t - matx::repmat(XSubsetReshaped_t, {1, 2*k*m, 1});
+
+//        cudaDeviceSynchronize();
+//        tu::printDurationSinceStart(start, "YBatch");
+//
+//        start = tu::timeNow();
+
+//        (distancesBatch_t = matx::vector_norm(YBatch_t, {2}, matx::NormOrder::L2)).run();
+        distancesBatch_t = matx::vector_norm(YBatch_t, {2}, matx::NormOrder::L2);
+
+//        cudaDeviceSynchronize();
+//        tu::printDurationSinceStart(start, "distancesBatch_t");
+//
+//        start = tu::timeNow();
 
         (matx::slice(distances_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}) = distancesBatch_t).run();
+//
+//        cudaDeviceSynchronize();
+//        tu::printDurationSinceStart(start, "distances_t");
+
+//        start = tu::timeNow();
+
+//        if ( i / batchSize == 20) {
+//            printf("%d \n", i);
+//        }
+
     }
 
     return distances_t;

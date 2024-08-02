@@ -22,7 +22,11 @@ namespace testUtils {
 
     void printDuration(Time start, Time stop);
 
-    void printDurationSinceStart(Time start);
+    int durationSecs(Time start, Time stop);
+
+    void printDurationSinceStart(Time start, const std::string& msg = "");
+
+    void printDurationSinceStartSecs(Time start, const std::string& msg = "");
 
     af::array createMockMnistDataset(int n = 70000, int d = 784);
 
@@ -48,21 +52,25 @@ namespace testUtils {
         return mnist;
     }
 
-    inline auto createMockAMatrixMatX(int n = 70000, int k = 2) {
+    inline auto createMockAMatrixMatX(int n = 70000, int k = 2, int D = 1024) {
         matx::tensor_t<float, 2> A({n, 2*k});
         matx::tensor_t<int32_t, 2> A_i({n, 2*k});
 
-        (A = matx::random<float>({n, 2*k}, matx::UNIFORM, 0, n-1)).run();
+        int a = 2 * (D - 1);
+
+        (A = matx::random<float>({n, 2*k}, matx::UNIFORM, 0, a)).run();
         (A_i = matx::as_type<int32_t>(A)).run();
 
         return A_i;
     }
 
-    inline auto createMockBMatrixMatX(int m = 2000, int D = 1024) {
+    inline auto createMockBMatrixMatX(int n = 70000, int m = 2000, int D = 1024) {
         matx::tensor_t<float, 2> B({2*D, m});
         matx::tensor_t<int32_t, 2> B_i({2*D, m});
 
-        (B = matx::random<float>({2*D, m}, matx::UNIFORM, 0, 2*(D-1))).run();
+        int a = n - 1;
+
+        (B = matx::random<float>({2*D, m}, matx::UNIFORM, 0, a)).run();
         (B_i = matx::as_type<int32_t>(B)).run();
 
         return B_i;
@@ -75,4 +83,6 @@ namespace testUtils {
     std::vector<std::vector<float>> readCSV(const std::string &filename);
 
     af::array csvToArray(const std::string& filename);
+
+    void readFlatCSV(const std::string& filename, float* data, size_t size);
 }

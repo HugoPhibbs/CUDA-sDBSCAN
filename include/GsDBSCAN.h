@@ -49,8 +49,6 @@ public:
 
     std::tuple<af::array, af::array> static constructABMatrices(const af::array& projections, int k, int m);
 
-    static af::array arraySumThirdDim(af::array &in);
-
     af::array static findDistances(af::array &X, af::array &A, af::array &B, float alpha = 1.2);
 
     matx::tensor_t<float, 2> static findDistancesMatX(matx::tensor_t<float, 2> &X_t, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t, float alpha = 1.2);

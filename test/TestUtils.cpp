@@ -7,6 +7,7 @@
 #include <chrono>
 #include <iostream>
 #include <fstream>
+#include <string>
 
 namespace testUtils {
     Time timeNow() {
@@ -18,12 +19,27 @@ namespace testUtils {
         return std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
     }
 
+    int durationSecs(Time start, Time stop) {
+        return std::chrono::duration_cast<std::chrono::seconds>(stop - start).count();
+    }
+
+
     void printDuration(Time start, Time stop) {
         std::cout << "Duration: " << duration(start, stop) << " microseconds" << std::endl;
     }
 
-    void printDurationSinceStart(Time start) {
+    void printDurationSinceStart(Time start, const std::string& msg) {
+        if (!msg.empty()) {
+            std::cout << msg << " ";
+        }
         std::cout << "Duration: " << duration(start, timeNow()) << " microseconds" << std::endl;
+    }
+
+    void printDurationSinceStartSecs(Time start, const std::string& msg) {
+        if (!msg.empty()) {
+            std::cout << msg << " ";
+        }
+        std::cout << "Duration: " << durationSecs(start, timeNow()) << " seconds" << std::endl;
     }
 
     af::array createMockMnistDataset(int n, int d) {
@@ -113,6 +129,37 @@ namespace testUtils {
         }
 
         return array;
+    }
+
+    void readFlatCSV(const std::string& filename, float* data, size_t size) {
+        std::ifstream file(filename);
+
+        if (!file.is_open()) {
+            std::cerr << "Failed to open file: " << filename << std::endl;
+            return;
+        }
+
+        std::string line;
+        size_t index = 0;
+
+        while (std::getline(file, line) && index < size) {
+            std::stringstream ss(line);
+            std::string value;
+
+            while (std::getline(ss, value, ',') && index < size) {
+                try {
+                    data[index++] = std::stof(value);
+                } catch (const std::invalid_argument& e) {
+                    std::cerr << "Invalid float value: " << value << std::endl;
+                }
+            }
+        }
+
+        if (index < size) {
+            std::cerr << "Warning: The file contains fewer values than expected." << std::endl;
+        }
+
+        file.close();
     }
 }
 

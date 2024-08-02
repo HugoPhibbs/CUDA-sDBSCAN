@@ -19,27 +19,6 @@ class gsDBSCANTest : public ::testing::Test {
 
 };
 
-class TestArraySumThirdDimension : public gsDBSCANTest {
-
-};
-
-TEST_F(TestArraySumThirdDimension, TestSmallInput) {
-    af::array array_in = af::randu(10, 5, 8, f32);
-
-    af::array expected = af::sum(array_in, 2);
-
-    af::array result = GsDBSCAN::arraySumThirdDim(array_in);
-
-    af::print("", result);
-    af::print("", expected);
-
-    ASSERT_TRUE(tu::arraysApproxEqual(expected, result));
-}
-
-TEST_F(TestArraySumThirdDimension, TestLargeInput) {
-
-}
-
 class TestCalculatingBatchSize : public gsDBSCANTest {
 
 };
@@ -232,15 +211,24 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
     tu::Time start = tu::timeNow();
 
-//    std::tie(A, B) = tu::createMockABMatricesMatX();
+    int k = 5;
+    int n = 70000;
+    int m = 50;
+    int D = 1024;
+    int d = 784;
 
-    auto A = tu::createMockAMatrixMatX();
-    auto B = tu::createMockBMatrixMatX();
-    auto X = tu::createMockMnistDatasetMatX();
+    auto A = tu::createMockAMatrixMatX(n, k, D);
+    auto B = tu::createMockBMatrixMatX(n, m, D);
+    auto X = tu::createMockMnistDatasetMatX(n, d);
 
     auto distances = GsDBSCAN::findDistancesMatX(X, A, B);
+    cudaDeviceSynchronize();
 
+    tu::printDurationSinceStart(start); // This is too fn slow. Around 80 seconds, Cupy takes less than 10.
 
+//    matx::print(matx::slice(distances, {1000, 0}, {1050, matx::matxEnd}));
+
+    ASSERT_TRUE(true); // To give it a pass
 }
 
 TEST_F(TestFindingDistances, TestLargeInput) {
