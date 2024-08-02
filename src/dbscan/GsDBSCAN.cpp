@@ -358,101 +358,31 @@ matx::tensor_t<float, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<float, 2> &
     auto XSubset_t = matx::make_tensor<float>( {batchSize, d});
     auto YBatch_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
     auto distancesBatch_t = matx::make_tensor<float>({batchSize, 2 * k * m});
+    auto XBatchReshaped_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
+    auto XSubsetReshaped_t = matx::make_tensor<float>({batchSize, 1, d});
 
     auto distances_t = matx::make_tensor<float>({n, 2*k*m});
 
     for (int i = 0; i < n; i += batchSize) {
         int maxBatchIdx = i + batchSize - 1; // Index within X along the ROWS
-//
-//        cudaDeviceSynchronize();
-//
-//        auto start = tu::timeNow();
 
-//        (XSubset_t = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd})).run();
-        XSubset_t = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd});
+        auto XSubset_t_op = (XSubset_t = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}));
 
-//        cudaDeviceSynchronize();
-//        tu::printDurationSinceStart(start, "XSubset_t");
-//
-//        start = tu::timeNow();
+        auto ABatchFlat_t_op = (ABatchFlat_t = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k}));
 
-//        (ABatchFlat_t = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k})).run();
-        ABatchFlat_t = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k});
+        auto BBatch_t_op = (BBatch_t = matx::remap<0>(B_t, ABatchFlat_t_op));
 
-//        cudaDeviceSynchronize();
-//        tu::printDurationSinceStart(start, "ABatchFlat_t");
-//
-//        start = tu::timeNow();
+        auto XBatch_t_op = (XBatch_t = matx::remap<0>(X_t, matx::flatten(BBatch_t_op)));
 
-//        (BBatch_t = matx::remap<0>(B_t, ABatchFlat_t)).run();
-        BBatch_t = matx::remap<0>(B_t, ABatchFlat_t);
+        auto XBatchReshaped_t_op = (XBatchReshaped_t = matx::reshape(XBatch_t_op, {batchSize, 2*k*m, d}));
 
-//        cudaDeviceSynchronize();
-//        tu::printDurationSinceStart(start, "BBatch_t");
-//
-//        start = tu::timeNow();
+        auto XSubsetReshaped_t_op = (XSubsetReshaped_t = matx::reshape(XSubset_t_op, {batchSize, 1, d}));
 
-        auto BBatch_t_flat = matx::flatten(BBatch_t);
+        (YBatch_t = XBatchReshaped_t_op - matx::repmat(XSubsetReshaped_t_op, {1, 2*k*m, 1})).run(); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
 
-//        BBatch_t_flat.run();
-//
-//        cudaDeviceSynchronize();
-//        tu::printDurationSinceStart(start, "BBatch_t_flat");
-//
-//        start = tu::timeNow();
+//        auto distancesBatch_t_op = (distancesBatch_t = ;
 
-//        (XBatch_t = matx::remap<0>(X_t, BBatch_t_flat)).run();
-        XBatch_t = matx::remap<0>(X_t, BBatch_t_flat);
-
-//        cudaDeviceSynchronize();
-//        tu::printDurationSinceStart(start, "XBatch_t");
-//
-//        start = tu::timeNow();
-
-        auto XBatchReshaped_t = matx::reshape(XBatch_t, {batchSize, 2*k*m, d});
-//
-//        XBatchReshaped_t.run();
-//
-//        cudaDeviceSynchronize();
-//        tu::printDurationSinceStart(start, "XBatchReshaped_t");
-//
-//        start = tu::timeNow();
-
-        auto XSubsetReshaped_t = matx::reshape(XSubset_t, {batchSize, 1, d});
-
-//        XSubsetReshaped_t.run();
-//
-//        cudaDeviceSynchronize();
-//        tu::printDurationSinceStart(start, "XSubsetReshaped_t");
-
-//        (YBatch_t = XBatchReshaped_t - matx::repmat(XSubsetReshaped_t, {1, 2*k*m, 1})).run(); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
-
-        YBatch_t = XBatchReshaped_t - matx::repmat(XSubsetReshaped_t, {1, 2*k*m, 1});
-
-//        cudaDeviceSynchronize();
-//        tu::printDurationSinceStart(start, "YBatch");
-//
-//        start = tu::timeNow();
-
-//        (distancesBatch_t = matx::vector_norm(YBatch_t, {2}, matx::NormOrder::L2)).run();
-        distancesBatch_t = matx::vector_norm(YBatch_t, {2}, matx::NormOrder::L2);
-
-//        cudaDeviceSynchronize();
-//        tu::printDurationSinceStart(start, "distancesBatch_t");
-//
-//        start = tu::timeNow();
-
-        (matx::slice(distances_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}) = distancesBatch_t).run();
-//
-//        cudaDeviceSynchronize();
-//        tu::printDurationSinceStart(start, "distances_t");
-
-//        start = tu::timeNow();
-
-//        if ( i / batchSize == 20) {
-//            printf("%d \n", i);
-//        }
-
+        (matx::slice(distances_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}) = matx::vector_norm(YBatch_t, {2}, matx::NormOrder::L2)).run();
     }
 
     return distances_t;

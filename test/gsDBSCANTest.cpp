@@ -182,15 +182,14 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
     int *B_d = hostArrayToCudaArrayInt(B, 30);
 
     auto X_t = matx::make_tensor<float>(X_d, {5, 3}, true);
-
-    print(X_t);
-
     auto A_t = matx::make_tensor<int>(A_d, {5, 2}, true);
     auto B_t = matx::make_tensor<int>(B_d, {10, 3}, true);
 
     auto distances_t = GsDBSCAN::findDistancesMatX(X_t, A_t, B_t);
 
-    cuStreamSynchronize(GsDBSCAN::getAfCudaStream());
+    cudaDeviceSynchronize();
+
+    matx::print(distances_t);
 
     float *distances_ptr = distances_t.Data();
 
@@ -205,6 +204,11 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
     for (int i = 0; i < 5*6; i++) {
         ASSERT_NEAR(std::sqrt(expected_squared[i]), distances_ptr[i], 1e-6);
     }
+}
+
+TEST_F(TestFindingDistances, TestMediumInputMatX) {
+
+
 }
 
 TEST_F(TestFindingDistances, TestLargeInputMatX) {
