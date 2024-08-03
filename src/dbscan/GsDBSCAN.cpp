@@ -277,6 +277,7 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
 
     int n = X.dims(0);
     int d = X.dims(1);
+    int D = B.dims(0) / 2;
 
     int batchSize = GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
 
@@ -340,49 +341,40 @@ void printCudaMemoryUsage() {
               << free_mem_gb << " GB free, " << total_mem_gb << " GB total" << std::endl;
 }
 
-matx::tensor_t<float, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<float, 2> &X_t, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t, float alpha) {
+matx::tensor_t<matx::matxFp16, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t, float alpha, int batchSize) {
     const int k = A_t.Shape()[1] / 2;
     const int m = B_t.Shape()[1];
 
     const int n = X_t.Shape()[0];
     const int d = X_t.Shape()[1];
+    int D = B_t.Shape()[0] / 2;
 
-    const int batchSize = GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
+    batchSize = (batchSize != -1) ? batchSize : GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
 
-    auto AFlat_t = matx::reshape(A_t, {n * 2 * k});
+    auto AFlat_t = matx::flatten(A_t);
 
-    auto ABatchFlat_t = matx::make_tensor<int>( {batchSize * 2 * k});
-    auto BBatch_t = matx::make_tensor<int>( {ABatchFlat_t.Size(0), m});
-
-    auto XBatch_t = matx::make_tensor<float>( {2*batchSize*k*m, d});
-    auto XSubset_t = matx::make_tensor<float>( {batchSize, d});
-    auto YBatch_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
-    auto distancesBatch_t = matx::make_tensor<float>({batchSize, 2 * k * m});
-    auto XBatchReshaped_t = matx::make_tensor<float>({batchSize, 2*k*m, d});
-    auto XSubsetReshaped_t = matx::make_tensor<float>({batchSize, 1, d});
-
-    auto distances_t = matx::make_tensor<float>({n, 2*k*m});
+    auto distances_t = matx::make_tensor<matx::matxFp16>({n, 2*k*m});
 
     for (int i = 0; i < n; i += batchSize) {
         int maxBatchIdx = i + batchSize - 1; // Index within X along the ROWS
 
-        auto XSubset_t_op = (XSubset_t = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}));
+        auto XSubset_t_op = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd});
 
-        auto ABatchFlat_t_op = (ABatchFlat_t = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k}));
+        auto ABatchFlat_t_op = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k});
 
-        auto BBatch_t_op = (BBatch_t = matx::remap<0>(B_t, ABatchFlat_t_op));
+        auto BBatch_t_op = matx::remap<0>(B_t, ABatchFlat_t_op);
 
-        auto XBatch_t_op = (XBatch_t = matx::remap<0>(X_t, matx::flatten(BBatch_t_op)));
+        auto XBatch_t_op = matx::remap<0>(X_t, matx::flatten(BBatch_t_op));
 
-        auto XBatchReshaped_t_op = (XBatchReshaped_t = matx::reshape(XBatch_t_op, {batchSize, 2*k*m, d}));
+        auto XBatchReshaped_t_op = matx::reshape(XBatch_t_op, {batchSize, 2*k*m, d});
 
-        auto XSubsetReshaped_t_op = (XSubsetReshaped_t = matx::reshape(XSubset_t_op, {batchSize, 1, d}));
+        auto XSubsetReshaped_t_op = matx::reshape(XSubset_t_op, {batchSize, 1, d});
 
-        (YBatch_t = XBatchReshaped_t_op - matx::repmat(XSubsetReshaped_t_op, {1, 2*k*m, 1})).run(); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
+        auto YBatch_t_op = (XBatchReshaped_t_op - matx::repmat(XSubsetReshaped_t_op, {1, 2*k*m, 1})); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
 
-//        auto distancesBatch_t_op = (distancesBatch_t = ;
+        auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, matx::NormOrder::L2);
 
-        (matx::slice(distances_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}) = matx::vector_norm(YBatch_t, {2}, matx::NormOrder::L2)).run();
+        (matx::slice(distances_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}) = YBatch_t_norm_op).run();
     }
 
     return distances_t;
@@ -400,7 +392,7 @@ matx::tensor_t<float, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<float, 2> &
  * @return int for the calculated batch size
  */
 int GsDBSCAN::findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
-    int batchSize = static_cast<int>(static_cast<long long>(n) * d * 2 * k * m / (std::pow(1024, 3) * alpha));
+    int batchSize = static_cast<int>((static_cast<long long>(n) * d * 2 * k * m) / (std::pow(1024, 3) * alpha));
 
     if (batchSize == 0) {
         return n;
