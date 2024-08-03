@@ -46,10 +46,12 @@ namespace testUtils {
 
     inline auto createMockMnistDatasetMatX(int n = 70000, int d = 784) {
         matx::tensor_t<float, 2> mnist({n, d});
+        matx::tensor_t<matx::matxFp16, 2> mnist_16({n, d});
 
         (mnist = matx::random<float>({n, d}, matx::UNIFORM)).run();
+        (mnist_16 = matx::as_type<matx::matxFp16>(mnist)).run();
 
-        return mnist;
+        return mnist_16;
     }
 
     inline auto createMockAMatrixMatX(int n = 70000, int k = 2, int D = 1024) {
