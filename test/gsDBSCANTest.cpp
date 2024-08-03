@@ -354,6 +354,11 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
     cudaDeviceSynchronize();
 
     tu::printDurationSinceStart(start); // This is too fn slow. Around 14 seconds, Cupy takes less than 0.7 seconds.
+
+    printf("%lld %lld", distances.Shape()[0], distances.Shape()[1]);
+
+    ASSERT_TRUE(distances.Shape()[0] == n);
+    ASSERT_TRUE(distances.Shape()[1] == 2*k*m);
 }
 
 TEST_F(TestFindingDistances, TestLargeInput) {
