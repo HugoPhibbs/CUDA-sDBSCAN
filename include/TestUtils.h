@@ -45,8 +45,8 @@ namespace testUtils {
     }
 
     inline auto createMockMnistDatasetMatX(int n = 70000, int d = 784) {
-        matx::tensor_t<float, 2> mnist({n, d});
-        matx::tensor_t<matx::matxFp16, 2> mnist_16({n, d});
+        auto mnist = matx::make_tensor<float>({n, d}, matx::MATX_DEVICE_MEMORY);
+        auto mnist_16 = matx::make_tensor<matx::matxFp16>({n, d}, matx::MATX_DEVICE_MEMORY);
 
         (mnist = matx::random<float>({n, d}, matx::UNIFORM)).run();
         (mnist_16 = matx::as_type<matx::matxFp16>(mnist)).run();
@@ -55,8 +55,8 @@ namespace testUtils {
     }
 
     inline auto createMockAMatrixMatX(int n = 70000, int k = 2, int D = 1024) {
-        matx::tensor_t<float, 2> A({n, 2*k});
-        matx::tensor_t<int32_t, 2> A_i({n, 2*k});
+        auto A = matx::make_tensor<float>({n, 2*k}, matx::MATX_DEVICE_MEMORY);
+        auto A_i = matx::make_tensor<int32_t>({n, 2*k}, matx::MATX_DEVICE_MEMORY);
 
         int a = 2 * (D - 1);
 
@@ -67,8 +67,8 @@ namespace testUtils {
     }
 
     inline auto createMockBMatrixMatX(int n = 70000, int m = 2000, int D = 1024) {
-        matx::tensor_t<float, 2> B({2*D, m});
-        matx::tensor_t<int32_t, 2> B_i({2*D, m});
+        auto B = matx::make_tensor<float>({2*D, m}, matx::MATX_DEVICE_MEMORY);
+        auto B_i = matx::make_tensor<int32_t >({2*D, m}, matx::MATX_DEVICE_MEMORY);
 
         int a = n - 1;
 
