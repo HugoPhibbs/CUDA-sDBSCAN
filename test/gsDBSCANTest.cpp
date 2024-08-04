@@ -348,6 +348,8 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
     auto B = tu::createMockBMatrixMatX(n, m, D);
     auto X = tu::createMockMnistDatasetMatX(n, d);
 
+    cudaDeviceSynchronize();
+
     tu::Time start = tu::timeNow();
 
     auto distances = GsDBSCAN::findDistancesMatX(X, A, B, 1.2, 250);
@@ -365,6 +367,8 @@ TEST_F(TestFindingDistances, TestLargeInput) {
     af::array X = tu::createMockMnistDataset();
     af::array A, B;
     std::tie(A, B) = tu::createMockABMatrices();
+
+    cudaDeviceSynchronize();
 
     tu::Time start = tu::timeNow();
 
