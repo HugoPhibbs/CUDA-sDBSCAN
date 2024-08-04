@@ -353,9 +353,16 @@ matx::tensor_t<matx::matxFp16, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<ma
 
     auto AFlat_t = matx::flatten(A_t);
 
-    auto distances_t = matx::make_tensor<matx::matxFp16>({n, 2*k*m});
+    auto distances_t = matx::make_tensor<matx::matxFp16>({n, 2*k*m}, matx::MATX_DEVICE_MEMORY);
+
+    int j = 0;
+    std::vector<double> times;
+
+    auto start_all = std::chrono::high_resolution_clock::now();
 
     for (int i = 0; i < n; i += batchSize) {
+        auto start = std::chrono::high_resolution_clock::now();
+
         int maxBatchIdx = i + batchSize - 1; // Index within X along the ROWS
 
         auto XSubset_t_op = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd});
@@ -375,7 +382,42 @@ matx::tensor_t<matx::matxFp16, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<ma
         auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, matx::NormOrder::L2);
 
         (matx::slice(distances_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}) = YBatch_t_norm_op).run();
+
+        // Record end time
+        auto end = std::chrono::high_resolution_clock::now();
+
+        // Calculate the duration
+        std::chrono::duration<double> duration = end - start;
+
+        // Cast to double and store in array
+        times.push_back(duration.count());
     }
+
+    auto start_sync = std::chrono::high_resolution_clock::now();
+
+    cudaDeviceSynchronize();
+
+    // Record end time
+    auto end_sync = std::chrono::high_resolution_clock::now();
+
+    // Calculate the duration
+    std::chrono::duration<double> duration_sync = end_sync - start_sync;
+
+    // Output the duration
+    std::cout << "Time taken: " << duration_sync.count() << " seconds" << std::endl;
+
+    for (const auto& element : times) {
+        std::cout << element << std::endl;
+    }
+
+    // Record end time
+    auto end_all = std::chrono::high_resolution_clock::now();
+
+    // Calculate the duration
+    std::chrono::duration<double> duration = end_all - start_all;
+
+    // Output the duration
+    std::cout << "Time taken: " << duration.count() << " seconds" << std::endl;
 
     return distances_t;
 }
