@@ -45,13 +45,31 @@ namespace testUtils {
     }
 
     inline auto createMockMnistDatasetMatX(int n = 70000, int d = 784) {
-        auto mnist = matx::make_tensor<float>({n, d}, matx::MATX_DEVICE_MEMORY);
-        auto mnist_16 = matx::make_tensor<matx::matxFp16>({n, d}, matx::MATX_DEVICE_MEMORY);
 
-        (mnist = matx::random<float>({n, d}, matx::UNIFORM)).run();
-        (mnist_16 = matx::as_type<matx::matxFp16>(mnist)).run();
+        if (n > 100000) {
+            // Quick and dirty way to avoid running out of memory. I assume n>>d, so main bottleneck is n when doing the random array creation.
 
-        return mnist_16;
+            int batchSize = 100000;
+            auto mnist_batch = matx::make_tensor<float>({batchSize, d}, matx::MATX_DEVICE_MEMORY);
+            auto mnist_16 = matx::make_tensor<matx::matxFp16>({n, d}, matx::MATX_DEVICE_MEMORY);
+
+            for (int i = 0; i < n; i+=batchSize) {
+                (mnist_batch = matx::random<float>({batchSize, d}, matx::UNIFORM)).run();
+
+                (matx::slice(mnist_16, {i, 0}, {i+batchSize, matx::matxEnd}) = matx::as_type<matx::matxFp16>(mnist_batch)).run();
+            }
+
+            return mnist_16;
+        }
+
+        else {
+            auto mnist = matx::make_tensor<float>({n, d}, matx::MATX_DEVICE_MEMORY);
+            auto mnist_16 = matx::make_tensor<matx::matxFp16>({n, d}, matx::MATX_DEVICE_MEMORY);
+
+            (mnist = matx::random<float>({n, d}, matx::UNIFORM)).run();
+            (mnist_16 = matx::as_type<matx::matxFp16>(mnist)).run();
+            return mnist_16;
+        }
     }
 
     inline auto createMockAMatrixMatX(int n = 70000, int k = 2, int D = 1024) {
