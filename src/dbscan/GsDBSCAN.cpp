@@ -341,7 +341,7 @@ void printCudaMemoryUsage() {
               << free_mem_gb << " GB free, " << total_mem_gb << " GB total" << std::endl;
 }
 
-matx::tensor_t<matx::matxFp16, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t, float alpha, int batchSize) {
+matx::tensor_t<matx::matxFp16, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t, matx::tensor_t<int32_t, 2> &B_t, float alpha, int batchSize) {
     const int k = A_t.Shape()[1] / 2;
     const int m = B_t.Shape()[1];
 
@@ -363,11 +363,11 @@ matx::tensor_t<matx::matxFp16, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<ma
     for (int i = 0; i < n; i += batchSize) {
         auto start = std::chrono::high_resolution_clock::now();
 
-        int maxBatchIdx = i + batchSize - 1; // Index within X along the ROWS
+        int maxBatchIdx = i + batchSize; // Index within X along the ROWS
 
-        auto XSubset_t_op = matx::slice(X_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd});
+        auto XSubset_t_op = matx::slice(X_t, {i, 0}, {maxBatchIdx, matx::matxEnd});
 
-        auto ABatchFlat_t_op = matx::slice(AFlat_t, {i * 2 * k}, {(maxBatchIdx + 1) * 2 * k});
+        auto ABatchFlat_t_op = matx::slice(AFlat_t, {i * 2 * k}, {maxBatchIdx * 2 * k});
 
         auto BBatch_t_op = matx::remap<0>(B_t, ABatchFlat_t_op);
 
@@ -381,7 +381,7 @@ matx::tensor_t<matx::matxFp16, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<ma
 
         auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, matx::NormOrder::L2);
 
-        (matx::slice(distances_t, {i, 0}, {maxBatchIdx + 1, matx::matxEnd}) = YBatch_t_norm_op).run();
+        (matx::slice(distances_t, {i, 0}, {maxBatchIdx, matx::matxEnd}) = YBatch_t_norm_op).run();
 
         // Record end time
         auto end = std::chrono::high_resolution_clock::now();
@@ -404,7 +404,7 @@ matx::tensor_t<matx::matxFp16, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<ma
     std::chrono::duration<double> duration_sync = end_sync - start_sync;
 
     // Output the duration
-    std::cout << "Time taken: " << duration_sync.count() << " seconds" << std::endl;
+    std::cout << "Sync Time taken: " << duration_sync.count() << " seconds" << std::endl;
 
     for (const auto& element : times) {
         std::cout << element << std::endl;
@@ -417,7 +417,7 @@ matx::tensor_t<matx::matxFp16, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<ma
     std::chrono::duration<double> duration = end_all - start_all;
 
     // Output the duration
-    std::cout << "Time taken: " << duration.count() << " seconds" << std::endl;
+    std::cout << "Total Time taken: " << duration.count() << " seconds" << std::endl;
 
     return distances_t;
 }
