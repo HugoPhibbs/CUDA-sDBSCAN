@@ -352,7 +352,7 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
     tu::Time start = tu::timeNow();
 
-    auto distances = GsDBSCAN::findDistancesMatX(X, A, B, 1.2, 250);
+    auto distances = GsDBSCAN::findDistancesMatX(X, A, B, 1.2, 2000);
     cudaDeviceSynchronize();
 
     tu::printDurationSinceStart(start); // This is too fn slow. Around 14 seconds, Cupy takes less than 0.7 seconds.
@@ -364,9 +364,10 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 }
 
 TEST_F(TestFindingDistances, TestLargeInput) {
-    af::array X = tu::createMockMnistDataset();
+    int n = 70000;
+    af::array X = tu::createMockMnistDataset(n);
     af::array A, B;
-    std::tie(A, B) = tu::createMockABMatrices();
+    std::tie(A, B) = tu::createMockABMatrices(n);
 
     cudaDeviceSynchronize();
 
