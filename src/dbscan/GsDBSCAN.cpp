@@ -264,21 +264,6 @@ std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array &
     return std::make_tuple(A, B);
 }
 
-matx::tensor_t<int32_t, 2> constructAMatrixMatX(const matx::tensor_t<matx::matxFp16, 2> projections, int k, int m) {
-    int n = projections.Shape()[0];
-    int D = projections.Shape()[1];
-
-    auto A_t = matx::make_tensor<int32_t>({n, 2 * k});
-    auto projectionsSorted = matx::sort(projections, matx::SORT_ASCENDING);
-
-    // Slice indices are exclusive on upper bound I believe, see https://nvidia.github.io/MatX/basics/matlabpython.html#conversion-table
-
-    (matx::slice(A_t, {0, 0}, {matx::matxEnd, k}) = 2 * matx::slice(projectionsSorted, {0, 0}, {matx::matxEnd, k})).run();
-    (matx::slice(A_t, {0, k}, {matx::matxEnd, matx::matxEnd}) = 2 * matx::slice(projectionsSorted, {0, D - k}, {matx::matxEnd, matx::matxEnd})).run();
-
-    return A_t;
-}
-
 /**
  * Finds the distances between each of the query points and their candidate neighbourhood vectors
  *
