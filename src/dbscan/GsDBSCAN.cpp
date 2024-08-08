@@ -15,13 +15,14 @@
 namespace tu = testUtils;
 
 // Constructor to initialize the DBSCAN parameters
-GsDBSCAN::GsDBSCAN(const af::array &X, int D, int minPts, int k, int m, float eps, bool skip_pre_checks, float sigma, int seed, string distanceMetric, float batchAlpha, int fhtDim, int nRotate, bool clusterNoise)
-        : X(X), D(D), minPts(minPts), k(k), m(m), eps(eps), skip_pre_checks(skip_pre_checks), sigma(sigma), seed(seed), clusterNoise(clusterNoise), distanceMetric(distanceMetric), batchAlpha(batchAlpha), fhtDim(fhtDim) {
-        n = X.dims(0);
-        d = X.dims(1);
+GsDBSCAN::GsDBSCAN(const af::array &X, int D, int minPts, int k, int m, float eps, bool skip_pre_checks, float sigma,
+                   int seed, string distanceMetric, float batchAlpha, int fhtDim, int nRotate, bool clusterNoise)
+        : X(X), D(D), minPts(minPts), k(k), m(m), eps(eps), skip_pre_checks(skip_pre_checks), sigma(sigma), seed(seed),
+          clusterNoise(clusterNoise), distanceMetric(distanceMetric), batchAlpha(batchAlpha), fhtDim(fhtDim) {
+    n = X.dims(0);
+    d = X.dims(1);
 
 }
-
 
 
 /**
@@ -236,13 +237,13 @@ void GsDBSCAN::performGsDbscan() {
  * @param k k parameter as per the DBSCAN algorithm
  * @param m m parameter as per the DBSCAN algorithm
  */
-std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array& projections, int k, int m) {
+std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array &projections, int k, int m) {
     // Assume projections has shape (n, D)
     int n = projections.dims(0);
     int D = projections.dims(1);
 
-    af::array A(n, 2*k);
-    af::array B(2*D, m);
+    af::array A(n, 2 * k);
+    af::array B(2 * D, m);
 
     af::array dataToRandomIdxSorted = af::constant(-1, projections.dims(), af::dtype::u16);
     af::array randomToDataIdxSorted = af::constant(-1, projections.dims(), af::dtype::u16);
@@ -250,16 +251,32 @@ std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array& 
 
     af::sort(sortedValsTemp, sortedValsTemp, projections, 1);
 
-    A(af::span, af::seq(0, k-1)) = 2 * dataToRandomIdxSorted(af::span, af::seq(0, k - 1));
-    A(af::span, af::seq(k, af::end)) = 2 * dataToRandomIdxSorted(af::span, af::seq(dataToRandomIdxSorted.dims(0)-k, af::end));
+    A(af::span, af::seq(0, k - 1)) = 2 * dataToRandomIdxSorted(af::span, af::seq(0, k - 1));
+    A(af::span, af::seq(k, af::end)) =
+            2 * dataToRandomIdxSorted(af::span, af::seq(dataToRandomIdxSorted.dims(0) - k, af::end));
 
-    af::array BEvenIdx = af::seq(0, 2*D-1, 2);
+    af::array BEvenIdx = af::seq(0, 2 * D - 1, 2);
     af::array BOddIdx = BEvenIdx + 1;
 
-    B(BEvenIdx, af::span) = randomToDataIdxSorted(af::seq(0, m-1), af::span);
-    B(BOddIdx, af::span) = randomToDataIdxSorted(af::seq( randomToDataIdxSorted.dims(0)-m, af::end), af::span);
+    B(BEvenIdx, af::span) = randomToDataIdxSorted(af::seq(0, m - 1), af::span);
+    B(BOddIdx, af::span) = randomToDataIdxSorted(af::seq(randomToDataIdxSorted.dims(0) - m, af::end), af::span);
 
     return std::make_tuple(A, B);
+}
+
+matx::tensor_t<int32_t, 2> constructAMatrixMatX(const matx::tensor_t<matx::matxFp16, 2> projections, int k, int m) {
+    int n = projections.Shape()[0];
+    int D = projections.Shape()[1];
+
+    auto A_t = matx::make_tensor<int32_t>({n, 2 * k});
+    auto projectionsSorted = matx::sort(projections, matx::SORT_ASCENDING);
+
+    // Slice indices are exclusive on upper bound I believe, see https://nvidia.github.io/MatX/basics/matlabpython.html#conversion-table
+
+    (matx::slice(A_t, {0, 0}, {matx::matxEnd, k}) = 2 * matx::slice(projectionsSorted, {0, 0}, {matx::matxEnd, k})).run();
+    (matx::slice(A_t, {0, k}, {matx::matxEnd, matx::matxEnd}) = 2 * matx::slice(projectionsSorted, {0, D - k}, {matx::matxEnd, matx::matxEnd})).run();
+
+    return A_t;
 }
 
 /**
@@ -341,27 +358,24 @@ void printCudaMemoryUsage() {
               << free_mem_gb << " GB free, " << total_mem_gb << " GB total" << std::endl;
 }
 
-matx::tensor_t<matx::matxFp16, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t, matx::tensor_t<int32_t, 2> &B_t, float alpha, int batchSize) {
+matx::tensor_t<matx::matxFp16, 2>
+GsDBSCAN::findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t,
+                            matx::tensor_t<int32_t, 2> &B_t, float alpha, int batchSize) {
     const int k = A_t.Shape()[1] / 2;
     const int m = B_t.Shape()[1];
 
     const int n = X_t.Shape()[0];
     const int d = X_t.Shape()[1];
-    int D = B_t.Shape()[0] / 2;
 
     batchSize = (batchSize != -1) ? batchSize : GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
 
     auto AFlat_t = matx::flatten(A_t);
 
-    auto distances_t = matx::make_tensor<matx::matxFp16>({n, 2*k*m}, matx::MATX_DEVICE_MEMORY);
-
-    int j = 0;
-    std::vector<double> times;
-
-    auto start_all = std::chrono::high_resolution_clock::now();
+//    auto distances_t = matx::make_tensor<matx::matxFp16>({n, 2*k*m}, matx::MATX_DEVICE_MEMORY);
+    auto distances_t = matx::make_tensor<matx::matxFp16>({n, 2 * k * m});
 
     for (int i = 0; i < n; i += batchSize) {
-        auto start = std::chrono::high_resolution_clock::now();
+        auto start = std::chrono::high_resolution_clock::now(); // TODO remove me!
 
         int maxBatchIdx = i + batchSize; // Index within X along the ROWS
 
@@ -373,51 +387,17 @@ matx::tensor_t<matx::matxFp16, 2>  GsDBSCAN::findDistancesMatX(matx::tensor_t<ma
 
         auto XBatch_t_op = matx::remap<0>(X_t, matx::flatten(BBatch_t_op));
 
-        auto XBatchReshaped_t_op = matx::reshape(XBatch_t_op, {batchSize, 2*k*m, d});
+        auto XBatchReshaped_t_op = matx::reshape(XBatch_t_op, {batchSize, 2 * k * m, d});
 
         auto XSubsetReshaped_t_op = matx::reshape(XSubset_t_op, {batchSize, 1, d});
 
-        auto YBatch_t_op = (XBatchReshaped_t_op - matx::repmat(XSubsetReshaped_t_op, {1, 2*k*m, 1})); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
+        auto YBatch_t_op = (XBatchReshaped_t_op - matx::repmat(XSubsetReshaped_t_op, {1, 2 * k * m,
+                                                                                      1})); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
 
         auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, matx::NormOrder::L2);
 
         (matx::slice(distances_t, {i, 0}, {maxBatchIdx, matx::matxEnd}) = YBatch_t_norm_op).run();
-
-        // Record end time
-        auto end = std::chrono::high_resolution_clock::now();
-
-        // Calculate the duration
-        std::chrono::duration<double> duration = end - start;
-
-        // Cast to double and store in array
-        times.push_back(duration.count());
     }
-
-    auto start_sync = std::chrono::high_resolution_clock::now();
-
-    cudaDeviceSynchronize();
-
-    // Record end time
-    auto end_sync = std::chrono::high_resolution_clock::now();
-
-    // Calculate the duration
-    std::chrono::duration<double> duration_sync = end_sync - start_sync;
-
-    // Output the duration
-    std::cout << "Sync Time taken: " << duration_sync.count() << " seconds" << std::endl;
-
-    for (const auto& element : times) {
-        std::cout << element << std::endl;
-    }
-
-    // Record end time
-    auto end_all = std::chrono::high_resolution_clock::now();
-
-    // Calculate the duration
-    std::chrono::duration<double> duration = end_all - start_all;
-
-    // Output the duration
-    std::cout << "Total Time taken: " << duration.count() << " seconds" << std::endl;
 
     return distances_t;
 }
@@ -464,7 +444,7 @@ int GsDBSCAN::findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
  * @return The degree array of the query vectors, with shape (datasetSize, 1).
  */
 af::array GsDBSCAN::constructQueryVectorDegreeArray(af::array &distances, float eps) {
-    return af::sum( distances < eps, 0);
+    return af::sum(distances < eps, 0);
 }
 
 /**
@@ -476,7 +456,8 @@ af::array GsDBSCAN::constructQueryVectorDegreeArray(af::array &distances, float 
  * @return arrayfire processed array
  */
 af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E) {
-    return af::scan(E, 1, AF_BINARY_ADD, false); // Do an exclusive scan// TODO, need to return the V array, this is here to satisfy the compiler.
+    return af::scan(E, 1, AF_BINARY_ADD,
+                    false); // Do an exclusive scan// TODO, need to return the V array, this is here to satisfy the compiler.
 }
 
 /**
@@ -502,9 +483,12 @@ void static performClustering(af::array &adjacencyList, af::array &V) {
  * @param n number of query vectors in the dataset
  * @param eps epsilon DBSCAN density param
  */
-__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n, int k, int m) {
+__global__ void
+constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n,
+                                     int k, int m) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= n) return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
+    if (idx >= n)
+        return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
 
     int curr_idx = V[idx];
 
@@ -539,12 +523,14 @@ __global__ void constructAdjacencyListForQueryVector(float *distances, int *adja
  * @param eps epsilon DBSCAN density param
  * @param blockSize size of each block when calculating the adjacency list - essentially the amount of query vectors to process per block
  */
-af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B, float eps, int blockSize) {
+af::array
+GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B, float eps,
+                                int blockSize) {
     int n = E.dims(0);
     int k = A.dims(1) / 2;
     int m = B.dims(1);
 
-    af::array adjacencyList = af::constant(-1, (E(n-1) + V(n-1)).scalar<int>(), af::dtype::u32);
+    af::array adjacencyList = af::constant(-1, (E(n - 1) + V(n - 1)).scalar<int>(), af::dtype::u32);
 
     // Eval all matrices to ensure they are synced
     adjacencyList.eval();
@@ -555,7 +541,7 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     B.eval();
 
     // Getting device pointers
-    int *adjacencyList_d= adjacencyList.device<int>();
+    int *adjacencyList_d = adjacencyList.device<int>();
     float *distances_d = distances.device<float>();
     int *E_d = E.device<int>();
     int *V_d = V.device<int>();
@@ -568,7 +554,8 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     // Now we can call the kernel
     int numBlocks = std::max(1, n / blockSize);
     blockSize = std::min(n, blockSize);
-    constructAdjacencyListForQueryVector<<<numBlocks, blockSize, 0, afCudaStream>>>(distances_d, adjacencyList_d, V_d, A_d, B_d, eps, n, k, m);
+    constructAdjacencyListForQueryVector<<<numBlocks, blockSize, 0, afCudaStream>>>(distances_d, adjacencyList_d, V_d,
+                                                                                    A_d, B_d, eps, n, k, m);
 
     // Unlock all the af arrays
     adjacencyList.unlock();
@@ -593,7 +580,7 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
  */
 cudaStream_t GsDBSCAN::getAfCudaStream() {
     int afId = af::getDevice();
-    int cudaId= afcu::getNativeId(afId);
+    int cudaId = afcu::getNativeId(afId);
     return afcu::getStream(cudaId);
 }
 
@@ -610,7 +597,8 @@ cudaStream_t GsDBSCAN::getAfCudaStream() {
  * @param clusterNoise whether to include noise points in the result
  * @return a tuple containing the cluster labels and the number of clusters found
  */
-tuple<vector<int>, int> GsDBSCAN::formClusters(af::array &adjacencyList, af::array &V, af::array &E, int n, int minPts, bool clusterNoise) {
+tuple<vector<int>, int>
+GsDBSCAN::formClusters(af::array &adjacencyList, af::array &V, af::array &E, int n, int minPts, bool clusterNoise) {
     int nClusters = 0;
     vector<int> labels = IVector(n, -1);
 
@@ -678,7 +666,6 @@ tuple<vector<int>, int> GsDBSCAN::formClusters(af::array &adjacencyList, af::arr
 
     return make_tuple(labels, nClusters);
 }
-
 /*
  * For the above, check this issue:
  *
