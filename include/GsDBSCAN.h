@@ -50,8 +50,6 @@ public:
 
     std::tuple<af::array, af::array> static constructABMatrices(const af::array& projections, int k, int m);
 
-    matx::tensor_t<int32_t, 2> static constructAMatrixMatX(const matx::tensor_t<matx::matxFp16, 2> projections, int k, int m);
-
     af::array static findDistances(af::array &X, af::array &A, af::array &B, float alpha = 1.2);
 
     matx::tensor_t<matx::matxFp16, 2> static findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t, matx::tensor_t<int32_t, 2> &B_t, float alpha = 1.2, int batchSize=-1);
@@ -66,13 +64,13 @@ public:
 
     tuple<vector<int>, int> static formClusters(af::array &adjacencyList, af::array &V, af::array &E, int n, int minPts, bool clusterNoise);
 
-    template<typename T1, typename T2>
-    static matx::tensor_t<T2 , 2> eigenMatToMatXTensor(Matrix<T1, Eigen::Dynamic, Eigen::Dynamic> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
-        T1 *eigenData = matEigen.data();
+    template<typename eigenType, typename matxType>
+    static matx::tensor_t<matxType , 2> eigenMatToMatXTensor(Matrix<eigenType, Eigen::Dynamic, Eigen::Dynamic> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
+        eigenType *eigenData = matEigen.data();
         int numElements = matEigen.rows() * matEigen.cols();
 
-        T2* deviceArray;
-        size_t size = sizeof(T1) * numElements;
+        matxType* deviceArray;
+        size_t size = sizeof(eigenType) * numElements;
 
         cudaError_t err;
 
@@ -85,7 +83,7 @@ public:
 
         if (err != cudaSuccess) {
             std::cerr << "Error allocating memory: " << cudaGetErrorString(err) << std::endl;
-            return matx::tensor_t<T2, 2>();  // Empty tensor
+            return matx::tensor_t<matxType, 2>();  // Empty tensor
         }
 
         err = cudaMemcpy(deviceArray, eigenData, size, cudaMemcpyHostToDevice);
@@ -93,10 +91,10 @@ public:
         if (err != cudaSuccess) {
             std::cerr << "Error copying data to device: " << cudaGetErrorString(err) << std::endl;
             cudaFree(deviceArray);
-            return matx::tensor_t<T2, 2>(); // Empty tensor
+            return matx::tensor_t<matxType, 2>(); // Empty tensor
         }
 
-        auto tensor = matx::make_tensor<T2>(deviceArray, {matEigen.rows(), matEigen.cols()}, matXMemorySpace);
+        auto tensor = matx::make_tensor<matxType>(deviceArray, {matEigen.rows(), matEigen.cols()}, matXMemorySpace);
 
         return tensor;
     }
@@ -114,6 +112,40 @@ public:
         }
 
         return hostArray;
+    }
+
+    template<typename afType, typename matXType>
+    static matx::tensor_t<matXType, 2> afArrayToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
+        // For simplicity, this only does 2D tensors
+
+        afType *afData = afArray.device<afType>();
+
+        auto matxTensor = matx::make_tensor<matXType>(afData, {afArray.dims()[0], afArray.dims()[1]}, matXMemorySpace);
+
+        return matxTensor;
+    }
+
+    template <typename T>
+    static T* hostToManagedArray(const T* hostData, size_t numElements) {
+        T* managedArray;
+        size_t size = numElements * sizeof(T);
+
+        // Allocate managed memory
+        cudaError_t err = cudaMallocManaged(&managedArray, size);
+        if (err != cudaSuccess) {
+            std::cerr << "Error allocating managed memory: " << cudaGetErrorString(err) << std::endl;
+            return nullptr;
+        }
+
+        // Copy data from host to managed memory
+        err = cudaMemcpy(managedArray, hostData, size, cudaMemcpyHostToDevice);
+        if (err != cudaSuccess) {
+            std::cerr << "Error copying data to managed memory: " << cudaGetErrorString(err) << std::endl;
+            cudaFree(managedArray);
+            return nullptr;
+        }
+
+        return managedArray;
     }
 
     cudaStream_t static getAfCudaStream();

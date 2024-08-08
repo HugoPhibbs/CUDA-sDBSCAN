@@ -75,6 +75,35 @@ TEST_F(TestConstructingABMatrices, TestSmallInput) {
     ASSERT_TRUE(B.dims(0) == n && B.dims(1) == m);
 }
 
+class TestAfToMatXConversion : public gsDBSCANTest {
+
+};
+
+TEST_F(TestAfToMatXConversion, TestSmallInput) {
+    float afData[] = {
+            0, 1, 2, 3,
+            0, 2, 1, 0,
+            1, 8, 9, 11,
+            15, 2, 6, 7
+    };
+
+    auto *afDataManaged = GsDBSCAN::hostToManagedArray<float>(afData, 16);
+
+    af::array afArray(4, 4, afDataManaged);
+
+    auto matXTensor = GsDBSCAN::afArrayToMatXTensor<float, float>(afArray);
+
+    cudaDeviceSynchronize();
+
+    float *matXData = matXTensor.Data();
+
+    matx::print(matXTensor);
+//
+//    for (int i = 0; i < 16; i++) {
+//        ASSERT_NEAR(afDataManaged[i], matXData[i], 1e-6);
+//    }
+}
+
 class TestEigenToMatXConversion : public gsDBSCANTest {
 
 };
