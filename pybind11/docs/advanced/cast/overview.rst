@@ -119,7 +119,7 @@ as arguments and return values, refer to the section on binding :ref:`classes`.
 | ``std::string_view``,              | STL C++17 string views    | :file:`pybind11/pybind11.h`       |
 | ``std::u16string_view``, etc.      |                           |                                   |
 +------------------------------------+---------------------------+-----------------------------------+
-| ``std::pair<T1, T2>``              | Pair of two custom types  | :file:`pybind11/pybind11.h`       |
+| ``std::pair<eigenType, matxType>``              | Pair of two custom types  | :file:`pybind11/pybind11.h`       |
 +------------------------------------+---------------------------+-----------------------------------+
 | ``std::tuple<...>``                | Arbitrary tuple of types  | :file:`pybind11/pybind11.h`       |
 +------------------------------------+---------------------------+-----------------------------------+
@@ -137,9 +137,9 @@ as arguments and return values, refer to the section on binding :ref:`classes`.
 +------------------------------------+---------------------------+-----------------------------------+
 | ``std::list<T>``                   | STL linked list           | :file:`pybind11/stl.h`            |
 +------------------------------------+---------------------------+-----------------------------------+
-| ``std::map<T1, T2>``               | STL ordered map           | :file:`pybind11/stl.h`            |
+| ``std::map<eigenType, matxType>``               | STL ordered map           | :file:`pybind11/stl.h`            |
 +------------------------------------+---------------------------+-----------------------------------+
-| ``std::unordered_map<T1, T2>``     | STL unordered map         | :file:`pybind11/stl.h`            |
+| ``std::unordered_map<eigenType, matxType>``     | STL unordered map         | :file:`pybind11/stl.h`            |
 +------------------------------------+---------------------------+-----------------------------------+
 | ``std::set<T>``                    | STL ordered set           | :file:`pybind11/stl.h`            |
 +------------------------------------+---------------------------+-----------------------------------+

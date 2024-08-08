@@ -14,7 +14,7 @@ example, consider:
 
 .. code-block:: cpp
 
-    PYBIND11_OVERRIDE(MyReturnType<T1, T2>, Class<T3, T4>, func)
+    PYBIND11_OVERRIDE(MyReturnType<eigenType, matxType>, Class<T3, T4>, func)
 
 The limitation of the C preprocessor interprets this as five arguments (with new
 arguments beginning after each comma) rather than three.  To get around this,
@@ -24,12 +24,12 @@ using the ``PYBIND11_TYPE`` macro:
 .. code-block:: cpp
 
     // Version 1: using a type alias
-    using ReturnType = MyReturnType<T1, T2>;
+    using ReturnType = MyReturnType<eigenType, matxType>;
     using ClassType = Class<T3, T4>;
     PYBIND11_OVERRIDE(ReturnType, ClassType, func);
 
     // Version 2: using the PYBIND11_TYPE macro:
-    PYBIND11_OVERRIDE(PYBIND11_TYPE(MyReturnType<T1, T2>),
+    PYBIND11_OVERRIDE(PYBIND11_TYPE(MyReturnType<eigenType, matxType>),
                       PYBIND11_TYPE(Class<T3, T4>), func)
 
 The ``PYBIND11_MAKE_OPAQUE`` macro does *not* require the above workarounds.
