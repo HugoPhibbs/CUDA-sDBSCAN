@@ -12,6 +12,7 @@
 #include <af/cuda.h>
 #include <arrayfire.h>
 #include <matx.h>
+#include <Eigen/Dense>
 
 class GsDBSCAN {
 private :
@@ -49,6 +50,8 @@ public:
 
     std::tuple<af::array, af::array> static constructABMatrices(const af::array& projections, int k, int m);
 
+    matx::tensor_t<int32_t, 2> static constructAMatrixMatX(const matx::tensor_t<matx::matxFp16, 2> projections, int k, int m);
+
     af::array static findDistances(af::array &X, af::array &A, af::array &B, float alpha = 1.2);
 
     matx::tensor_t<matx::matxFp16, 2> static findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t, matx::tensor_t<int32_t, 2> &B_t, float alpha = 1.2, int batchSize=-1);
@@ -62,6 +65,56 @@ public:
     af::array static processQueryVectorDegreeArray(af::array &E);
 
     tuple<vector<int>, int> static formClusters(af::array &adjacencyList, af::array &V, af::array &E, int n, int minPts, bool clusterNoise);
+
+    template<typename T1, typename T2>
+    static matx::tensor_t<T2 , 2> eigenMatToMatXTensor(Matrix<T1, Eigen::Dynamic, Eigen::Dynamic> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
+        T1 *eigenData = matEigen.data();
+        int numElements = matEigen.rows() * matEigen.cols();
+
+        T2* deviceArray;
+        size_t size = sizeof(T1) * numElements;
+
+        cudaError_t err;
+
+        if (matXMemorySpace == matx::MATX_MANAGED_MEMORY) {
+            err = cudaMallocManaged(&deviceArray, size);
+        } else {
+            // Assume device memory, yes isn't all that robust, but for our use cases, should be ok.
+            err = cudaMalloc(&deviceArray, size);
+        }
+
+        if (err != cudaSuccess) {
+            std::cerr << "Error allocating memory: " << cudaGetErrorString(err) << std::endl;
+            return matx::tensor_t<T2, 2>();  // Empty tensor
+        }
+
+        err = cudaMemcpy(deviceArray, eigenData, size, cudaMemcpyHostToDevice);
+
+        if (err != cudaSuccess) {
+            std::cerr << "Error copying data to device: " << cudaGetErrorString(err) << std::endl;
+            cudaFree(deviceArray);
+            return matx::tensor_t<T2, 2>(); // Empty tensor
+        }
+
+        auto tensor = matx::make_tensor<T2>(deviceArray, {matEigen.rows(), matEigen.cols()}, matXMemorySpace);
+
+        return tensor;
+    }
+
+    template<typename T>
+    static T* cudaDeviceArrayToHostArray(const T* deviceArray, size_t numElements) {
+        T* hostArray = new T[numElements];
+
+        cudaError_t err = cudaMemcpy(hostArray, deviceArray, numElements * sizeof(T), cudaMemcpyDeviceToHost);
+
+        if (err != cudaSuccess) {
+            std::cerr << "Error copying data from device to host: " << cudaGetErrorString(err) << std::endl;
+            delete[] hostArray;
+            return nullptr;
+        }
+
+        return hostArray;
+    }
 
     cudaStream_t static getAfCudaStream();
 
