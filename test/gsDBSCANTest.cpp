@@ -398,15 +398,9 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
     matx::matxFp16 *distances_ptr = distances_t.Data();
 
     for (int i = 0; i < n*2*k*m; i++) {
-        printf("%f ", matx::promote_half_t<matx::matxFp16>(distances_ptr[i])); // This is all zero
+        // Python and CPP produce *slightly* different results. Hence, why I use a 1e-2 tolerance
+        ASSERT_NEAR(distances_expected_h[i], matx::promote_half_t<matx::matxFp16>(distances_ptr[i]), 1e-2); // Doing a cast just to be sure
     }
-
-
-//
-//    for (int i = 0; i < n*2*k*m; i++) {
-//        // Python and CPP produce *slightly* different results. Hence, why I use a 1e-2 tolerance
-//        ASSERT_NEAR(distances_expected_h[i], matx::promote_half_t<matx::matxFp16>(distances_ptr[i]), 1e-2); // Doing a cast just to be sure
-//    }
 }
 
 
@@ -426,7 +420,7 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
     tu::Time start = tu::timeNow();
 
-    auto distances = GsDBSCAN::findDistancesMatX(X, A, B, 1.2, 2000);
+    auto distances = GsDBSCAN::findDistancesMatX(X, A, B, 1.2, 250);
     cudaDeviceSynchronize();
 
     tu::printDurationSinceStart(start); // This is too fn slow. Around 14 seconds, Cupy takes less than 0.7 seconds.
