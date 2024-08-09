@@ -9,12 +9,12 @@
 #include <vector>
 #include <string>
 #include <cmath>
-#include <Eigen/Dense>
-#include <unsupported/Eigen/CXX11/Tensor>
+#include "Eigen/Dense"
+#include "unsupported/Eigen/CXX11/Tensor"
 
-#include "../include/rapidcsv.h"
-#include "../include/gsDBSCAN/GsDBSCAN.h"
-#include "../include/TestUtils.h"
+#include "../../include/rapidcsv.h"
+#include "../../include/gsDBSCAN/GsDBSCAN.h"
+#include "../../include/TestUtils.h"
 
 namespace tu = testUtils;
 
@@ -34,24 +34,6 @@ namespace tu = testUtils;
 class gsDBSCANTest : public ::testing::Test {
 
 };
-
-class TestCalculatingBatchSize : public gsDBSCANTest {
-
-};
-
-TEST_F(TestCalculatingBatchSize, TestLargeInput) {
-    int batchSize = GsDBSCAN::findDistanceBatchSize(1, 1000000, 3, 2, 2000);
-
-    ASSERT_EQ(20, batchSize);
-}
-
-TEST_F(TestCalculatingBatchSize, TestSmallInput) {
-    int n = 100;
-
-    int batchSize = GsDBSCAN::findDistanceBatchSize(1, n, 3, 10, 10);
-
-    ASSERT_EQ(n, batchSize);
-}
 
 class TestConstructingABMatrices : public gsDBSCANTest {
 
