@@ -10,6 +10,7 @@
 #include <iostream>
 #include <cuda_runtime.h>
 #include <matx.h>
+#include "../include/rapidcsv.h"
 
 namespace testUtils {
     using Time = std::chrono::time_point<std::chrono::high_resolution_clock>;
@@ -103,6 +104,13 @@ namespace testUtils {
     af::array csvToArray(const std::string& filename);
 
     void readFlatCSV(const std::string& filename, float* data, size_t size);
+
+    template <typename T>
+    std::vector<T> loadCsvColumnToVector(const std::string& filePath, size_t columnIndex = 1) {
+        rapidcsv::Document csvDoc(filePath);
+        return csvDoc.GetColumn<T>(columnIndex);
+    }
+
 }
 
 
