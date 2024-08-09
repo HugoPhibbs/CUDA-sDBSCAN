@@ -8,6 +8,18 @@
 
 namespace tu = testUtils;
 
+//Macro for checking cuda errors following a cuda launch or api call
+#define cudaCheckError() {                                           \
+        cudaError_t e = cudaGetLastError();                              \
+        if (e != cudaSuccess) {                                          \
+            printf("Cuda failure %s:%d: '%s'\n", __FILE__, __LINE__,     \
+                   cudaGetErrorString(e));                               \
+            exit(EXIT_FAILURE);                                          \
+        } else {                                                         \
+            printf("CUDA call successful: %s:%d\n", __FILE__, __LINE__); \
+        }                                                                \
+    }
+
 class TestDistances : public ::testing::Test {
 
 };
@@ -228,33 +240,26 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
             9, 6, 5, 5, 0, 6
     };
 
-    for (int i = 0; i < 5*6; i++) {
+    for (int i = 0; i < 5 * 6; i++) {
         ASSERT_NEAR(std::sqrt(expected_squared[i]), distances_ptr[i], 1e-3);
     }
 }
-
-template <typename T>
-std::vector<T> loadCsvColumnToVector(const std::string& filePath, size_t columnIndex = 1) {
-    rapidcsv::Document csvDoc(filePath);
-    return csvDoc.GetColumn<T>(columnIndex);
-}
-
 
 TEST_F(TestFindingDistances, TestMediumInputMatx) {
     /*
      * This test checks if results calculated by C++/MatX are identical to those with Python/CuPy
      */
 
-    auto AVector = loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/A_n1000_k3.csv");
+    auto AVector = tu::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/A_n1000_k3.csv");
     int *A_h = AVector.data();
 
-    auto BVector = loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/B_D100_m20.csv");
+    auto BVector = tu::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/B_D100_m20.csv");
     int *B_h = BVector.data();
 
-    auto XVector = loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/X_n1000_d20.csv");
+    auto XVector = tu::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/X_n1000_d20.csv");
     float *X_h = XVector.data();
 
-    auto distancesVector = loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/distances_n1000_k3_m20.csv");
+    auto distancesVector = tu::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/distances_n1000_k3_m20.csv");
 
     float *distances_expected_h = distancesVector.data();
 
@@ -306,7 +311,7 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
     tu::Time start = tu::timeNow();
 
-    auto distances = GsDBSCAN::findDistancesMatX(X, A, B, 1.2, 250);
+    auto distances = GsDBSCAN::findDistancesMatX(X, A, B, 1.2, 2000);
     cudaDeviceSynchronize();
 
     tu::printDurationSinceStart(start); // This is too fn slow. Around 14 seconds, Cupy takes less than 0.7 seconds.
