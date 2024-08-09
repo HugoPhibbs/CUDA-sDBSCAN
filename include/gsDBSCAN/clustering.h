@@ -34,9 +34,19 @@ namespace GsDBSCAN {
      * @return The degree array of the query vectors, with shape (datasetSize, 1).
      */
     template <typename T>
-    inline matx::tensor_t<T, 2> constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps) {
-        return matx::sum(distances < eps, {0});
+    auto constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps) {
+        auto lt = distances < eps;
+        auto lt_f = matx::as_type<float>(lt);
+        // TODO raise a GH as to why i need to cast first, should be able to sum over the bools
+        return matx::sum(lt_f, {0});
     }
+
+    template <typename T>
+    auto processQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &E) {
+        // MatX's cumsum works along the rows.
+        return matx::cumsum(E) - E;
+    }
+
 
     /**
      * Calculates the degree of the query vectors as per the G-DBSCAN algorithm.
