@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: sDbscan
+Version: 0.0.1
+Summary: Random projection based DBSCAN
+Home-page: https://github.com/NinhPham/sDbscan
+Author: Ninh Pham
+Author-email: ninh.pham@auckland.ac.nz
+License: MIT
+Description: UNKNOWN
+Keywords: DBSCAN,random projection,extreme order statistics
+Platform: UNKNOWN
+Requires-Python: >=3.7
+Provides-Extra: test

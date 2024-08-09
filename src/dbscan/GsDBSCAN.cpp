@@ -2,19 +2,28 @@
 // Created by hphi344 on 10/05/24.
 //
 
+
 #include "../../include/GsDBSCAN.h"
 #include <cmath>
 #include <cassert>
 #include <tuple>
-#define AF_DEFINE_CUDA_TYPES
+#include <cstdio>
+#include <iostream>
+#include <iomanip>
+#include "../../include/TestUtils.h"
+
+namespace tu = testUtils;
 
 // Constructor to initialize the DBSCAN parameters
-GsDBSCAN::GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, int m, float eps, bool skip_pre_checks)
-        : X(X), D(D), minPts(minPts), k(k), m(m), eps(eps), skip_pre_checks(skip_pre_checks) {
-        n = X.dims(0);
-        d = X.dims(1);
+GsDBSCAN::GsDBSCAN(const af::array &X, int D, int minPts, int k, int m, float eps, bool skip_pre_checks, float sigma,
+                   int seed, string distanceMetric, float batchAlpha, int fhtDim, int nRotate, bool clusterNoise)
+        : X(X), D(D), minPts(minPts), k(k), m(m), eps(eps), skip_pre_checks(skip_pre_checks), sigma(sigma), seed(seed),
+          clusterNoise(clusterNoise), distanceMetric(distanceMetric), batchAlpha(batchAlpha), fhtDim(fhtDim) {
+    n = X.dims(0);
+    d = X.dims(1);
 
 }
+
 
 /**
  * Performs the gs dbscan algorithm
@@ -27,11 +36,11 @@ GsDBSCAN::GsDBSCAN(const af::array &X, const af::array &D, int minPts, int k, in
  * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
  * @param skip_pre_checks boolean flag to skip the pre-checks
  */
-void GsDBSCAN::performGsDbscan(af::array &X, int D, int minPts, int k, int m, float eps, float alpha) {
-    if (!skip_pre_checks) {
-        preChecks(X, D, minPts, k, m, eps);
-    }
-    // Something something ... TODO
+void GsDBSCAN::performGsDbscan() {
+//    if (!skip_pre_checks) {
+//        preChecks(X, D, minPts, k, m, eps);
+//    }
+    // Something something ...
 
     /*
      * Steps:
@@ -44,12 +53,13 @@ void GsDBSCAN::performGsDbscan(af::array &X, int D, int minPts, int k, int m, fl
      *
      *
      */
-    af::array projections = GsDBSCAN::randomProjections(X, D, k, m);
+//    af::array projections = GsDBSCAN::randomProjections(X, D, k, m, distanceMetric, sigma, seed, fhtDim, nRotate);
+    af::array projections = af::constant(D, k, af::dtype::f32);
 
     af::array A, B;
     std::tie(A, B) = GsDBSCAN::constructABMatrices(projections, k, m);
 
-    af::array distances = GsDBSCAN::findDistances(X, A, B, alpha);
+    af::array distances = GsDBSCAN::findDistances(X, A, B, batchAlpha);
 
     af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
     af::array V = GsDBSCAN::processQueryVectorDegreeArray(E);
@@ -59,37 +69,164 @@ void GsDBSCAN::performGsDbscan(af::array &X, int D, int minPts, int k, int m, fl
     // Create clusters, then return the clusters. Thats all
 }
 
-/**
- * Performs the pre-checks for the gs dbscan algorithm
- *
- * @param X ArrayFire af::array matrix for the X data points
- * @param D int for number of random vectors to generate
- * @param minPts min number of points as per the DBSCAN algorithm
- * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
- * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
- * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
- */
-void GsDBSCAN::preChecks(af::array &X, int D, int minPts, int k, int m, float eps) {
-    assert(X.dims(1) > 0);
-    assert(X.dims(1) > 0);
-    assert(D > 0);
-    assert(D >= k);
-    assert(m >= minPts);
-}
 
-/**
- * Performs random projections between the X dataset and the random vector
+
+/*
+ * TODO:
  *
- * @param X af::array matrix for the X data points
- * @param D int for number of random vectors to generate
- * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
- * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
- * @return af::array matrix for the random projections
+ * This method relies on using Eigen matrices. So we either need to convert af matrices to eigens, or use af arrays instead
  */
-af::array GsDBSCAN::randomProjections(af::array &X, int D, int k, int m) {
-    // TODO implement me!
-    return af::constant(1, 1, 1);
-}
+
+///**
+// * Performs the pre-checks for the gs dbscan algorithm
+// *
+// * @param X ArrayFire af::array matrix for the X data points
+// * @param D int for number of random vectors to generate
+// * @param minPts min number of points as per the DBSCAN algorithm
+// * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
+// * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
+// * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
+// */
+//void GsDBSCAN::preChecks(af::array &X, int D, int minPts, int k, int m, float eps) {
+//    assert(X.dims(1) > 0);
+//    assert(X.dims(1) > 0);
+//    assert(D > 0);
+//    assert(D >= k);
+//    assert(m >= minPts);
+//}
+//
+///**
+// * Performs random projections between the X dataset and the random vector
+// *
+// * @param X af::array matrix for the X data points
+// * @param D int for number of random vectors to generate
+// * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
+// * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
+// * @return af::array matrix for the random projections
+// */
+//af::array GsDBSCAN::randomProjections(af::array &X, boost::dynamic_bitset<> bitHD3, int D, int k, int m, string distanceMetric, float sigma, int seed, int fhtDim, int nRotate) {
+//    // TODO implement me!
+//    int n = X.dims(0);
+//    int d = X.dims(1);
+//
+//    Matrix<float, -1, -1> matrixR;
+//
+//    int iFourierEmbed_D = d / 2;
+//
+//    // TODO I don't really know what these lines do - just copying and pasting from Ninh's work.
+//    if (distanceMetric == "L1") {
+//        matrixR = cauchyGenerator(iFourierEmbed_D, d, 0, 1.0 / sigma, seed);
+//    } else if (distanceMetric == "L2") {
+//        matrixR = cauchyGenerator(iFourierEmbed_D, d, 0, 1.0 / sigma, seed);
+//    }
+//
+//    MatrixXf matrixFHT = MatrixXf::Zero(D, n);
+//
+//    int log2Project = log2(fhtDim);
+//    bitHD3Generator(fhtDim * nRotate, bitHD3, seed);
+//
+//    Matrix<int, -1, -1> matrixTopK = MatrixXi::Zero(2 * k, n);
+//
+//    /**
+//Parallel for each the point Xi: (1) Compute and store dot product, and (2) Extract top-k close/far random vectors
+//**/
+//#pragma omp parallel for
+//    for (int i = 0; i < sDbscan::n_points; ++i)
+//    {
+//        /**
+//        Random embedding
+//        TODO: create buildKernelFeatures and random projection as a new function since sDbscan-1NN also use it
+//        **/
+//
+//        // TODO what is the diff between ker_n_features and n_features?
+//
+//        VectorXf vecX = sDbscan::matrix_X.col(i);
+//        VectorXf vecEmbed = VectorXf::Zero(sDbscan::ker_n_features); // sDbscan::ker_n_features >= D
+//
+//        // NOTE: must ensure ker_n_features = n_features on Cosine
+//        if (sDbscan::distance == "Cosine")
+//            vecEmbed.segment(0, sDbscan::n_features) = vecX;
+//        else if ((sDbscan::distance == "L1") || (sDbscan::distance == "L2"))
+//        {
+//            VectorXf vecProject = sDbscan::matrix_R * vecX;
+//            vecEmbed.segment(0, iFourierEmbed_D) = vecProject.array().cos();
+//            vecEmbed.segment(iFourierEmbed_D, iFourierEmbed_D) = vecProject.array().sin(); // start from iEmbbed, copy iEmbed elements
+//        }
+//        else if (sDbscan::distance == "Chi2")
+//            embedChi2(vecX, vecEmbed, sDbscan::ker_n_features, sDbscan::n_features, sDbscan::ker_intervalSampling);
+//        else if (sDbscan::distance == "JS")
+//            embedJS(vecX, vecEmbed, sDbscan::ker_n_features, sDbscan::n_features, sDbscan::ker_intervalSampling);
+//
+//        /**
+//        Random projection
+//        **/
+//
+//        VectorXf vecRotation = VectorXf::Zero(sDbscan::fhtDim); // NUM_PROJECT > PARAM_KERNEL_EMBED_D
+//        vecRotation.segment(0, sDbscan::ker_n_features) = vecEmbed;
+//
+//        for (int r = 0; r < sDbscan::n_rotate; ++r)
+//        {
+//            // Component-wise multiplication with a random sign
+//            for (int d = 0; d < sDbscan::fhtDim; ++d)
+//            {
+//                vecRotation(d) *= (2 * (int)sDbscan::bitHD3[r * sDbscan::fhtDim + d] - 1);
+//            }
+//
+//            // Multiple with Hadamard matrix by calling FWHT transform
+//            fht_float(vecRotation.data(), log2Project);
+//        }
+//
+//        // Store projection matrix for faster parallel, and no need to scale since we keep top-k and top-MinPts
+//        MATRIX_FHT.col(i) = vecRotation.segment(0, sDbscan::n_proj); // only get up to #n_proj
+//
+//        /**
+//        Extract top-k closes and furtherest random vectors
+//        **/
+//
+//        Min_PQ_Pair minCloseTopK;
+//        Min_PQ_Pair minFarTopK;
+//
+//        for (int d = 0; d < sDbscan::n_proj; ++d) {
+//            float fValue = vecRotation(d); // take the value up to n_proj
+//
+//            // (1) Close: Using priority queue to find top-k closest vectors for each point
+//            if ((int)minCloseTopK.size() < sDbscan::topK)
+//                minCloseTopK.emplace(d, fValue);
+//            else
+//            {
+//                if (fValue > minCloseTopK.top().m_fValue)
+//                {
+//                    minCloseTopK.pop();
+//                    minCloseTopK.emplace(d, fValue);
+//                }
+//            }
+//
+//            // (2) Far: Using priority queue to find top-k furthest vectors
+//            if ((int)minFarTopK.size() < sDbscan::topK)
+//                minFarTopK.emplace(d, -fValue);
+//            else
+//            {
+//                if (-fValue > minFarTopK.top().m_fValue)
+//                {
+//                    minFarTopK.pop();
+//                    minFarTopK.emplace(d, -fValue);
+//                }
+//            }
+//        }
+//
+//        for (int k = sDbscan::topK - 1; k >= 0; --k)
+//        {
+//            sDbscan::matrix_topK(k, i) = minCloseTopK.top().m_iIndex;
+//            minCloseTopK.pop();
+//
+//            sDbscan::matrix_topK(k + sDbscan::topK, i) = minFarTopK.top().m_iIndex;
+//            minFarTopK.pop();
+//        }
+//
+//    }
+//}
+
+
 
 /**
  * Constructs the A and B matrices as per the GS-DBSCAN algorithm
@@ -100,13 +237,13 @@ af::array GsDBSCAN::randomProjections(af::array &X, int D, int k, int m) {
  * @param k k parameter as per the DBSCAN algorithm
  * @param m m parameter as per the DBSCAN algorithm
  */
-std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array& projections, int k, int m) {
+std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array &projections, int k, int m) {
     // Assume projections has shape (n, D)
     int n = projections.dims(0);
     int D = projections.dims(1);
 
-    af::array A(n, 2*k);
-    af::array B(2*D, m);
+    af::array A(n, 2 * k);
+    af::array B(2 * D, m);
 
     af::array dataToRandomIdxSorted = af::constant(-1, projections.dims(), af::dtype::u16);
     af::array randomToDataIdxSorted = af::constant(-1, projections.dims(), af::dtype::u16);
@@ -114,14 +251,15 @@ std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array& 
 
     af::sort(sortedValsTemp, sortedValsTemp, projections, 1);
 
-    A(af::span, af::seq(0, k-1)) = 2 * dataToRandomIdxSorted(af::span, af::seq(0, k - 1));
-    A(af::span, af::seq(k, af::end)) = 2 * dataToRandomIdxSorted(af::span, af::seq(dataToRandomIdxSorted.dims(0)-k, af::end));
+    A(af::span, af::seq(0, k - 1)) = 2 * dataToRandomIdxSorted(af::span, af::seq(0, k - 1));
+    A(af::span, af::seq(k, af::end)) =
+            2 * dataToRandomIdxSorted(af::span, af::seq(dataToRandomIdxSorted.dims(0) - k, af::end));
 
-    af::array BEvenIdx = af::seq(0, 2*D-1, 2);
+    af::array BEvenIdx = af::seq(0, 2 * D - 1, 2);
     af::array BOddIdx = BEvenIdx + 1;
 
-    B(BEvenIdx, af::span) = randomToDataIdxSorted(af::seq(0, m-1), af::span);
-    B(BOddIdx, af::span) = randomToDataIdxSorted(af::seq( randomToDataIdxSorted.dims(0)-m, af::end), af::span);
+    B(BEvenIdx, af::span) = randomToDataIdxSorted(af::seq(0, m - 1), af::span);
+    B(BOddIdx, af::span) = randomToDataIdxSorted(af::seq(randomToDataIdxSorted.dims(0) - m, af::end), af::span);
 
     return std::make_tuple(A, B);
 }
@@ -135,30 +273,37 @@ std::tuple<af::array, af::array> GsDBSCAN::constructABMatrices(const af::array& 
  * @param alpha float for the alpha parameter to tune the batch size
  */
 af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, float alpha) {
+
     int k = A.dims(1) / 2;
-    int m = B.dims(1) / 2;
+    int m = B.dims(1);
 
     int n = X.dims(0);
     int d = X.dims(1);
+    int D = B.dims(0) / 2;
 
     int batchSize = GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
 
-    af::array distances(n, 2*k*m, af::dtype::f32);
-    af::array ABatch(batchSize, A.dims(1), A.type());
-    af::array BBatch(batchSize, B.dims(1), B.type());
-    af::array XBatch(batchSize, 2*k, m, d, X.type());
-    af::array XBatchAdj(batchSize, 2*k*m, d, X.type());
+    af::array distances(n, 2 * k * m, af::dtype::f32);
+    af::array ABatch(batchSize, 2 * k, A.type());
+    af::array BBatch(batchSize, m, B.type());
+    af::array XBatch(batchSize, 2 * k, m, d, X.type());
+    af::array XBatchAdj(batchSize, 2 * k * m, d,
+                        X.type()); // This is very large, around 7gb. Possible to do this without explicitly allocating the memory?
     af::array XSubset(batchSize, d, X.type());
     af::array XSubsetReshaped = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
     af::array YBatch = af::constant(0, XBatchAdj.dims(), XBatchAdj.type());
 
     for (int i = 0; i < n; i += batchSize) {
         int maxBatchIdx = i + batchSize - 1;
-        ABatch = A(af::seq(i, maxBatchIdx));
-        BBatch = B(A);
+        ABatch = A(af::seq(i, maxBatchIdx), af::span);
 
-        XBatch = X(BBatch); // TODO need to create XBatch before for loop?
-        XBatchAdj = af::moddims(XBatch, XBatch.dims(0), XBatch.dims(1) * XBatch.dims(2), XBatch.dims(3));
+        BBatch = B(ABatch, af::span);
+
+        BBatch = af::moddims(BBatch, BBatch.dims(0) / (2 * k), 2 * k, BBatch.dims(1));
+
+        XBatch = X(BBatch, af::span);
+
+        XBatchAdj = af::moddims(XBatch, batchSize, 2 * k * m, d);
 
         XSubset = X(af::seq(i, maxBatchIdx), af::span);
 
@@ -166,11 +311,82 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
 
         YBatch = XBatchAdj - XSubsetReshaped;
 
-        distances(af::seq(i, maxBatchIdx), af::span) = af::sqrt(af::sum(af::pow(YBatch, 2), 2)); // af doesn't have norms across arbitrary axes
+        // sqrt(sum(sq(...)))
+
+        distances(af::seq(i, maxBatchIdx), af::span) = af::norm(YBatch, AF_NORM_VECTOR_2,
+                                                                2); // af doesn't have norms across arbitrary'
     }
 
     return distances;
 }
+
+void printCudaMemoryUsage() {
+    size_t free_mem, total_mem;
+    cudaError_t error;
+
+    cudaDeviceSynchronize();
+
+    // Get memory information
+    error = cudaMemGetInfo(&free_mem, &total_mem);
+    if (error != cudaSuccess) {
+        std::cerr << "cudaMemGetInfo failed: " << cudaGetErrorString(error) << std::endl;
+        return;
+    }
+
+    // Convert bytes to gigabytes
+    double free_mem_gb = static_cast<double>(free_mem) / (1024.0 * 1024.0 * 1024.0);
+    double total_mem_gb = static_cast<double>(total_mem) / (1024.0 * 1024.0 * 1024.0);
+    double used_mem_gb = total_mem_gb - free_mem_gb;
+
+    std::cout << std::fixed << std::setprecision(2);
+    std::cout << "Memory Usage: " << used_mem_gb << " GB used, "
+              << free_mem_gb << " GB free, " << total_mem_gb << " GB total" << std::endl;
+}
+
+matx::tensor_t<matx::matxFp16, 2>
+GsDBSCAN::findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t,
+                            matx::tensor_t<int32_t, 2> &B_t, float alpha, int batchSize) {
+    const int k = A_t.Shape()[1] / 2;
+    const int m = B_t.Shape()[1];
+
+    const int n = X_t.Shape()[0];
+    const int d = X_t.Shape()[1];
+
+    batchSize = (batchSize != -1) ? batchSize : GsDBSCAN::findDistanceBatchSize(alpha, n, d, k, m);
+
+    auto AFlat_t = matx::flatten(A_t);
+
+//    auto distances_t = matx::make_tensor<matx::matxFp16>({n, 2*k*m}, matx::MATX_DEVICE_MEMORY);
+    auto distances_t = matx::make_tensor<matx::matxFp16>({n, 2 * k * m});
+
+    for (int i = 0; i < n; i += batchSize) {
+        auto start = std::chrono::high_resolution_clock::now(); // TODO remove me!
+
+        int maxBatchIdx = i + batchSize; // Index within X along the ROWS
+
+        auto XSubset_t_op = matx::slice(X_t, {i, 0}, {maxBatchIdx, matx::matxEnd});
+
+        auto ABatchFlat_t_op = matx::slice(AFlat_t, {i * 2 * k}, {maxBatchIdx * 2 * k});
+
+        auto BBatch_t_op = matx::remap<0>(B_t, ABatchFlat_t_op);
+
+        auto XBatch_t_op = matx::remap<0>(X_t, matx::flatten(BBatch_t_op));
+
+        auto XBatchReshaped_t_op = matx::reshape(XBatch_t_op, {batchSize, 2 * k * m, d});
+
+        auto XSubsetReshaped_t_op = matx::reshape(XSubset_t_op, {batchSize, 1, d});
+
+        auto YBatch_t_op = (XBatchReshaped_t_op - matx::repmat(XSubsetReshaped_t_op, {1, 2 * k * m,
+                                                                                      1})); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
+
+        auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, matx::NormOrder::L2);
+
+        (matx::slice(distances_t, {i, 0}, {maxBatchIdx, matx::matxEnd}) = YBatch_t_norm_op).run();
+    }
+
+    return distances_t;
+}
+
 
 /**
  * Calculates the batch size for distance calculations
@@ -183,7 +399,7 @@ af::array GsDBSCAN::findDistances(af::array &X, af::array &A, af::array &B, floa
  * @return int for the calculated batch size
  */
 int GsDBSCAN::findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
-    int batchSize = static_cast<int>(static_cast<long long>(n) * d * 2 * k * m / (std::pow(1024, 3) * alpha));
+    int batchSize = static_cast<int>((static_cast<long long>(n) * d * 2 * k * m) / (std::pow(1024, 3) * alpha));
 
     if (batchSize == 0) {
         return n;
@@ -213,7 +429,7 @@ int GsDBSCAN::findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
  * @return The degree array of the query vectors, with shape (datasetSize, 1).
  */
 af::array GsDBSCAN::constructQueryVectorDegreeArray(af::array &distances, float eps) {
-    return af::sum( distances < eps, 1);
+    return af::sum(distances < eps, 0);
 }
 
 /**
@@ -225,7 +441,8 @@ af::array GsDBSCAN::constructQueryVectorDegreeArray(af::array &distances, float 
  * @return arrayfire processed array
  */
 af::array GsDBSCAN::processQueryVectorDegreeArray(af::array &E) {
-    return af::scan(E, 0, AF_BINARY_ADD, true); // Do an exclusive scan// TODO, need to return the V array, this is here to satisfy the compiler.
+    return af::scan(E, 1, AF_BINARY_ADD,
+                    false); // Do an exclusive scan// TODO, need to return the V array, this is here to satisfy the compiler.
 }
 
 /**
@@ -251,9 +468,12 @@ void static performClustering(af::array &adjacencyList, af::array &V) {
  * @param n number of query vectors in the dataset
  * @param eps epsilon DBSCAN density param
  */
-__global__ void constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n, int k, int m) {
+__global__ void
+constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n,
+                                     int k, int m) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= n) return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
+    if (idx >= n)
+        return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
 
     int curr_idx = V[idx];
 
@@ -288,12 +508,14 @@ __global__ void constructAdjacencyListForQueryVector(float *distances, int *adja
  * @param eps epsilon DBSCAN density param
  * @param blockSize size of each block when calculating the adjacency list - essentially the amount of query vectors to process per block
  */
-af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B, float eps, int blockSize) {
+af::array
+GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B, float eps,
+                                int blockSize) {
     int n = E.dims(0);
     int k = A.dims(1) / 2;
     int m = B.dims(1);
 
-    af::array adjacencyList = af::constant(-1, (E(n-1) + V(n-1)).scalar<int>(), af::dtype::u32);
+    af::array adjacencyList = af::constant(-1, (E(n - 1) + V(n - 1)).scalar<int>(), af::dtype::u32);
 
     // Eval all matrices to ensure they are synced
     adjacencyList.eval();
@@ -304,7 +526,7 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     B.eval();
 
     // Getting device pointers
-    int *adjacencyList_d= adjacencyList.device<int>();
+    int *adjacencyList_d = adjacencyList.device<int>();
     float *distances_d = distances.device<float>();
     int *E_d = E.device<int>();
     int *V_d = V.device<int>();
@@ -317,7 +539,8 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     // Now we can call the kernel
     int numBlocks = std::max(1, n / blockSize);
     blockSize = std::min(n, blockSize);
-    constructAdjacencyListForQueryVector<<<numBlocks, blockSize, 0, afCudaStream>>>(distances_d, adjacencyList_d, V_d, A_d, B_d, eps, n, k, m);
+    constructAdjacencyListForQueryVector<<<numBlocks, blockSize, 0, afCudaStream>>>(distances_d, adjacencyList_d, V_d,
+                                                                                    A_d, B_d, eps, n, k, m);
 
     // Unlock all the af arrays
     adjacencyList.unlock();
@@ -330,6 +553,7 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
     return adjacencyList;
 }
 
+
 /**
  * Gets the CUDA stream from ArrayFire
  *
@@ -341,10 +565,92 @@ af::array GsDBSCAN::assembleAdjacencyList(af::array &distances, af::array &E, af
  */
 cudaStream_t GsDBSCAN::getAfCudaStream() {
     int afId = af::getDevice();
-    int cudaId= afcu::getNativeId(afId);
+    int cudaId = afcu::getNativeId(afId);
     return afcu::getStream(cudaId);
 }
 
+/**
+ * Performs the actual clustering step of the algorithm
+ *
+ * Rewritten from Ninh's original code
+ *
+ * @param adjacencyList af array adjacency list for each of the dataset vectors as per the GsDBSCAN algorithm
+ * @param V starting index of each of the dataset vectors within the adjacency list
+ * @param E degree of each query vector (how many candidate vectors are within eps distance of it)
+ * @param n size of the dataset
+ * @param minPts minimum number of points within eps distance to consider a point as a core point
+ * @param clusterNoise whether to include noise points in the result
+ * @return a tuple containing the cluster labels and the number of clusters found
+ */
+tuple<vector<int>, int>
+GsDBSCAN::formClusters(af::array &adjacencyList, af::array &V, af::array &E, int n, int minPts, bool clusterNoise) {
+    int nClusters = 0;
+    vector<int> labels = IVector(n, -1);
+
+    int iNewClusterID = -1;
+
+    auto isCore = [&](int idx) -> bool {
+        // TODO use a bit set instead of a cumbersome af array
+        return E(idx).scalar<int>() >= minPts;
+    };
+
+    for (int i = -1; i < n; i++) {
+
+        if (!isCore(i) || (labels[i] != -1)) {
+            continue;
+        }
+
+        iNewClusterID++;
+
+        unordered_set<int> seedSet; //seedSet only contains core points
+        seedSet.insert(i);
+
+        boost::dynamic_bitset<> connectedPoints(n);
+        connectedPoints[i] = true;
+
+        int startIndex, endIndex;
+
+        while (!seedSet.empty()) {
+            int Xi = *seedSet.begin();
+            seedSet.erase(seedSet.begin());
+
+            startIndex = V(Xi).scalar<int>();
+            endIndex = startIndex + E(Xi).scalar<int>();
+            int Xj;
+
+            for (int j = startIndex; j < endIndex; j++) {
+                Xj = adjacencyList(j).scalar<int>();
+
+                if (isCore(i)) {
+                    if (!connectedPoints[Xj]) {
+                        connectedPoints[Xj] = true;
+
+                        if (labels[Xj] == -1) seedSet.insert(Xj);
+                    }
+                } else {
+                    connectedPoints[Xj] = true;
+                }
+
+            }
+        }
+
+        size_t Xj = connectedPoints.find_first();
+
+        while (Xj != boost::dynamic_bitset<>::npos) {
+            if (labels[Xj] == -1) labels[Xj] = iNewClusterID;
+
+            Xj = connectedPoints.find_next(Xj);
+        }
+
+        nClusters = iNewClusterID;
+    }
+
+    if (clusterNoise) {
+        // TODO, implement labeling of noise
+    }
+
+    return make_tuple(labels, nClusters);
+}
 /*
  * For the above, check this issue:
  *

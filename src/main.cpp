@@ -1,13 +1,8 @@
 ﻿#include <iostream>
-#include "../include/Header.h"
-#include "../include/Utilities.h"
-#include "../include/InputParser.h"
+#include "../../include/Header.h"
+#include "../../include/Utilities.h"
 
-#include "../test/Test.h"
-#include "../include/DBSCAN.h"
-#include "../include/Optics.h"
-#include "sngDBSCAN.h"
-#include "sDBSCAN.h"
+#include "../../include/sDbscan.h"
 
 #include <time.h> // for time(0) to generate different random number
 #include <stdlib.h>
@@ -25,171 +20,71 @@ int main(int nargs, char** args)
 //    getRAM();
 
     /************************************************************************/
-	int iType = loadInput(nargs, args);
+//	int iType = loadInput(nargs, args);
 
-//    cout << "RAM after loading data" << endl;
-//    getRAM();
+    sDbscanParam sParam;
+    readParam_sDbscan(nargs, args, sParam);
 
-	/************************************************************************/
-	/* Approaches                                             */
-	/************************************************************************/
+    sDbscan dbscan(sParam.n_points, sParam.n_features);
+    dbscan.set_params(sParam.n_proj, sParam.topK, sParam.topM, sParam.distance, sParam.ker_n_features,
+                     sParam.ker_sigma, sParam.ker_intervalSampling, sParam.samplingProb,
+                     sParam.clusterNoise, sParam.verbose, sParam.n_threads, sParam.seed, sParam.output);
+
+    // Read data
+    string dataset = "";
+    for (int i = 1; i < nargs; i++) {
+        if (strcmp(args[i], "--dataset") == 0) {
+            dataset = args[i + 1]; // convert char* to string
+            break;
+        }
+    }
+    if (dataset == "") {
+        cerr << "Error: Data file does not exist !" << endl;
+        exit(1);
+    }
+
+    MatrixXf MATRIX_X;
+    loadtxtData(dataset, sParam.distance, sParam.n_points, sParam.n_features, MATRIX_X);
+
+    // Saving memory
+//    loadtxtData(dataset, sParam.distance, sParam.n_points, sParam.n_features, dbscan.matrix_X);
 
     chrono::steady_clock::time_point begin, end;
+    begin = chrono::steady_clock::now();
+    float fRangeEps = 0.01;
 
-    // Only for testing
+//    dbscan.test_sDbscan(MATRIX_X, sParam.eps, fRangeEps, sParam.minPts);
 
-    PARAM_INTERNAL_TEST_UNITS = 10;
+    for (int i = 0; i < 10; ++i)
+    {
+        float new_eps = sParam.eps + i * fRangeEps;
 
-    /************************************************************************/
-	/* Algorithms                                             */
-	/************************************************************************/
-	switch (iType)
-	{
-        case 1:
-        {
-            begin = chrono::steady_clock::now();
-
-            sDbscan(); // speed friendly
-
-            end = chrono::steady_clock::now();
-            cout << "dbscan Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
-            cout << endl;
-            break;
-
-        }
-        // Test sDBSCAN
-        case 11:
-        {
-
-            begin = chrono::steady_clock::now();
-            float fBaseEps = PARAM_DBSCAN_EPS;
-            for (int i = 0; i < PARAM_TEST_REPEAT; ++i)
-            {
-                PARAM_DBSCAN_EPS = fBaseEps; // need to reset baseEps
-                cout << "Base sDbscan eps: " << PARAM_DBSCAN_EPS << " at time " << i << endl;
-                test_sDbscan(i); // speed friendly
-            }
-
-            end = chrono::steady_clock::now();
-            cout << "sDBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
-            cout << endl;
-            break;
-        }
-
-        // Test Asymmetric Computation Neighborhoods
-//        case 12:
-//        {
-//
-//            begin = chrono::steady_clock::now();
-//
-//
-//            float fBaseEps = PARAM_DBSCAN_EPS;
-//            for (int i = 0; i < PARAM_TEST_REPEAT; ++i)
-//            {
-//                PARAM_DBSCAN_EPS = fBaseEps + i * PARAM_INTERNAL_TEST_EPS_RANGE;
-//                for (int j = 0; j < 5; ++j)
-//                {
-//                    cout << "Dbscan eps: " << PARAM_DBSCAN_EPS << " at time " << j << endl;
-//                    test_sDbscan_Asym(j); // speed friendly
-//                }
-//            }
-//
-//
-//            end = chrono::steady_clock::now();
-//            cout << "dbscan Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
-//            cout << endl;
-//            break;
-//        }
-
-        case 2:
-        {
-
-            begin = chrono::steady_clock::now();
-
-            sOptics(); // for speed
-//            memoryOptics(); // for memory
-
-            end = chrono::steady_clock::now();
-            cout << "OPTICS Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
-            cout << endl;
-            break;
-        }
-
-        // sngDbscan
-        case 3:
-        {
-            begin = chrono::steady_clock::now();
-
-            sngDbscan();
-
-            end = chrono::steady_clock::now();
-            cout << "sngDBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
-            cout << endl;
-            break;
-        }
-
-        // Test uniform Dbscan++
-        case 31:
-        {
-            begin = chrono::steady_clock::now();
-
-            float fBaseEps = PARAM_DBSCAN_EPS;
-            for (int i = 0; i < 5; ++i)
-            {
-                PARAM_DBSCAN_EPS = fBaseEps + i * PARAM_INTERNAL_TEST_EPS_RANGE;
-                for (int j = 0; j < 5; ++j)
-                {
-                    cout << "uDbscan eps: " << PARAM_DBSCAN_EPS << " at time " << j << endl;
-                    test_uDbscan(j); // speed friendly
-                }
-            }
-
-            end = chrono::steady_clock::now();
-            cout << "Test uDBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
-            cout << endl;
-            break;
-        }
+        dbscan.clear();
+        cout << "------------------" << endl;
+        begin = chrono::steady_clock::now();
+        dbscan.fit_sDbscan(MATRIX_X, new_eps, sParam.minPts); // need to reset baseEps
+        end = chrono::steady_clock::now();
+        cout << "sDBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
 
 
-        // Test sng Dbscan++
-        case 32:
-        {
-
-            begin = chrono::steady_clock::now();
-
-            float fBaseEps = PARAM_DBSCAN_EPS;
-
-            // sngDBSCAN
-            if (PARAM_SAMPLING_PROB < 1.0)
-            {
-                // Repeat 5 times
-                for (int i = 0; i < PARAM_TEST_REPEAT; ++i)
-                {
-                    PARAM_DBSCAN_EPS = fBaseEps;
-                    cout << "Base sngDbscan eps: " << PARAM_DBSCAN_EPS << " at time " << i << endl;
-                    test_sngDbscan(i);
-                }
-
-            }
-            // Exact Dbscan
-            else
-            {
-                for (int i = 0; i < 5; ++i)
-                {
-                    PARAM_DBSCAN_EPS = fBaseEps + i * PARAM_INTERNAL_TEST_EPS_RANGE;
-                    cout << "Exact Dbscan eps: " << PARAM_DBSCAN_EPS << endl;
-                    test_naiveDbscan(); // speed friendly
-                }
-            }
-
-
-
-            end = chrono::steady_clock::now();
-            cout << "Test sngDBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
-            cout << endl;
-            break;
-        }
-
+        dbscan.clear();
+        cout << "------------------" << endl;
+        begin = chrono::steady_clock::now();
+        dbscan.fit_sngDbscan(MATRIX_X, new_eps, sParam.minPts);
+        end = chrono::steady_clock::now();
+        cout << "sngDBSCAN Wall Clock = " << chrono::duration_cast<chrono::milliseconds>(end - begin).count() << "[ms]" << endl;
     }
+
+    // For big data
+    float eps = 0.25;
+    int minPts = 50;
+
+    dbscan.load_fit_sDbscan(dataset, eps, minPts);
+    dbscan.load_fit_sOptics(dataset, eps, minPts);
+
+
+
+
+
 }
 
