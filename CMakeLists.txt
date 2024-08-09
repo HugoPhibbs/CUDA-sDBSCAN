@@ -5,7 +5,7 @@ project(sDbscan)
 
 set(CMAKE_CXX_STANDARD 17)
 SET(CMAKE_CUDA_ARCHITECTURES 86)
-set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.5/bin/nvcc") # Somehow CLion needs this here (smh)
+set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.6/bin/nvcc") # Somehow CLion needs this here (smh)
 #SET(CMAKE_C_COMPILER "/usr/bin/g++")
 #add_definitions(-DINDEX_64_BIT)
 
@@ -31,7 +31,7 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 set(CUDA_TOOLKIT_ROOT_DIR $ENV{CUDA_HOME})
-find_package(CUDAToolkit 12.5 REQUIRED)
+find_package(CUDAToolkit 12.6 REQUIRED)
 #find_package(CUDAToolkit 11.8 REQUIRED)
 
 # ArrayFire
