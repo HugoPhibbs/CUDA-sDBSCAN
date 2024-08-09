@@ -34,7 +34,7 @@ namespace GsDBSCAN {
     * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
     * @param skip_pre_checks boolean flag to skip the pre-checks
     */
-    void performGsDbscan() {
+    inline void performGsDbscan() {
 //    if (!skip_pre_checks) {
 //        preChecks(X, D, minPts, k, m, eps);
 //    }

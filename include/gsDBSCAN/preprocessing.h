@@ -27,7 +27,7 @@ namespace GsDBSCAN {
 // * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
 // * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
 // */
-//void GsDBSCAN::preChecks(af::array &X, int D, int minPts, int k, int m, float eps) {
+//inline void GsDBSCAN::preChecks(af::array &X, int D, int minPts, int k, int m, float eps) {
 //    assert(X.dims(1) > 0);
 //    assert(X.dims(1) > 0);
 //    assert(D > 0);
@@ -44,7 +44,7 @@ namespace GsDBSCAN {
 // * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
 // * @return af::array matrix for the random projections
 // */
-//af::array GsDBSCAN::randomProjections(af::array &X, boost::dynamic_bitset<> bitHD3, int D, int k, int m, string distanceMetric, float sigma, int seed, int fhtDim, int nRotate) {
+//inline af::array GsDBSCAN::randomProjections(af::array &X, boost::dynamic_bitset<> bitHD3, int D, int k, int m, string distanceMetric, float sigma, int seed, int fhtDim, int nRotate) {
 //    // TODO implement me!
 //    int n = X.dims(0);
 //    int d = X.dims(1);
@@ -175,7 +175,7 @@ namespace GsDBSCAN {
      * @param k k parameter as per the DBSCAN algorithm
      * @param m m parameter as per the DBSCAN algorithm
      */
-    std::tuple<af::array, af::array> constructABMatrices(const af::array &projections, int k, int m) {
+    inline std::tuple<af::array, af::array> constructABMatrices(const af::array &projections, int k, int m) {
         // Assume projections has shape (n, D)
         int n = projections.dims(0);
         int D = projections.dims(1);

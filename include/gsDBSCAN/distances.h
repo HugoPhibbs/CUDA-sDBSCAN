@@ -23,7 +23,7 @@ namespace GsDBSCAN {
      * @param alpha alpha param to tune the batch size
      * @return int for the calculated batch size
      */
-    int findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
+    inline int findDistanceBatchSize(float alpha, int n, int d, int k, int m) {
         int batchSize = static_cast<int>((static_cast<long long>(n) * d * 2 * k * m) / (std::pow(1024, 3) * alpha));
 
         if (batchSize == 0) {
@@ -47,7 +47,7 @@ namespace GsDBSCAN {
      * @param B B matrix, see constructABMatrices
      * @param alpha float for the alpha parameter to tune the batch size
      */
-    af::array findDistances(af::array &X, af::array &A, af::array &B, float alpha=1.2) {
+    inline af::array findDistances(af::array &X, af::array &A, af::array &B, float alpha=1.2) {
 
         int k = A.dims(1) / 2;
         int m = B.dims(1);
@@ -96,7 +96,7 @@ namespace GsDBSCAN {
     }
 
     matx::tensor_t<matx::matxFp16, 2>
-    findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t,
+    inline findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t,
                       matx::tensor_t<int32_t, 2> &B_t, float alpha=1.2, int batchSize=-1) {
         const int k = A_t.Shape()[1] / 2;
         const int m = B_t.Shape()[1];

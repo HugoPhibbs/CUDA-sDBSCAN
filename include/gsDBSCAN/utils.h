@@ -16,7 +16,7 @@
 
 namespace GsDBSCAN {
     template<typename eigenType, typename matxType>
-    static matx::tensor_t<matxType , 2> eigenMatToMatXTensor(Eigen::Matrix<eigenType, Eigen::Dynamic, Eigen::Dynamic> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
+    inline static matx::tensor_t<matxType , 2> eigenMatToMatXTensor(Eigen::Matrix<eigenType, Eigen::Dynamic, Eigen::Dynamic> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
         eigenType *eigenData = matEigen.data();
         int numElements = matEigen.rows() * matEigen.cols();
 
@@ -51,7 +51,7 @@ namespace GsDBSCAN {
     }
 
     template<typename T>
-    static T* cudaDeviceArrayToHostArray(const T* deviceArray, size_t numElements) {
+    inline static T* cudaDeviceArrayToHostArray(const T* deviceArray, size_t numElements) {
         T* hostArray = new T[numElements];
 
         cudaError_t err = cudaMemcpy(hostArray, deviceArray, numElements * sizeof(T), cudaMemcpyDeviceToHost);
@@ -66,7 +66,7 @@ namespace GsDBSCAN {
     }
 
     template<typename afType, typename matXType>
-    static matx::tensor_t<matXType, 2> afArrayToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
+    inline static matx::tensor_t<matXType, 2> afArrayToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
         // For simplicity, this only does 2D tensors
 
         afType *afData = afArray.device<afType>();
@@ -77,7 +77,7 @@ namespace GsDBSCAN {
     }
 
     template <typename T>
-    static T* hostToManagedArray(const T* hostData, size_t numElements) {
+    inline static T* hostToManagedArray(const T* hostData, size_t numElements) {
         T* managedArray;
         size_t size = numElements * sizeof(T);
 
@@ -99,7 +99,7 @@ namespace GsDBSCAN {
         return managedArray;
     }
 
-    void printCudaMemoryUsage() {
+    inline void printCudaMemoryUsage() {
         size_t free_mem, total_mem;
         cudaError_t error;
 
@@ -131,11 +131,11 @@ namespace GsDBSCAN {
      *
      * @return the CUDA stream
      */
-        cudaStream_t getAfCudaStream() {
-            int afId = af::getDevice();
-            int cudaId = afcu::getNativeId(afId);
-            return afcu::getStream(cudaId);
-        }
+    inline cudaStream_t getAfCudaStream() {
+        int afId = af::getDevice();
+        int cudaId = afcu::getNativeId(afId);
+        return afcu::getStream(cudaId);
+    }
 }
 
 #endif //SDBSCAN_UTILS_H

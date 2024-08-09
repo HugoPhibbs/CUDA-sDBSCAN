@@ -30,7 +30,7 @@ namespace GsDBSCAN {
      *
      * @return The degree array of the query vectors, with shape (datasetSize, 1).
      */
-    af::array constructQueryVectorDegreeArray(af::array &distances, float eps) {
+    inline af::array constructQueryVectorDegreeArray(af::array &distances, float eps) {
         return af::sum(distances < eps, 0);
     }
 
@@ -42,7 +42,7 @@ namespace GsDBSCAN {
      * @param E vector degree array
      * @return arrayfire processed array
      */
-    af::array processQueryVectorDegreeArray(af::array &E) {
+    inline af::array processQueryVectorDegreeArray(af::array &E) {
         return af::scan(E, 1, AF_BINARY_ADD,
                         false); // Do an exclusive scan// TODO, need to return the V array, this is here to satisfy the compiler.
     }
@@ -62,7 +62,7 @@ namespace GsDBSCAN {
      * @return a tuple containing the cluster labels and the number of clusters found
      */
     std::tuple<std::vector<int>, int>
-    formClusters(af::array &adjacencyList, af::array &V, af::array &E, int n, int minPts, bool clusterNoise) {
+    inline formClusters(af::array &adjacencyList, af::array &V, af::array &E, int n, int minPts, bool clusterNoise) {
         int nClusters = 0;
         std::vector<int> labels = IVector(n, -1);
 
@@ -143,7 +143,7 @@ namespace GsDBSCAN {
      * @param eps epsilon DBSCAN density param
      */
     __global__ void
-    constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n,
+    inline constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n,
                                          int k, int m) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx >= n)
@@ -181,7 +181,7 @@ namespace GsDBSCAN {
      * @param eps epsilon DBSCAN density param
      * @param blockSize size of each block when calculating the adjacency list - essentially the amount of query vectors to process per block
      */
-    af::array assembleAdjacencyList(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B, float eps,
+    inline af::array assembleAdjacencyList(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B, float eps,
                                     int blockSize) {
         /*
          * Check this issue:
@@ -242,7 +242,7 @@ namespace GsDBSCAN {
      * @param adjacencyList af array adjacency list for each of the dataset vectors as per the GsDBSCAN algorithm
      * @param V af array containing the starting index of each of the dataset vectors within the adjacency list
      */
-    void performClustering(af::array &adjacencyList, af::array &V) {
+    inline void performClustering(af::array &adjacencyList, af::array &V) {
         // TODO implement me!
     }
 }
