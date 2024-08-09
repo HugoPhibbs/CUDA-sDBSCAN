@@ -7,6 +7,7 @@
 
 #include <arrayfire.h>
 #include <cuda_runtime.h>
+#include <matx.h>
 #include <vector>
 #include <tuple>
 #include <unordered_set>
@@ -15,6 +16,27 @@
 #include "../Header.h"
 
 namespace GsDBSCAN {
+
+    /**
+     * Calculates the degree of the query vectors as per the G-DBSCAN algorithm.
+     *
+     * Does this using MatX
+     *
+     * This function is used in the construction of the cluster graph by determining how many
+     *
+     * Put into its own method for testability
+     *
+     * @param distances The matrix containing the distances between the query and candidate vectors.
+     *                  Expected shape is (datasetSize, 2*k*m).
+     * @param eps       The epsilon value for DBSCAN. Should be a scalar array of the same data type
+     *                  as the distances array.
+     *
+     * @return The degree array of the query vectors, with shape (datasetSize, 1).
+     */
+    template <typename T>
+    inline matx::tensor_t<T, 2> constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps) {
+        return matx::sum(distances < eps, {0});
+    }
 
     /**
      * Calculates the degree of the query vectors as per the G-DBSCAN algorithm.
