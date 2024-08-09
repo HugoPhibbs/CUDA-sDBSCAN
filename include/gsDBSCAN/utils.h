@@ -1,71 +1,22 @@
 //
-// Created by hphi344 on 10/05/24.
+// Created by hphi344 on 9/08/24.
 //
 
-#ifndef DBSCANCEOS_GSDBSCAN_H
-#define DBSCANCEOS_GSDBSCAN_H
+#ifndef SDBSCAN_UTILS_H
+#define SDBSCAN_UTILS_H
 
-#include "Header.h"
-#include "Utilities.h"
-#include <arrayfire.h>
-#include <cuda_runtime.h>
-#include <af/cuda.h>
-#include <arrayfire.h>
 #include <matx.h>
 #include <Eigen/Dense>
+#include <arrayfire.h>
+#include <af/cuda.h>
 
-class GsDBSCAN {
-private :
-    af::array X;
-    int minPts;
-    int k;
-    int m;
-    float eps;
-    bool skip_pre_checks;
-    int n;
-    int d;
-    int D;
-    float sigma;
-    int seed;
-    string distanceMetric;
-    bool clusterNoise;
-    int fhtDim;
-    float batchAlpha;
-    int nRotate;
+/*
+ * This file contains util functions that don't belong in a single file
+ */
 
-    boost::dynamic_bitset<> bitHD3;
-
-public:
-    // Constructor if needed
-    GsDBSCAN(const af::array &X, int D, int minPts, int k, int m, float eps, bool skip_pre_checks, float sigma, int seed, string distanceMetric, float batchAlpha, int fhtDim, int nRotate, bool clusterNoise);
-
-    // Methods corresponding to the functions
-    void performGsDbscan();
-
-    void static preChecks(af::array &X, int D, int minPts, int k, int m, float eps);
-
-    std::tuple<af::array, af::array> static preProcessing(af::array &X, int D, int k, int m);
-
-    af::array static randomProjections(af::array &X, boost::dynamic_bitset<> bitHD3, int D, int k, int m, string distanceMetric, float sigma, int seed, int fhtDim, int nRotate);
-
-    std::tuple<af::array, af::array> static constructABMatrices(const af::array& projections, int k, int m);
-
-    af::array static findDistances(af::array &X, af::array &A, af::array &B, float alpha = 1.2);
-
-    matx::tensor_t<matx::matxFp16, 2> static findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t, matx::tensor_t<int32_t, 2> &B_t, float alpha = 1.2, int batchSize=-1);
-
-    int static findDistanceBatchSize(float alpha, int n, int d, int k, int m);
-
-    static af::array assembleAdjacencyList(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B, float eps, int blockSize=1024);
-
-    af::array static constructQueryVectorDegreeArray(af::array &distances, float eps);
-
-    af::array static processQueryVectorDegreeArray(af::array &E);
-
-    tuple<vector<int>, int> static formClusters(af::array &adjacencyList, af::array &V, af::array &E, int n, int minPts, bool clusterNoise);
-
+namespace GsDBSCAN {
     template<typename eigenType, typename matxType>
-    static matx::tensor_t<matxType , 2> eigenMatToMatXTensor(Matrix<eigenType, Eigen::Dynamic, Eigen::Dynamic> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
+    static matx::tensor_t<matxType , 2> eigenMatToMatXTensor(Eigen::Matrix<eigenType, Eigen::Dynamic, Eigen::Dynamic> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
         eigenType *eigenData = matEigen.data();
         int numElements = matEigen.rows() * matEigen.cols();
 
@@ -148,10 +99,43 @@ public:
         return managedArray;
     }
 
-    cudaStream_t static getAfCudaStream();
+    void printCudaMemoryUsage() {
+        size_t free_mem, total_mem;
+        cudaError_t error;
 
-    // Destructor if needed
-    ~GsDBSCAN() = default;
-};
+        cudaDeviceSynchronize();
 
-#endif //DBSCANCEOS_GSDBSCAN_H
+        // Get memory information
+        error = cudaMemGetInfo(&free_mem, &total_mem);
+        if (error != cudaSuccess) {
+            std::cerr << "cudaMemGetInfo failed: " << cudaGetErrorString(error) << std::endl;
+            return;
+        }
+
+        // Convert bytes to gigabytes
+        double free_mem_gb = static_cast<double>(free_mem) / (1024.0 * 1024.0 * 1024.0);
+        double total_mem_gb = static_cast<double>(total_mem) / (1024.0 * 1024.0 * 1024.0);
+        double used_mem_gb = total_mem_gb - free_mem_gb;
+
+        std::cout << std::fixed << std::setprecision(2);
+        std::cout << "Memory Usage: " << used_mem_gb << " GB used, "
+                  << free_mem_gb << " GB free, " << total_mem_gb << " GB total" << std::endl;
+    }
+
+    /**
+     * Gets the CUDA stream from ArrayFire
+     *
+     * For easy testing of other functions
+     *
+     * See https://arrayfire.org/docs/interop_cuda.htm for info on this
+     *
+     * @return the CUDA stream
+     */
+        cudaStream_t getAfCudaStream() {
+            int afId = af::getDevice();
+            int cudaId = afcu::getNativeId(afId);
+            return afcu::getStream(cudaId);
+        }
+}
+
+#endif //SDBSCAN_UTILS_H

@@ -13,7 +13,7 @@
 #include <unsupported/Eigen/CXX11/Tensor>
 
 #include "../include/rapidcsv.h"
-#include "../include/GsDBSCAN.h"
+#include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
 
 namespace tu = testUtils;

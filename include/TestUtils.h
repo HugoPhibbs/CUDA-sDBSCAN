@@ -5,8 +5,6 @@
 #ifndef DBSCANCEOS_TESTUTILS_H
 #define DBSCANCEOS_TESTUTILS_H
 
-#endif //DBSCANCEOS_TESTUTILS_H
-
 #include <arrayfire.h>
 #include <chrono>
 #include <iostream>
@@ -106,3 +104,6 @@ namespace testUtils {
 
     void readFlatCSV(const std::string& filename, float* data, size_t size);
 }
+
+
+#endif //DBSCANCEOS_TESTUTILS_H

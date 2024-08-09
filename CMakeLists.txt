@@ -54,8 +54,8 @@ link_directories(
 add_subdirectory(lib/googletest)
 
 set_source_files_properties(
-        src/dbscan/GsDBSCAN.cpp
         test/gsDBSCANTest.cpp
+        include/gsDBSCAN/clustering.h
         PROPERTIES LANGUAGE CUDA)
 
 add_executable(${PROJECT_NAME}
@@ -63,13 +63,15 @@ add_executable(${PROJECT_NAME}
         src/Utilities.cpp
         src/dbscan/sDbscan.cpp
         src/fast_copy.c
-        src/dbscan/GsDBSCAN.cpp
         src/fht/fht.c
+        include/gsDBSCAN/preprocessing.h
+        include/gsDBSCAN/utils.h
+        include/gsDBSCAN/distances.h
+        include/gsDBSCAN/clustering.h
 )
 
 add_executable(run_gs_dbscan_tests
         test/gsDBSCANTest.cpp
-        src/dbscan/GsDBSCAN.cpp
         test/TestUtils.cpp
 )
 
