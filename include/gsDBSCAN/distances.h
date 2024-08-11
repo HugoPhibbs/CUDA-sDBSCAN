@@ -47,7 +47,7 @@ namespace GsDBSCAN {
      * @param B B matrix, see constructABMatrices
      * @param alpha float for the alpha parameter to tune the batch size
      */
-    inline af::array findDistances(af::array &X, af::array &A, af::array &B, float alpha=1.2) {
+    inline af::array findDistances(af::array &X, af::array &A, af::array &B, float alpha = 1.2) {
 
         int k = A.dims(1) / 2;
         int m = B.dims(1);
@@ -95,9 +95,10 @@ namespace GsDBSCAN {
         return distances;
     }
 
-    matx::tensor_t<matx::matxFp16, 2>
-    inline findDistancesMatX(matx::tensor_t<matx::matxFp16, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t,
-                      matx::tensor_t<int32_t, 2> &B_t, float alpha=1.2, int batchSize=-1) {
+    template<typename T>
+    matx::tensor_t<T, 2> inline
+    findDistancesMatX(matx::tensor_t<T, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t, matx::tensor_t<int32_t, 2> &B_t,
+                      float alpha = 1.2, int batchSize = -1,  matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY) {
         const int k = A_t.Shape()[1] / 2;
         const int m = B_t.Shape()[1];
 
@@ -108,8 +109,7 @@ namespace GsDBSCAN {
 
         auto AFlat_t = matx::flatten(A_t);
 
-        //    auto distances_t = matx::make_tensor<matx::matxFp16>({n, 2*k*m}, matx::MATX_DEVICE_MEMORY);
-        auto distances_t = matx::make_tensor<matx::matxFp16>({n, 2 * k * m});
+        auto distances_t = matx::make_tensor<T>({n, 2 * k * m}, memorySpace);
 
         for (int i = 0; i < n; i += batchSize) {
             auto start = std::chrono::high_resolution_clock::now(); // TODO remove me!
