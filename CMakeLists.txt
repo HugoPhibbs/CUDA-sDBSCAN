@@ -9,7 +9,7 @@ set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.6/bin/nvcc") # Somehow CLion needs t
 #SET(CMAKE_C_COMPILER "/usr/bin/g++")
 #add_definitions(-DINDEX_64_BIT)
 
-SET(CMAKE_BUILD_TYPE Debug)
+#SET(CMAKE_BUILD_TYPE Debug)
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Boost 1.71 REQUIRED NO_MODULE)
@@ -60,7 +60,9 @@ set_source_files_properties(
         test/gsDBSCAN/DistancesTest.cpp
         test/gsDBSCAN/ClusteringTest.cpp
         include/gsDBSCAN/clustering.h
+        test/repro2.cu
         PROPERTIES LANGUAGE CUDA)
+
 
 add_executable(${PROJECT_NAME}
         src/main.cpp
@@ -83,6 +85,14 @@ add_executable(run_gs_dbscan_tests
         test/gsDBSCAN/ClusteringTest.cpp
 )
 
+add_executable(repro2
+        test/repro2.cu
+)
+
+set_target_properties(repro2 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
 
 target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main)
 target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda Eigen3::Eigen matx::matx)
+
+target_link_libraries(repro2 PRIVATE CCCL::CCCL matx::matx)
