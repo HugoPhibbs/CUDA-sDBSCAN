@@ -35,45 +35,47 @@ namespace testUtils {
 
     af::array createMockDistances(int n = 70000, int D = 1024);
 
+    template <typename T>
     inline auto createMockDistancesMatX(int n = 70000, int D = 1024) {
-        auto distances = matx::random<float>({n, D}, matx::UNIFORM);
+        auto distances = matx::random<T>({n, D}, matx::UNIFORM);
 
         distances.run();
 
         return distances;
     }
 
-    inline auto createMockMnistDatasetMatX(int n = 70000, int d = 784) {
+    template <typename T>
+    inline auto createMockMnistDatasetMatX(int n = 70000, int d = 784, matx::matxMemorySpace_t space = matx::MATX_DEVICE_MEMORY) {
 
         if (n > 100000) {
             // Quick and dirty way to avoid running out of memory. I assume n>>d, so main bottleneck is n when doing the random array creation.
 
             int batchSize = 100000;
-            auto mnist_batch = matx::make_tensor<float>({batchSize, d}, matx::MATX_DEVICE_MEMORY);
-            auto mnist_16 = matx::make_tensor<matx::matxFp16>({n, d}, matx::MATX_DEVICE_MEMORY);
+            auto mnist_batch = matx::make_tensor<float>({batchSize, d}, space);
+            auto mnist_16 = matx::make_tensor<T>({n, d}, space);
 
             for (int i = 0; i < n; i+=batchSize) {
                 (mnist_batch = matx::random<float>({batchSize, d}, matx::UNIFORM)).run();
 
-                (matx::slice(mnist_16, {i, 0}, {i+batchSize, matx::matxEnd}) = matx::as_type<matx::matxFp16>(mnist_batch)).run();
+                (matx::slice(mnist_16, {i, 0}, {i+batchSize, matx::matxEnd}) = matx::as_type<T>(mnist_batch)).run();
             }
 
             return mnist_16;
         }
 
         else {
-            auto mnist = matx::make_tensor<float>({n, d}, matx::MATX_DEVICE_MEMORY);
-            auto mnist_16 = matx::make_tensor<matx::matxFp16>({n, d}, matx::MATX_DEVICE_MEMORY);
+            auto mnist = matx::make_tensor<float>({n, d}, space);
+            auto mnist_16 = matx::make_tensor<T>({n, d}, space);
 
             (mnist = matx::random<float>({n, d}, matx::UNIFORM)).run();
-            (mnist_16 = matx::as_type<matx::matxFp16>(mnist)).run();
+            (mnist_16 = matx::as_type<T>(mnist)).run();
             return mnist_16;
         }
     }
 
-    inline auto createMockAMatrixMatX(int n = 70000, int k = 2, int D = 1024) {
-        auto A = matx::make_tensor<float>({n, 2*k}, matx::MATX_DEVICE_MEMORY);
-        auto A_i = matx::make_tensor<int32_t>({n, 2*k}, matx::MATX_DEVICE_MEMORY);
+    inline auto createMockAMatrixMatX(int n = 70000, int k = 2, int D = 1024, matx::matxMemorySpace_t space = matx::MATX_DEVICE_MEMORY) {
+        auto A = matx::make_tensor<float>({n, 2*k}, space);
+        auto A_i = matx::make_tensor<int32_t>({n, 2*k}, space);
 
         int a = 2 * (D - 1);
 
@@ -83,9 +85,9 @@ namespace testUtils {
         return A_i;
     }
 
-    inline auto createMockBMatrixMatX(int n = 70000, int m = 2000, int D = 1024) {
-        auto B = matx::make_tensor<float>({2*D, m}, matx::MATX_DEVICE_MEMORY);
-        auto B_i = matx::make_tensor<int32_t >({2*D, m}, matx::MATX_DEVICE_MEMORY);
+    inline auto createMockBMatrixMatX(int n = 70000, int m = 2000, int D = 1024, matx::matxMemorySpace_t space = matx::MATX_DEVICE_MEMORY) {
+        auto B = matx::make_tensor<float>({2*D, m}, space);
+        auto B_i = matx::make_tensor<int32_t >({2*D, m}, space);
 
         int a = n - 1;
 
