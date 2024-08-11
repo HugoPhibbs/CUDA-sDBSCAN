@@ -193,7 +193,7 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
             0, 0, 1
     };
 
-    float *X_d = hostArrayToCudaArray<float>(X, 15);
+    auto *X_d = hostArrayToCudaArray<float>(X, 15);
 
     int A[10] = {
             0, 3,
@@ -282,7 +282,7 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
 
     auto start = tu::timeNow();
 
-    auto distances_t = GsDBSCAN::findDistancesMatX(X_t_16, A_t, B_t, 1.2, 100);
+    auto distances_t = GsDBSCAN::findDistancesMatX<matx::matxFp16>(X_t_16, A_t, B_t, 1.2, 100);
 
     cudaDeviceSynchronize();
 
@@ -303,18 +303,32 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
     int D = 1024;
     int d = 784;
 
-    auto A = tu::createMockAMatrixMatX(n, k, D);
-    auto B = tu::createMockBMatrixMatX(n, m, D);
-    auto X = tu::createMockMnistDatasetMatX(n, d);
+    auto A = tu::createMockAMatrixMatX(n, k, D, matx::MATX_MANAGED_MEMORY);
+    auto B = tu::createMockBMatrixMatX(n, m, D, matx::MATX_MANAGED_MEMORY);
+    auto X = tu::createMockMnistDatasetMatX<float>(n, d, matx::MATX_MANAGED_MEMORY);
 
     cudaDeviceSynchronize();
+
+    print(X);
 
     tu::Time start = tu::timeNow();
 
-    auto distances = GsDBSCAN::findDistancesMatX(X, A, B, 1.2, 2000);
+    auto distances = GsDBSCAN::findDistancesMatX<float>(X, A, B, 1.2, 2000, matx::MATX_MANAGED_MEMORY);
     cudaDeviceSynchronize();
 
+    cudaCheckError();
+
     tu::printDurationSinceStart(start); // This is too fn slow. Around 14 seconds, Cupy takes less than 0.7 seconds.
+
+
+    auto *distances_ptr = distances.Data();
+
+    for (int i = 0; i < n*2*k*m; i++) {
+//    printf("%f ", matx::promote_half_t<matx::matxFp16>(distances_ptr[i])); // Alot of zeros
+        printf("%d", i);
+        printf("%f ", distances_ptr[i]);
+
+    }
 
     printf("%lld %lld", distances.Shape()[0], distances.Shape()[1]);
 
