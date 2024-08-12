@@ -70,7 +70,7 @@ add_executable(${PROJECT_NAME}
         src/dbscan/sDbscan.cpp
         src/fast_copy.c
         src/fht/fht.c
-        include/gsDBSCAN/preprocessing.h
+        include/gsDBSCAN/projections.h
         include/gsDBSCAN/utils.h
         include/gsDBSCAN/distances.h
         include/gsDBSCAN/clustering.h
