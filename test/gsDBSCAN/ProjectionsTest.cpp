@@ -7,10 +7,10 @@
 
 namespace tu = testUtils;
 
-class PreprocessingTest: public ::testing::Test {
+class ProjectionsTest: public ::testing::Test {
 };
 
-class TestConstructingABMatrices : public PreprocessingTest {
+class TestConstructingABMatrices : public ProjectionsTest {
 
 };
 
@@ -30,4 +30,20 @@ TEST_F(TestConstructingABMatrices, TestSmallInput) {
 
     ASSERT_TRUE(A.dims(0) == n && A.dims(1) == k);
     ASSERT_TRUE(B.dims(0) == n && B.dims(1) == m);
+}
+
+class TestProjectionsSpeed : public ProjectionsTest {
+
+};
+
+TEST_F(TestProjectionsSpeed, TestLargeInput) {
+//    int n = 70000;
+//    int d = 784;
+//    int D = 1024;
+//
+//    auto X = matx::random<float>({n, d}, matx::UNIFORM);
+//    auto Y = matx::random<float>({d, D}, matx::UNIFORM);
+//    auto Z = matx::matmul(X, Y);
+//
+//    Z.run();
 }
