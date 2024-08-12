@@ -9,6 +9,7 @@
 #include <Eigen/Dense>
 #include <arrayfire.h>
 #include <af/cuda.h>
+#include <cuda_runtime.h>
 
 /*
  * This file contains util functions that don't belong in a single file
@@ -69,6 +70,8 @@ namespace GsDBSCAN {
     inline static matx::tensor_t<matXType, 2> afArrayToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
         // For simplicity, this only does 2D tensors
 
+        // TODO fix this so it accounts for row major order of arrayfire
+
         afType *afData = afArray.device<afType>();
 
         auto matxTensor = matx::make_tensor<matXType>(afData, {afArray.dims()[0], afArray.dims()[1]}, matXMemorySpace);
@@ -97,6 +100,71 @@ namespace GsDBSCAN {
         }
 
         return managedArray;
+    }
+
+    template <typename T>
+    __global__ void colMajorToRowArrayKernel(T* colMajorArray, T* rowMajorArray) {
+        /*
+         * Launch kernel with one block per row of the matrix
+         * Each block has one thread per entry along the rows of the matrix
+         *
+         * Therefore, the number of blocks is numRows and the number of threads per block is numCols
+         */
+        int rowMajorIdx = blockDim.x * blockIdx.x + threadIdx.x;
+        int colMajorIdx = gridDim.x * (rowMajorIdx % blockDim.x) + rowMajorIdx / blockDim.x;
+        rowMajorArray[rowMajorIdx] = colMajorArray[colMajorIdx];
+    }
+
+    template <typename T>
+    inline T* colMajorToRowMajorMat(T* colMajorMat, size_t numRows, size_t numCols, cudaStream_t stream = nullptr) {
+        T* rowMajorMat;
+        size_t size = numRows * numCols * sizeof(T);
+
+        cudaError_t err;
+        if (stream != nullptr) {
+           err = cudaMallocAsync(&rowMajorMat, size, stream);
+        } else {
+            err = cudaMalloc(&rowMajorMat, size);
+        }
+
+        if (err != cudaSuccess) {
+            std::cerr << "Error allocating memory: " << cudaGetErrorString(err) << std::endl;
+            return nullptr;
+        }
+
+        if (stream != nullptr) {
+            colMajorToRowArrayKernel<<<numRows, numCols, 0, stream>>>(colMajorMat, rowMajorMat);
+            cudaStreamSynchronize(stream);
+        } else {
+            colMajorToRowArrayKernel<<<numRows, numCols>>>(colMajorMat, rowMajorMat);
+            cudaDeviceSynchronize();
+        }
+
+        return rowMajorMat;
+    }
+
+    template <typename T>
+    T* copyDeviceToHost(T* deviceArray, size_t numElements, cudaStream_t stream = nullptr) {
+        cudaError_t err;
+
+        T* hostArray = new T[numElements];
+
+        if (stream != nullptr) {
+            err = cudaMemcpyAsync(hostArray, deviceArray, numElements * sizeof(T), cudaMemcpyDeviceToHost, stream);
+            cudaStreamSynchronize(stream);
+        } else {
+            err = cudaMemcpy(hostArray, deviceArray, numElements * sizeof(T), cudaMemcpyDeviceToHost);
+            cudaDeviceSynchronize();  // Synchronize the entire device if no stream is provided
+        }
+
+        // Check for errors
+        if (err != cudaSuccess) {
+            cudaFree(deviceArray);  // Free the device memory to prevent leaks
+            std::string errMsg = "Error copying memory from device to host: " + std::string(cudaGetErrorString(err));
+            throw std::runtime_error(errMsg);
+        }
+
+        return hostArray;  // Return true if successful
     }
 
     inline void printCudaMemoryUsage() {
