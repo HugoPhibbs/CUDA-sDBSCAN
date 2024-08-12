@@ -294,6 +294,15 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
     }
 }
 
+TEST_F(TestFindingDistances, TestMockAf) {
+    auto YBatch = af::randu(20, 2000, 784);
+
+    auto start = tu::timeNow();
+
+    auto YBatchNorm = af::sqrt(af::sum(af::pow(YBatch, 2), 1));
+
+    tu::printDurationSinceStart(start);
+}
 
 
 TEST_F(TestFindingDistances, TestLargeInputMatX) {
@@ -338,9 +347,9 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
 TEST_F(TestFindingDistances, TestLargeInput) {
     int n = 70000;
-    af::array X = tu::createMockMnistDataset(n);
+    af::array X = tu::createMockMnistDataset(n, 784);
     af::array A, B;
-    std::tie(A, B) = tu::createMockABMatrices(n);
+    std::tie(A, B) = tu::createMockABMatrices(n, 5, 50, 1024);
 
     cudaDeviceSynchronize();
 

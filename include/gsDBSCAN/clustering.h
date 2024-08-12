@@ -199,6 +199,15 @@ namespace GsDBSCAN {
             }
         }
     }
+//
+//    template <typename T>
+//    inline matx::tensor_t<int, 1> assembleAjacencyListMatX(matx::tensor_t<T, 2> distances, matx::tensor_t<int, 1> E, matx::tensor_t<int, 1> V, matx::tensor_t<int, 2> A, matx::tensor_t<int, 2> B, float eps, int blockSize) {
+//        int n = E.Shape()[0];
+//        int k = A.Shape()[1];
+//        int m = B.Shape()[1];
+//
+////        matx::tensor_t<int, 1> adjacencyList = matx::tensor_t<int, 1>({E(n - 1) + V(n - 1)}, -1);
+//    }
 
     /**
      * Assembles the adjacency list for the cluster graph

@@ -48,7 +48,6 @@ namespace GsDBSCAN {
      * @param alpha float for the alpha parameter to tune the batch size
      */
     inline af::array findDistances(af::array &X, af::array &A, af::array &B, float alpha = 1.2) {
-
         int k = A.dims(1) / 2;
         int m = B.dims(1);
 
@@ -74,7 +73,7 @@ namespace GsDBSCAN {
 
             BBatch = B(ABatch, af::span);
 
-            BBatch = af::moddims(BBatch, BBatch.dims(0) / (2 * k), 2 * k, BBatch.dims(1));
+            BBatch = af::moddims(BBatch, batchSize, 2 * k, m);
 
             XBatch = X(BBatch, af::span);
 
@@ -82,14 +81,16 @@ namespace GsDBSCAN {
 
             XSubset = X(af::seq(i, maxBatchIdx), af::span);
 
-            XSubsetReshaped = moddims(XSubset, XSubset.dims(0), 1, XSubset.dims(1)); // Insert new dim
+            XSubsetReshaped = moddims(XSubset, batchSize, 1, d); // Insert new dim
 
             YBatch = XBatchAdj - XSubsetReshaped;
 
             // sqrt(sum(sq(...)))
 
-            distances(af::seq(i, maxBatchIdx), af::span) = af::norm(YBatch, AF_NORM_VECTOR_2,
-                                                                    2); // af doesn't have norms across arbitrary'
+//            distances(af::seq(i, maxBatchIdx), af::span) =
+            af::sqrt(af::sum(af::pow(YBatch, 2), 1));
+
+            printf("%d\n", i);
         }
 
         return distances;
