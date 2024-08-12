@@ -12,58 +12,6 @@
 
 namespace GsDBSCAN {
 
-    /*
-* TODO:
-*
-* This method relies on using Eigen matrices. So we either need to convert af matrices to eigens, or use af arrays instead
-*/
-
-///**
-// * Performs the pre-checks for the gs dbscan algorithm
-// *
-// * @param X ArrayFire af::array matrix for the X data points
-// * @param D int for number of random vectors to generate
-// * @param minPts min number of points as per the DBSCAN algorithm
-// * @param k k parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest random vectors to take for ecah data point
-// * @param m m parameter for the sDBSCAN algorithm. I.e. the number of closest/furthest dataset vecs for each random vec to take
-// * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
-// */
-//inline void GsDBSCAN::preChecks(af::array &X, int D, int minPts, int k, int m, float eps) {
-//    assert(X.dims(1) > 0);
-//    assert(X.dims(1) > 0);
-//    assert(D > 0);
-//    assert(D >= k);
-//    assert(m >= minPts);
-//}
-//
-
-//    inline MatrixXf randomProjections(MatrixXf &X, boost::dynamic_bitset<> bitHD3, int D, int k, int m,
-//                                      string distanceMetric, float sigma, int seed, int fhtDim,
-//                                      int nRotate) {
-//        int n = X.rows();
-//        int d = X.cols();
-//
-//        Matrix<float, -1, -1> matrixR;
-//
-//        int iFourierEmbed_D = d / 2;
-//
-//        // TODO I don't really know what these lines do - just copying and pasting from Ninh's work.
-//        if (distanceMetric == "L1") {
-//            matrixR = cauchyGenerator(iFourierEmbed_D, d, 0, 1.0 / sigma, seed);
-//        } else if (distanceMetric == "L2") {
-//            matrixR = cauchyGenerator(iFourierEmbed_D, d, 0, 1.0 / sigma, seed);
-//        }
-//
-//        MatrixXf matrixFHT = MatrixXf::Zero(D, n);
-//
-//        int log2Project = log2(fhtDim);
-//        bitHD3Generator(fhtDim * nRotate, bitHD3, seed);
-//
-//        Matrix<int, -1, -1> matrixTopK = MatrixXi::Zero(2 * k, n);
-//
-//    }
-
-
     /**
      * Adds an element to a limited size (pair) priority queue
      *
@@ -74,7 +22,7 @@ namespace GsDBSCAN {
      * @param value value of the element to be added
      * @param maxSize max size of the PQ
      */
-    void addToLimitedPairPQ(Min_PQ_Pair queue, int index, float value, int maxSize) {
+    inline void addToLimitedPairPQ(Min_PQ_Pair queue, int index, float value, int maxSize) {
         if ((int) queue.size() < maxSize)
             queue.emplace(index, value);
         else {
@@ -105,8 +53,6 @@ namespace GsDBSCAN {
         default_random_engine generator(seed);
 
         cauchy_distribution<float> cauchyDist(x0, gamma); // {x0 /* a */, 𝛾 /* b */}
-
-//    MATRIX_C = MatrixXf::Zero(p_iNumRows, p_iNumCols);
 
         // Always iterate col first, then row later due to the col-wise storage
         for (int c = 0; c < p_iNumCols; ++c)
@@ -193,8 +139,8 @@ namespace GsDBSCAN {
      *  The constructed A matrix. Has shape (n, 2*k). The ith row contains the entries of the index to access for the B matrix when doing random projections
      *  The FHT matrix to use for the next steps
      */
-    inline std::tuple<Matrix<int, -1, -1>, MatrixXf> constructAMatrixEigen(MatrixXf &X,
-                                              Matrix<float, -1, -1> &randomMatrix,
+    inline std::tuple<Matrix<int, -1, -1>, Matrix<float, -1, -1>> constructAMatrixEigen(MatrixXf &X,
+                                              Matrix<float, -1, -1, RowMajor> &randomMatrix,
                                               boost::dynamic_bitset<> &bitHD3,
                                               string distanceMetric,
                                               int k, int fhtDim,
@@ -203,8 +149,8 @@ namespace GsDBSCAN {
         int n = X.rows();
         int D = randomMatrix.cols();
 
-        Matrix<int, -1, -1> A = MatrixXi::Constant(n, 2*k, -1);
-        MatrixXf matrixFHT = MatrixXf::Zero(n, D);
+        Matrix<int, -1, -1, RowMajor> A = MatrixXi::Constant(n, 2*k, -1);
+        Matrix<float, -1, -1, RowMajor> matrixFHT = MatrixXf::Zero(n, D);
 
         int log2Project = log2(fhtDim);
 
@@ -258,8 +204,9 @@ namespace GsDBSCAN {
      *  Essentially, the 2*i row contains the m closest dataset vecs to the ith random vec,
      *  and the 2*i+1 row containing the m furthest dataset vecs to the ith random vec
      */
-    Matrix<int, -1, -1> constructBMatrixEigen(int m, int D, int n, MatrixXf &matrixFHT) {
-        Matrix<int, -1, -1> B = MatrixXi::Constant(2 * D, m, -1);
+    inline Matrix<int, -1, -1> constructBMatrixEigen(int m, int D, int n, MatrixXf &matrixFHT) {
+
+        Matrix<int, -1, -1, RowMajor> B = MatrixXi::Constant(2 * D, m, -1);
 
 #pragma omp parallel for
         for (int projIdx = 0; projIdx < D; projIdx++) {
@@ -312,7 +259,7 @@ namespace GsDBSCAN {
         int n = X.rows();
         int d = X.cols();
 
-        Matrix<float, -1, -1> randomMatrix; // Ran
+        Matrix<float, -1, -1, RowMajor> randomMatrix; // Ran
 
         int iFourierEmbed_D = kerNFeatures / 2; // TODO what is this?
 
