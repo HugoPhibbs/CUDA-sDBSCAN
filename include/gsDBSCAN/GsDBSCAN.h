@@ -14,7 +14,7 @@
 #include <matx.h>
 #include <Eigen/Dense>
 
-#include "preprocessing.h"
+#include "projections.h"
 #include "distances.h"
 #include "utils.h"
 #include "clustering.h"
