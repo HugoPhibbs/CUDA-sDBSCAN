@@ -32,37 +32,37 @@ class TestSortingProjections : public ClusteringTest{
 
 };
 
-TEST_F(TestSortingProjections, TestSortingProjectionsLargeInputMatX) {
-    // A perf test, doesn't unit test anything
-
-    int n = 20000;
-    int D = 1000;
-
-    auto mockProjections = matx::random<float>({n, D}, matx::UNIFORM) * 100;
-
-    mockProjections.run();
-
-    cudaDeviceSynchronize();
-
-    auto start = tu::timeNow();
-
-    matx::tensor_t<float, 2> projectionsSorted = matx::make_tensor<float>({n, D});
-
-    (projectionsSorted = matx::sort(mockProjections, matx::SORT_DIR_ASC)).run();
-
-    cudaDeviceSynchronize();
-
-    tu::printDurationSinceStart(start);
-
-//    auto projectionsSortedT = matx::sort(matx::transpose(mockProjections), matx::SORT_DIR_ASC);
+//TEST_F(TestSortingProjections, TestSortingProjectionsLargeInputMatX) {
+//    // A perf test, doesn't unit test anything
+//
+//    int n = 20000;
+//    int D = 1000;
+//
+//    auto mockProjections = matx::random<float>({n, D}, matx::UNIFORM) * 100;
+//
+//    mockProjections.run();
 //
 //    cudaDeviceSynchronize();
 //
-//    matx::print(projectionsSorted);
-
-
-    // TODO figure out why the sorting is so quick, frankly there is no way it is that quick
-};
+//    auto start = tu::timeNow();
+//
+//    matx::tensor_t<float, 2> projectionsSorted = matx::make_tensor<float>({n, D});
+//
+//    (projectionsSorted = matx::sort(mockProjections, matx::SORT_DIR_ASC)).run();
+//
+//    cudaDeviceSynchronize();
+//
+//    tu::printDurationSinceStart(start);
+//
+////    auto projectionsSortedT = matx::sort(matx::transpose(mockProjections), matx::SORT_DIR_ASC);
+////
+////    cudaDeviceSynchronize();
+////
+////    matx::print(projectionsSorted);
+//
+//
+//    // TODO figure out why the sorting is so quick, frankly there is no way it is that quick
+//};
 
 
 class TestConstructQueryVectorDegreeArray : public ClusteringTest {
