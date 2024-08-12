@@ -51,33 +51,21 @@ namespace GsDBSCAN {
         return tensor;
     }
 
-    template<typename T>
-    inline static T* cudaDeviceArrayToHostArray(const T* deviceArray, size_t numElements) {
-        T* hostArray = new T[numElements];
-
-        cudaError_t err = cudaMemcpy(hostArray, deviceArray, numElements * sizeof(T), cudaMemcpyDeviceToHost);
-
-        if (err != cudaSuccess) {
-            std::cerr << "Error copying data from device to host: " << cudaGetErrorString(err) << std::endl;
-            delete[] hostArray;
-            return nullptr;
-        }
-
-        return hostArray;
+    /**
+     * Gets the CUDA stream from ArrayFire
+     *
+     * For easy testing of other functions
+     *
+     * See https://arrayfire.org/docs/interop_cuda.htm for info on this
+     *
+     * @return the CUDA stream
+     */
+    inline cudaStream_t getAfCudaStream() {
+        int afId = af::getDevice();
+        int cudaId = afcu::getNativeId(afId);
+        return afcu::getStream(cudaId);
     }
 
-    template<typename afType, typename matXType>
-    inline static matx::tensor_t<matXType, 2> afArrayToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
-        // For simplicity, this only does 2D tensors
-
-        // TODO fix this so it accounts for row major order of arrayfire
-
-        afType *afData = afArray.device<afType>();
-
-        auto matxTensor = matx::make_tensor<matXType>(afData, {afArray.dims()[0], afArray.dims()[1]}, matXMemorySpace);
-
-        return matxTensor;
-    }
 
     template <typename T>
     inline static T* hostToManagedArray(const T* hostData, size_t numElements) {
@@ -143,6 +131,22 @@ namespace GsDBSCAN {
         return rowMajorMat;
     }
 
+    template<typename afType, typename matXType>
+    inline static matx::tensor_t<matXType, (int) 2> afArrayToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
+        auto *afColMajorArray = afArray.device<afType>(); // In col major
+
+        int rows = afArray.dims()[0];
+        int cols = afArray.dims()[1];
+
+        auto *afRowMajorArray = colMajorToRowMajorMat(afColMajorArray, rows, cols, getAfCudaStream());
+
+        afArray.unlock();
+
+        auto matxTensor = matx::make_tensor<matXType>(afRowMajorArray, {rows, cols}, matXMemorySpace);
+
+        return matxTensor;
+    }
+
     template <typename T>
     T* copyDeviceToHost(T* deviceArray, size_t numElements, cudaStream_t stream = nullptr) {
         cudaError_t err;
@@ -160,6 +164,7 @@ namespace GsDBSCAN {
         // Check for errors
         if (err != cudaSuccess) {
             cudaFree(deviceArray);  // Free the device memory to prevent leaks
+            delete [] hostArray;  // Free the host memory to prevent leaks
             std::string errMsg = "Error copying memory from device to host: " + std::string(cudaGetErrorString(err));
             throw std::runtime_error(errMsg);
         }
@@ -190,19 +195,11 @@ namespace GsDBSCAN {
                   << free_mem_gb << " GB free, " << total_mem_gb << " GB total" << std::endl;
     }
 
-    /**
-     * Gets the CUDA stream from ArrayFire
-     *
-     * For easy testing of other functions
-     *
-     * See https://arrayfire.org/docs/interop_cuda.htm for info on this
-     *
-     * @return the CUDA stream
-     */
-    inline cudaStream_t getAfCudaStream() {
-        int afId = af::getDevice();
-        int cudaId = afcu::getNativeId(afId);
-        return afcu::getStream(cudaId);
+    template <typename T, int nDims>
+    inline T* matxTensorToHost(matx::tensor_t<T, nDims> tensor, int numElements, cudaStream_t stream = nullptr) {
+        // Honestly can't figure out how to use this function. It complains about the type of nDims.
+        T *matxTensor_d = tensor.Data();
+        return copyDeviceToHost(matxTensor_d, numElements, stream);
     }
 }
 
