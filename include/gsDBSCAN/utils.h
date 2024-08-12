@@ -16,7 +16,7 @@
 
 namespace GsDBSCAN {
     template<typename eigenType, typename matxType>
-    inline static matx::tensor_t<matxType , 2> eigenMatToMatXTensor(Eigen::Matrix<eigenType, Eigen::Dynamic, Eigen::Dynamic> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
+    inline static matx::tensor_t<matxType , 2> eigenMatToMatXTensor(Eigen::Matrix<eigenType, Eigen::Dynamic, Eigen::Dynamic, RowMajor> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
         eigenType *eigenData = matEigen.data();
         int numElements = matEigen.rows() * matEigen.cols();
 
