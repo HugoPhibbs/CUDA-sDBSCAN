@@ -14,6 +14,11 @@
 #include <boost/dynamic_bitset.hpp>
 #include "utils.h"
 #include "../Header.h"
+#include <thrust/device_vector.h>
+#include <cub/cub.cuh>
+#include <cuda/std/atomic>
+#include "utils.h"
+
 
 namespace GsDBSCAN {
 
@@ -80,88 +85,88 @@ namespace GsDBSCAN {
     }
 
 
-    /**
-     * Performs the actual clustering step of the algorithm
-     *
-     * Rewritten from Ninh's original code
-     *
-     * @param adjacencyList af array adjacency list for each of the dataset vectors as per the GsDBSCAN algorithm
-     * @param V starting index of each of the dataset vectors within the adjacency list
-     * @param E degree of each query vector (how many candidate vectors are within eps distance of it)
-     * @param n size of the dataset
-     * @param minPts minimum number of points within eps distance to consider a point as a core point
-     * @param clusterNoise whether to include noise points in the result
-     * @return a tuple containing the cluster labels and the number of clusters found
-     */
-    std::tuple<std::vector<int>, int>
-    inline formClusters(af::array &adjacencyList, af::array &V, af::array &E, int n, int minPts, bool clusterNoise) {
-        int nClusters = 0;
-        std::vector<int> labels = IVector(n, -1);
-
-        int iNewClusterID = -1;
-
-        auto isCore = [&](int idx) -> bool {
-            // TODO use a bit set instead of a cumbersome af array
-            return E(idx).scalar<int>() >= minPts;
-        };
-
-        for (int i = -1; i < n; i++) {
-
-            if (!isCore(i) || (labels[i] != -1)) {
-                continue;
-            }
-
-            iNewClusterID++;
-
-            std::unordered_set<int> seedSet; //seedSet only contains core points
-            seedSet.insert(i);
-
-            boost::dynamic_bitset<> connectedPoints(n);
-            connectedPoints[i] = true;
-
-            int startIndex, endIndex;
-
-            while (!seedSet.empty()) {
-                int Xi = *seedSet.begin();
-                seedSet.erase(seedSet.begin());
-
-                startIndex = V(Xi).scalar<int>();
-                endIndex = startIndex + E(Xi).scalar<int>();
-                int Xj;
-
-                for (int j = startIndex; j < endIndex; j++) {
-                    Xj = adjacencyList(j).scalar<int>();
-
-                    if (isCore(i)) {
-                        if (!connectedPoints[Xj]) {
-                            connectedPoints[Xj] = true;
-
-                            if (labels[Xj] == -1) seedSet.insert(Xj);
-                        }
-                    } else {
-                        connectedPoints[Xj] = true;
-                    }
-
-                }
-            }
-
-            size_t Xj = connectedPoints.find_first();
-
-            while (Xj != boost::dynamic_bitset<>::npos) {
-                if (labels[Xj] == -1) labels[Xj] = iNewClusterID;
-
-                Xj = connectedPoints.find_next(Xj);
-            }
-
-            nClusters = iNewClusterID;
-        }
-
-        if (clusterNoise) {
-            // TODO, implement labeling of noise
-        }
-
-        return make_tuple(labels, nClusters);
-    }
+//    /**
+//     * Performs the actual clustering step of the algorithm
+//     *
+//     * Rewritten from Ninh's original code
+//     *
+//     * @param adjacencyList af array adjacency list for each of the dataset vectors as per the GsDBSCAN algorithm
+//     * @param V starting index of each of the dataset vectors within the adjacency list
+//     * @param E degree of each query vector (how many candidate vectors are within eps distance of it)
+//     * @param n size of the dataset
+//     * @param minPts minimum number of points within eps distance to consider a point as a core point
+//     * @param clusterNoise whether to include noise points in the result
+//     * @return a tuple containing the cluster labels and the number of clusters found
+//     */
+//    std::tuple<std::vector<int>, int>
+//    inline formClusters(af::array &adjacencyList, af::array &V, af::array &E, int n, int minPts, bool clusterNoise) {
+//        int nClusters = 0;
+//        std::vector<int> labels = IVector(n, -1);
+//
+//        int iNewClusterID = -1;
+//
+//        auto isCore = [&](int idx) -> bool {
+//            // TODO use a bit set instead of a cumbersome af array
+//            return E(idx).scalar<int>() >= minPts;
+//        };
+//
+//        for (int i = -1; i < n; i++) {
+//
+//            if (!isCore(i) || (labels[i] != -1)) {
+//                continue;
+//            }
+//
+//            iNewClusterID++;
+//
+//            std::unordered_set<int> seedSet; //seedSet only contains core points
+//            seedSet.insert(i);
+//
+//            boost::dynamic_bitset<> connectedPoints(n);
+//            connectedPoints[i] = true;
+//
+//            int startIndex, endIndex;
+//
+//            while (!seedSet.empty()) {
+//                int Xi = *seedSet.begin();
+//                seedSet.erase(seedSet.begin());
+//
+//                startIndex = V(Xi).scalar<int>();
+//                endIndex = startIndex + E(Xi).scalar<int>();
+//                int Xj;
+//
+//                for (int j = startIndex; j < endIndex; j++) {
+//                    Xj = adjacencyList(j).scalar<int>();
+//
+//                    if (isCore(i)) {
+//                        if (!connectedPoints[Xj]) {
+//                            connectedPoints[Xj] = true;
+//
+//                            if (labels[Xj] == -1) seedSet.insert(Xj);
+//                        }
+//                    } else {
+//                        connectedPoints[Xj] = true;
+//                    }
+//
+//                }
+//            }
+//
+//            size_t Xj = connectedPoints.find_first();
+//
+//            while (Xj != boost::dynamic_bitset<>::npos) {
+//                if (labels[Xj] == -1) labels[Xj] = iNewClusterID;
+//
+//                Xj = connectedPoints.find_next(Xj);
+//            }
+//
+//            nClusters = iNewClusterID;
+//        }
+//
+//        if (clusterNoise) {
+//            // TODO, implement labeling of noise
+//        }
+//
+//        return make_tuple(labels, nClusters);
+//    }
 
     /**
      * Kernel for constructing part of the cluster graph adjacency list for a particular vector
@@ -199,15 +204,6 @@ namespace GsDBSCAN {
             }
         }
     }
-//
-//    template <typename T>
-//    inline matx::tensor_t<int, 1> assembleAjacencyListMatX(matx::tensor_t<T, 2> distances, matx::tensor_t<int, 1> E, matx::tensor_t<int, 1> V, matx::tensor_t<int, 2> A, matx::tensor_t<int, 2> B, float eps, int blockSize) {
-//        int n = E.Shape()[0];
-//        int k = A.Shape()[1];
-//        int m = B.Shape()[1];
-//
-////        matx::tensor_t<int, 1> adjacencyList = matx::tensor_t<int, 1>({E(n - 1) + V(n - 1)}, -1);
-//    }
 
     /**
      * Assembles the adjacency list for the cluster graph
@@ -273,6 +269,81 @@ namespace GsDBSCAN {
         B.unlock();
 
         return adjacencyList;
+    }
+
+    // TODO verify that the functions below are ok!
+
+    __global__ void breadthFirstSearchKernel(int *adjacencyList, int* startIdxArray, bool* visited, bool* border, int n) {
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+        if (tid >= n) {
+            return;
+        }
+
+        if (visited[tid]) {
+            visited[tid] = 0;
+            border[tid] = 1;
+
+            int startIdx = startIdxArray[tid];
+
+            for (int i = startIdx; i < startIdxArray[tid + 1]; i++) {
+                int neighbourIdx = adjacencyList[i];
+
+                if (!visited[neighbourIdx]) {
+                    visited[neighbourIdx] = 1;
+                }
+            }
+        }
+    }
+
+    inline void breadthFirstSearch(int *adjacencyList_d, int* startIdxArray_d, int* degArray_h, bool* visited, int* clusterLabels, const size_t n, int seedVertexIdx, int thisClusterLabel, int minPts, int blockSize = 256) {
+        auto visitedThisBfs_d = allocateCudaArray<bool>(n);
+        auto borderThisBfs_d = allocateCudaArray<bool>(n);
+
+        visitedThisBfs_d[seedVertexIdx] = 1;
+
+        int countVisitedThisBfs = 1;
+
+        int gridSize = (n + blockSize - 1) / blockSize;
+
+        while (countVisitedThisBfs > 0) {
+            breadthFirstSearchKernel<<<gridSize, blockSize>>>(adjacencyList_d, startIdxArray_d, visitedThisBfs_d, borderThisBfs_d, n);
+            cudaDeviceSynchronize();
+            auto thrust_ptr = thrust::device_pointer_cast(visitedThisBfs_d);
+            countVisitedThisBfs = thrust::reduce(thrust_ptr, thrust_ptr + n, 0);
+        }
+        
+        auto visited_h = copyDeviceToHost(visitedThisBfs_d, n);
+
+        #pragma omp parallel for
+        for (int i = 0; i < n; i++) {
+            if (visited_h[i]) {
+                clusterLabels[i] = thisClusterLabel;
+                visited[i] = 1;
+                if (degArray_h[i] < minPts) {
+                    // Assign as border point
+                }
+            }
+        }
+    }
+
+
+    inline std::vector<int> formClusters(int* adjacencyList_d, int n, int* startIdxArray_d, int* degArray_d, int minPts) {
+        int *clusterLabels = new int[n];
+        bool *visited = new bool[n];
+
+        auto degArray_h = copyDeviceToHost(degArray_d, n);
+
+        int currCluster = 0;
+
+        for (int i = 0; i < n; i++) {
+            if ((!visited[i]) && (degArray_h[i] >= minPts)) {
+                visited[i] = true;
+                clusterLabels[i] = currCluster;
+                breadthFirstSearch(adjacencyList_d, startIdxArray_d, degArray_h, visited, clusterLabels, n, i, currCluster, minPts);
+                currCluster += 1;
+            }
+        }
     }
 
     /**
