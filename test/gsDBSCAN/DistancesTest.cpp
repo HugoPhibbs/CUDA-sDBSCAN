@@ -29,7 +29,7 @@ class TestCalculatingBatchSize : public TestDistances {
 };
 
 TEST_F(TestCalculatingBatchSize, TestLargeInput) {
-    int batchSize = GsDBSCAN::findDistanceBatchSize(1, 1000000, 3, 2, 2000);
+    int batchSize = GsDBSCAN::distances::findDistanceBatchSize(1, 1000000, 3, 2, 2000);
 
     ASSERT_EQ(20, batchSize);
 }
@@ -37,7 +37,7 @@ TEST_F(TestCalculatingBatchSize, TestLargeInput) {
 TEST_F(TestCalculatingBatchSize, TestSmallInput) {
     int n = 100;
 
-    int batchSize = GsDBSCAN::findDistanceBatchSize(1, n, 3, 10, 10);
+    int batchSize = GsDBSCAN::distances::findDistanceBatchSize(1, n, 3, 10, 10);
 
     ASSERT_EQ(n, batchSize);
 }
@@ -87,7 +87,7 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
 
     ASSERT_TRUE(expected.dims(0) == 5 && expected.dims(1) == 6); // Checking gtest is sane
 
-    af::array distances = GsDBSCAN::findDistances(X, A, B);
+    af::array distances = GsDBSCAN::distances::findDistances(X, A, B);
 
     af::print("distances", af::pow(distances, 2));
 
@@ -163,7 +163,7 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
     auto A_t = matx::make_tensor<int>(A_d, {5, 2}, true);
     auto B_t = matx::make_tensor<int>(B_d, {10, 3}, true);
 
-    auto distances_t = GsDBSCAN::findDistancesMatX(X_t_16, A_t, B_t);
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX(X_t_16, A_t, B_t);
 
     cudaDeviceSynchronize();
 
@@ -226,7 +226,7 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
     auto A_t = matx::make_tensor<int>(A_d, {5, 2}, true);
     auto B_t = matx::make_tensor<int>(B_d, {10, 3}, true);
 
-    auto distances_t = GsDBSCAN::findDistancesMatX(X_t_16, A_t, B_t, 1.2, 1);
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX(X_t_16, A_t, B_t, 1.2, 1);
 
     cudaDeviceSynchronize();
 
@@ -282,7 +282,7 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
 
     auto start = tu::timeNow();
 
-    auto distances_t = GsDBSCAN::findDistancesMatX<matx::matxFp16>(X_t_16, A_t, B_t, 1.2, 100);
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX<matx::matxFp16>(X_t_16, A_t, B_t, 1.2, 100);
 
     cudaDeviceSynchronize();
 
@@ -322,7 +322,7 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
     tu::Time start = tu::timeNow();
 
-    auto distances = GsDBSCAN::findDistancesMatX<float>(X, A, B, 1.2, 2000, matx::MATX_MANAGED_MEMORY);
+    auto distances = GsDBSCAN::distances::findDistancesMatX<float>(X, A, B, 1.2, 2000, matx::MATX_MANAGED_MEMORY);
     cudaDeviceSynchronize();
 
     cudaCheckError();
@@ -355,7 +355,7 @@ TEST_F(TestFindingDistances, TestLargeInput) {
 
     tu::Time start = tu::timeNow();
 
-    af::array distances = GsDBSCAN::findDistances(X, A, B);
+    af::array distances = GsDBSCAN::distances::findDistances(X, A, B);
 
     tu::printDurationSinceStart(start);
 }

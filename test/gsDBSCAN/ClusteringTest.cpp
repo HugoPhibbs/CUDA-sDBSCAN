@@ -144,13 +144,13 @@ class TestProcessQueryVectorDegreeArray : public ClusteringTest {
 TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputMatX) {
     float EData[] = {3, 4, 1, 1};
 
-    auto EData_d = GsDBSCAN::hostToManagedArray(EData, 4);
+    auto EData_d = GsDBSCAN::utils::hostToManagedArray(EData, 4);
 
     auto E = matx::make_tensor<float>(EData_d, {1, 4});
 
     print(E);
 
-    auto V = GsDBSCAN::processQueryVectorDegreeArrayMatx<float>(E);
+    auto V = GsDBSCAN::clustering::processQueryVectorDegreeArrayMatx<float>(E);
 
     cudaDeviceSynchronize();
 
@@ -168,7 +168,7 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInput) {
 
     af::array VExpected(1, 4, VExpectedData);
 
-    af::array V = GsDBSCAN::processQueryVectorDegreeArray(E);
+    af::array V = GsDBSCAN::clustering::processQueryVectorDegreeArray(E);
 
     ASSERT_TRUE(af::allTrue<bool>(VExpected ==  V));
 }
@@ -178,11 +178,11 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestMnist) {
 
     float eps = af::randu(1, 1).scalar<float>();
 
-    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
+    af::array E = GsDBSCAN::clustering::constructQueryVectorDegreeArray(distances, eps);
 
     tu::Time start = tu::timeNow();
 
-    af::array V = GsDBSCAN::processQueryVectorDegreeArray(E);
+    af::array V = GsDBSCAN::clustering::processQueryVectorDegreeArray(E);
 
     V.eval();
     af::sync();

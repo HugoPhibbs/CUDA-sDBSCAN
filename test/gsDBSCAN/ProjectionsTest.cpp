@@ -41,7 +41,7 @@ TEST_F(TestConstructingABMatrices, TestMediumInputAF) {
 
     af::array A, B;
 
-    std::tie(A, B) = GsDBSCAN::constructABMatrices(projections, k, m);
+    std::tie(A, B) = GsDBSCAN::projections::constructABMatrices(projections, k, m);
 
     ASSERT_TRUE(A.dims(0) == n && A.dims(1) == k);
     ASSERT_TRUE(B.dims(0) == n && B.dims(1) == m);
@@ -121,13 +121,13 @@ TEST_F(TestConstructingABMatrices, TestSmallInputAF) {
 
     // Yes I did the above manually
 
-    auto [A, B] = GsDBSCAN::constructABMatrices(distancesAF, 2, 2);
+    auto [A, B] = GsDBSCAN::projections::constructABMatrices(distancesAF, 2, 2);
 
     auto A_array_d = A.device<float>();
     auto B_array_d = B.device<float>();
 
-    auto A_array_h = GsDBSCAN::copyDeviceToHost(A_array_d, 6*4, GsDBSCAN::getAfCudaStream());
-    auto B_array_h = GsDBSCAN::copyDeviceToHost(B_array_d, 10*2, GsDBSCAN::getAfCudaStream());
+    auto A_array_h = GsDBSCAN::utils::copyDeviceToHost(A_array_d, 6*4, GsDBSCAN::utils::getAfCudaStream());
+    auto B_array_h = GsDBSCAN::utils::copyDeviceToHost(B_array_d, 10*2, GsDBSCAN::utils::getAfCudaStream());
 
     assertColRowMajorMatsEqual(expectedA, A_array_h, 6, 4);
 //    assertColRowMajorMatsEqual(expectedB, B_array_h, 10, 2);
@@ -149,7 +149,7 @@ TEST_F(TestConstructingABMatrices, TestLargeInputAF) {
 
     // TODO figure out how to use sort_index
 
-    auto [A, B] = GsDBSCAN::constructABMatrices(distances, k, m);
+    auto [A, B] = GsDBSCAN::projections::constructABMatrices(distances, k, m);
     A.eval();
     B.eval();
 
