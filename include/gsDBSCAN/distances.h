@@ -69,7 +69,9 @@ namespace GsDBSCAN {
 
         for (int i = 0; i < n; i += batchSize) {
             int maxBatchIdx = i + batchSize - 1;
-            ABatch = A(af::seq(i, maxBatchIdx), af::span);
+
+            af::array AIndex = af::seq(i, maxBatchIdx);
+            ABatch = A(AIndex, af::span);
 
             BBatch = B(ABatch, af::span);
 
@@ -79,7 +81,8 @@ namespace GsDBSCAN {
 
             XBatchAdj = af::moddims(XBatch, batchSize, 2 * k * m, d);
 
-            XSubset = X(af::seq(i, maxBatchIdx), af::span);
+            af::array XIndex = af::seq(i, maxBatchIdx);
+            XSubset = X(XIndex, af::span);
 
             XSubsetReshaped = moddims(XSubset, batchSize, 1, d); // Insert new dim
 
@@ -87,8 +90,9 @@ namespace GsDBSCAN {
 
             // sqrt(sum(sq(...)))
 
-//            distances(af::seq(i, maxBatchIdx), af::span) =
-            af::sqrt(af::sum(af::pow(YBatch, 2), 1));
+            af::array distancesIndex = af::seq(i, maxBatchIdx);
+//            distances(distancesIndex, af::span) =
+            af::sqrt(af::sum(YBatch*YBatch, 1));
 
             printf("%d\n", i);
         }
