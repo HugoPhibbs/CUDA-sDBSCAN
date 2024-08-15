@@ -71,7 +71,7 @@ namespace GsDBSCAN {
      * @param random_seed
      * return bitHD that contains fhtDim * n_rotate (default of n_rotate = 3)
      */
-    inline void bitHD3Generator(int p_iNumBit, boost::dynamic_bitset<> & bitHD, int random_seed) {
+    inline void bitHD3Generator(int p_iNumBit, boost::dynamic_bitset<> &bitHD, int random_seed) {
         unsigned seed = chrono::system_clock::now().time_since_epoch().count();
         if (random_seed >= 0)
             seed = random_seed;
@@ -79,11 +79,10 @@ namespace GsDBSCAN {
         default_random_engine generator(seed);
         uniform_int_distribution<uint32_t> unifDist(0, 1);
 
-        bitHD = boost::dynamic_bitset<> (p_iNumBit);
+        bitHD = boost::dynamic_bitset<>(p_iNumBit);
 
         // Loop col first since we use col-wise
-        for (int d = 0; d < p_iNumBit; ++d)
-        {
+        for (int d = 0; d < p_iNumBit; ++d) {
             bitHD[d] = unifDist(generator) & 1;
         }
 
@@ -101,8 +100,9 @@ namespace GsDBSCAN {
      * @param vecX vector to project against. Should be a col vector.
      * @param vecEmbed // TODO what is this?
      */
-    inline VectorXf handleDistanceMetric(const string &distanceMetric, int nFeatures, const Matrix<float, -1, -1> &randomMatrix,
-                              int iFourierEmbed_D, const VectorXf &vecX, int kerNFeatures) {
+    inline VectorXf
+    handleDistanceMetric(const string &distanceMetric, int nFeatures, const Matrix<float, -1, -1> &randomMatrix,
+                         int iFourierEmbed_D, const VectorXf &vecX, int kerNFeatures) {
         // NOTE: must ensure kerNFeatures = nFeatures on Cosine // TODO what to do with this informatjon?
 
         VectorXf vecEmbed = VectorXf::Zero(kerNFeatures); // sDbscan::ker_n_features >= D
@@ -140,16 +140,18 @@ namespace GsDBSCAN {
      *  The FHT matrix to use for the next steps
      */
     inline std::tuple<Matrix<int, -1, -1>, Matrix<float, -1, -1>> constructAMatrixEigen(MatrixXf &X,
-                                              Matrix<float, -1, -1, RowMajor> &randomMatrix,
-                                              boost::dynamic_bitset<> &bitHD3,
-                                              string distanceMetric,
-                                              int k, int fhtDim,
-                                    int nRotate, int kerNFeatures, int nFeatures, int iFourierEmbed_D) {
+                                                                                        Matrix<float, -1, -1, RowMajor> &randomMatrix,
+                                                                                        boost::dynamic_bitset<> &bitHD3,
+                                                                                        string distanceMetric,
+                                                                                        int k, int fhtDim,
+                                                                                        int nRotate, int kerNFeatures,
+                                                                                        int nFeatures,
+                                                                                        int iFourierEmbed_D) {
 
         int n = X.rows();
         int D = randomMatrix.cols();
 
-        Matrix<int, -1, -1, RowMajor> A = MatrixXi::Constant(n, 2*k, -1);
+        Matrix<int, -1, -1, RowMajor> A = MatrixXi::Constant(n, 2 * k, -1);
         Matrix<float, -1, -1, RowMajor> matrixFHT = MatrixXf::Zero(n, D);
 
         int log2Project = log2(fhtDim);
@@ -158,14 +160,15 @@ namespace GsDBSCAN {
         for (int dataSetIdx = 0; dataSetIdx < n; ++dataSetIdx) {
             VectorXf vecX = X.row(dataSetIdx); // TODO change me to row
 
-            auto vecEmbed = handleDistanceMetric(distanceMetric, nFeatures, randomMatrix, iFourierEmbed_D, vecX, kerNFeatures);
+            auto vecEmbed = handleDistanceMetric(distanceMetric, nFeatures, randomMatrix, iFourierEmbed_D, vecX,
+                                                 kerNFeatures);
 
             VectorXf vecRotation = VectorXf::Zero(fhtDim); // NUM_PROJECT > PARAM_KERNEL_EMBED_D
             vecRotation.segment(0, kerNFeatures) = vecEmbed;
 
             for (int r = 0; r < nRotate; ++r) {
-                for (int d = 0; d < fhtDim; ++d){
-                    vecRotation(d) *= (2 * (int)bitHD3[r * fhtDim + d] - 1);
+                for (int d = 0; d < fhtDim; ++d) {
+                    vecRotation(d) *= (2 * (int) bitHD3[r * fhtDim + d] - 1);
                 }
                 fht_float(vecRotation.data(), log2Project);
             }
@@ -223,10 +226,10 @@ namespace GsDBSCAN {
             }
 
             for (int pqIdx = m - 1; pqIdx >= 0; pqIdx--) {
-                B(2*projIdx, pqIdx) = randomToDataClosePQ.top().m_iIndex; // Closest data vecs to random vecs
+                B(2 * projIdx, pqIdx) = randomToDataClosePQ.top().m_iIndex; // Closest data vecs to random vecs
                 randomToDataClosePQ.pop();
 
-                B(2*projIdx + 1, pqIdx) = randomToDataFarPQ.top().m_iIndex; // Furthest data vecs to random vecs
+                B(2 * projIdx + 1, pqIdx) = randomToDataFarPQ.top().m_iIndex; // Furthest data vecs to random vecs
                 randomToDataFarPQ.pop();
             }
         }
@@ -253,9 +256,10 @@ namespace GsDBSCAN {
      * @return af::array matrix for the random projections
      */
     inline std::tuple<MatrixXi, MatrixXi> constructABMatricesEigen(MatrixXf &X, boost::dynamic_bitset<> bitHD3,
-                                      int D, int k, int m,
-                                      string distanceMetric, float sigma, int seed, int fhtDim,
-                                      int nRotate, int kerNFeatures, int nFeatures) {
+                                                                   int D, int k, int m,
+                                                                   string distanceMetric, float sigma, int seed,
+                                                                   int fhtDim,
+                                                                   int nRotate, int kerNFeatures, int nFeatures) {
         int n = X.rows();
         int d = X.cols();
 
@@ -272,7 +276,8 @@ namespace GsDBSCAN {
 
         bitHD3Generator(fhtDim * nRotate, bitHD3, seed);
 
-        auto [A, matrixFHT] = constructAMatrixEigen(X, randomMatrix, bitHD3, distanceMetric, k, fhtDim, nRotate, kerNFeatures, nFeatures, iFourierEmbed_D);
+        auto [A, matrixFHT] = constructAMatrixEigen(X, randomMatrix, bitHD3, distanceMetric, k, fhtDim, nRotate,
+                                                    kerNFeatures, nFeatures, iFourierEmbed_D);
 
         auto B = constructBMatrixEigen(m, D, n, matrixFHT);
 
@@ -297,21 +302,21 @@ namespace GsDBSCAN {
         af::array A(n, 2 * k);
         af::array B(2 * D, m);
 
-        af::array dataToRandomIdxSorted = af::constant(-1, projections.dims(), af::dtype::u16);
-        af::array randomToDataIdxSorted = af::constant(-1, projections.dims(), af::dtype::u16);
-        af::array sortedValsTemp;
+        af::array sortedValsTemp, dataToRandomIdxSorted;
 
-        af::sort(sortedValsTemp, sortedValsTemp, projections, 1);
+        af::sort(sortedValsTemp, dataToRandomIdxSorted, projections, 1); // Sort across the rows
 
         A(af::span, af::seq(0, k - 1)) = 2 * dataToRandomIdxSorted(af::span, af::seq(0, k - 1));
-        A(af::span, af::seq(k, af::end)) =
-                2 * dataToRandomIdxSorted(af::span, af::seq(dataToRandomIdxSorted.dims(0) - k, af::end));
+        A(af::span, af::seq(k, af::end)) = 2 * dataToRandomIdxSorted(af::span, af::seq(D - k, af::end)) + 1;
 
-        af::array BEvenIdx = af::seq(0, 2 * D - 1, 2);
-        af::array BOddIdx = BEvenIdx + 1;
+        af::seq BEvenIdx = af::seq(0, 2 * D - 1, 2); // Down the rows
+        af::seq BOddIdx = af::seq(1, 2 * D - 1, 2);
 
-        B(BEvenIdx, af::span) = randomToDataIdxSorted(af::seq(0, m - 1), af::span);
-        B(BOddIdx, af::span) = randomToDataIdxSorted(af::seq(randomToDataIdxSorted.dims(0) - m, af::end), af::span);
+        af::array sortedValsTemp2, randomToDataIdxSorted;
+        af::sort(sortedValsTemp2, randomToDataIdxSorted, projections, 0); // Sort down the cols
+
+        B(BEvenIdx, af::span) = af::transpose(randomToDataIdxSorted(af::seq(0, m - 1), af::span));
+        B(BOddIdx, af::span) = af::transpose(randomToDataIdxSorted(af::seq(n - m, af::end), af::span));
 
         return std::make_tuple(A, B);
     }
