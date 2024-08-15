@@ -201,6 +201,22 @@ namespace GsDBSCAN {
         T *matxTensor_d = tensor.Data();
         return copyDeviceToHost(matxTensor_d, numElements, stream);
     }
+
+    template <typename T>
+    inline T* allocateCudaArray(int length){
+        T *array;
+        size_t size = sizeof(T) * length;
+
+        cudaError_t err;
+        err = cudaMemset(&array, 0, size); // Zero out the memory O(n)
+
+        if (err != cudaSuccess) {
+            std::cerr << "Error allocating memory for array: " << cudaGetErrorString(err) << std::endl;
+            return nullptr;
+        }
+
+        return array;
+    }
 }
 
 #endif //SDBSCAN_UTILS_H
