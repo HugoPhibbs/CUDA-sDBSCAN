@@ -74,7 +74,7 @@ namespace testUtils {
     af::array createMockDistances(int n, int D) {
         af::array distances = af::randu(n, D, f32);
 
-        distances = distances.as(f16);
+//        distances = distances.as(f16); // sort doesn't work with f16
 
         return distances;
     }
