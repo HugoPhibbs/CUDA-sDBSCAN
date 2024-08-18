@@ -41,7 +41,7 @@ TEST_F(TestConstructingABMatrices, TestMediumInputAF) {
 
     af::array A, B;
 
-    std::tie(A, B) = GsDBSCAN::projections::constructABMatrices(projections, k, m);
+    std::tie(A, B) = GsDBSCAN::projections::constructABMatricesAF(projections, k, m);
 
     ASSERT_TRUE(A.dims(0) == n && A.dims(1) == k);
     ASSERT_TRUE(B.dims(0) == n && B.dims(1) == m);
@@ -121,7 +121,7 @@ TEST_F(TestConstructingABMatrices, TestSmallInputAF) {
 
     // Yes I did the above manually
 
-    auto [A, B] = GsDBSCAN::projections::constructABMatrices(distancesAF, 2, 2);
+    auto [A, B] = GsDBSCAN::projections::constructABMatricesAF(distancesAF, 2, 2);
 
     auto A_array_d = A.device<float>();
     auto B_array_d = B.device<float>();
@@ -149,7 +149,7 @@ TEST_F(TestConstructingABMatrices, TestLargeInputAF) {
 
     // TODO figure out how to use sort_index
 
-    auto [A, B] = GsDBSCAN::projections::constructABMatrices(distances, k, m);
+    auto [A, B] = GsDBSCAN::projections::constructABMatricesAF(distances, k, m);
     A.eval();
     B.eval();
 
