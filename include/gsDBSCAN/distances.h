@@ -152,6 +152,8 @@ namespace GsDBSCAN {
                     (matx::slice(distances_t, {i, 0}, {maxBatchIdx, matx::matxEnd}) = YBatch_t_norm_op).run(); // TODO: TBH I don't know the type of YBatch_norm_op, so I'm repeating the call like a noob
                 } else if (distanceMetric == "COSINE") {
                     // TODO implement me! - can be a smart way to do this with pre processing of dot products
+                } else {
+                    throw std::runtime_error("Unknown distanceMetric: " + distanceMetric);
                 }
             }
 
