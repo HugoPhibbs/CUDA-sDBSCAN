@@ -133,7 +133,7 @@ namespace GsDBSCAN {
         }
 
         template<typename afType, typename matXType>
-        inline static matx::tensor_t<matXType, (int) 2> afArrayToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
+        inline static matx::tensor_t<matXType, (int) 2> afMatToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
             auto *afColMajorArray = afArray.device<afType>(); // In col major
 
             int rows = afArray.dims()[0];
