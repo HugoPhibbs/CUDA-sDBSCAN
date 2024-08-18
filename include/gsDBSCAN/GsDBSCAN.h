@@ -8,18 +8,17 @@
 #include "../Header.h"
 #include "../Utilities.h"
 #include <arrayfire.h>
-#include "../../../../../../usr/local/cuda-12.5/targets/x86_64-linux/include/cuda_runtime.h"
+#include "cuda_runtime.h"
 #include <af/cuda.h>
 #include <arrayfire.h>
 #include <matx.h>
 #include <Eigen/Dense>
+#include <tuple>
 
 #include "projections.h"
 #include "distances.h"
 #include "utils.h"
 #include "clustering.h"
-#include <tuple>
-
 
 namespace GsDBSCAN {
 
@@ -42,19 +41,6 @@ namespace GsDBSCAN {
     *  An integer array of size n containing the type labels for each point in the X dataset - e.g. Noise, Core, Border // TODO decide on how this will work?
     */
     inline std::tuple<int*, int*>  performGsDbscan(float *X, int n, int d, int D, float minPts, int k, int m, float eps, float alpha, std::string distanceMetric) {
-        // Something something ...
-
-        /*
-         * Steps:
-         *
-         * 1. Preprocessing - Perform random projections and create A and B matrices
-         * 2. Find distances between query vectors and their candidate vectors
-         * 3. Use vectors to create E and V vectors
-         * 4. Create the adjacency list
-         * 5. Finally, create the cluster graph - can use Ninh's pre-existing clustering method
-         *
-         *
-         */
         auto X_col_major = utils::colMajorToRowMajorMat(X, n, d);
         auto X_af = af::array(n, d, X_col_major);
         auto projections = projections::performProjections(X_af, D);
@@ -63,12 +49,15 @@ namespace GsDBSCAN {
 
         auto A_t = utils::afMatToMatXTensor<int, int>(A_af, matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
         auto B_t = utils::afMatToMatXTensor<int, int>(B_af, matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
-        auto X_t = utils::afMatToMatXTensor<int, int>(X_af, matx::MATX_DEVICE_MEMORY);
+        auto X_t = utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
 
-        auto distances = distances::findDistancesMatX(X_t, A_t, B_t, alpha, -1, distanceMetric,matx::MATX_DEVICE_MEMORY);
-        auto degArray_t = clustering::constructQueryVectorDegreeArrayMatx<float>(distances, eps);
+        matx::tensor_t<float, 2> distances = distances::findDistancesMatX(X_t, A_t, B_t, alpha, -1, distanceMetric, matx::MATX_DEVICE_MEMORY);
+        int* degArray_d = clustering::constructQueryVectorDegreeArrayMatx(distances, eps);
+        int* startIdxArray_d = clustering::processQueryVectorDegreeArrayThrust(degArray_d, n);
 
+        auto [adjacencyList_d, adjacencyList_size] = clustering::constructAdjacencyList(distances.Data(), degArray_d, startIdxArray_d, A_t.Data(), B_t.Data(), n, k, m, eps);
 
+        return clustering::formClusters(adjacencyList_d, startIdxArray_d, degArray_d, n, minPts);
     }
 
 };

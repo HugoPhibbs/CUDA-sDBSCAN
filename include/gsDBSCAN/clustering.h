@@ -12,9 +12,13 @@
 #include <tuple>
 #include <unordered_set>
 #include <boost/dynamic_bitset.hpp>
+#include <execution>
 #include "utils.h"
 #include "../Header.h"
 #include <thrust/device_vector.h>
+#include <thrust/functional.h>
+#include <thrust/execution_policy.h>
+#include <thrust/scan.h>
 #include <cub/cub.cuh>
 #include <cuda/std/atomic>
 #include "utils.h"
@@ -23,38 +27,44 @@
 namespace GsDBSCAN {
     namespace clustering {
 
-    /**
-     * Calculates the degree of the query vectors as per the G-DBSCAN algorithm.
-     *
-     * Does this using MatX
-     *
-     * This function is used in the construction of the cluster graph by determining how many
-     *
-     * Put into its own method for testability
-     *
-     * @param distances The matrix containing the distances between the query and candidate vectors.
-     *                  Expected shape is (datasetSize, 2*k*m).
-     * @param eps       The epsilon value for DBSCAN. Should be a scalar array of the same data type
-     *                  as the distances array.
-     *
-     * @return Pointer to the degree array. Since this is intended to be how this is used for later steps
-     */
-        template <typename T>
-        T* constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps) {
+        /**
+         * Calculates the degree of the query vectors as per the G-DBSCAN algorithm.
+         *
+         * Does this using MatX
+         *
+         * This function is used in the construction of the cluster graph by determining how many
+         *
+         * Put into its own method for testability
+         *
+         * @param distances The matrix containing the distances between the query and candidate vectors.
+         *                  Expected shape is (datasetSize, 2*k*m).
+         * @param eps       The epsilon value for DBSCAN. Should be a scalar array of the same data type
+         *                  as the distances array.
+         *
+         * @return Pointer to the degree array. Since this is intended to be how this is used for later steps
+         */
+        template<typename T>
+        int *constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps) {
             auto lt = distances < eps;
-            auto lt_f = matx::as_type<float>(lt);
+            auto lt_f = matx::as_type<int>(lt);
             // TODO raise a GH as to why i need to cast first, should be able to sum over the bools
-            auto res = matx::make_tensor<T, 2>();
-            (res =  matx::sum(lt_f, {0})).run();
+            auto res = matx::make_tensor<int>({1, distances.Shape()[1]});
+            (res = matx::sum(lt_f, {0})).run();
             return res.Data();
         }
 
-        template <typename T>
-        T* processQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &E) {
+        template<typename T>
+        T *processQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &E) {
             // MatX's cumsum works along the rows.
             auto res = matx::make_tensor<T, 2>(); // TODO use thrust here!
             (res = matx::cumsum(E) - E).run();
             return res.Data();
+        }
+
+        int *processQueryVectorDegreeArrayThrust(int *degArray_d, int n) {
+            int *startIdxArray_d = utils::allocateCudaArray<int>(n);
+            thrust::exclusive_scan(degArray_d, degArray_d + n, startIdxArray_d);
+            return startIdxArray_d;
         }
 
         /**
@@ -184,8 +194,10 @@ namespace GsDBSCAN {
          * @param eps epsilon DBSCAN density param
          */
         __global__ void
-        inline constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps, int n,
-                                                    int k, int m) {
+        inline
+        constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps,
+                                             int n,
+                                             int k, int m) {
             int idx = blockIdx.x * blockDim.x + threadIdx.x;
             if (idx >= n)
                 return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
@@ -222,8 +234,10 @@ namespace GsDBSCAN {
          * @param eps epsilon DBSCAN density param
          * @param blockSize size of each block when calculating the adjacency list - essentially the amount of query vectors to process per block
          */
-        inline af::array assembleAdjacencyList(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B, float eps,
-                                               int blockSize) {
+        inline af::array
+        constructAdjacencyListAF(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B,
+                                 float eps,
+                                 int blockSize) {
             /*
              * Check this issue:
              *
@@ -261,7 +275,8 @@ namespace GsDBSCAN {
             // Now we can call the kernel
             int numBlocks = std::max(1, n / blockSize);
             blockSize = std::min(n, blockSize);
-            constructAdjacencyListForQueryVector<<<numBlocks, blockSize, 0, afCudaStream>>>(distances_d, adjacencyList_d, V_d,
+            constructAdjacencyListForQueryVector<<<numBlocks, blockSize, 0, afCudaStream>>>(distances_d,
+                                                                                            adjacencyList_d, V_d,
                                                                                             A_d, B_d, eps, n, k, m);
 
             // Unlock all the af arrays
@@ -275,9 +290,27 @@ namespace GsDBSCAN {
             return adjacencyList;
         }
 
+        inline std::tuple<int *, int>
+        constructAdjacencyList(float *distances_d, int *degArray, int *startIdxArray, int *A_d, int *B_d, int n, int k,
+                               int m, float eps, int blockSize = 256) {
+            int adjacencyList_size = degArray[n - 1] + startIdxArray[n - 1];
+
+            int *adjacencyList_d = utils::allocateCudaArray<int>(adjacencyList_size);
+
+
+            int numBlocks = std::max(1, n / blockSize);
+            blockSize = std::min(n, blockSize);
+            constructAdjacencyListForQueryVector<<<numBlocks, blockSize, 0>>>(distances_d,
+                                                                              adjacencyList_d, startIdxArray,
+                                                                              A_d, B_d, eps, n, k, m);
+
+            return std::tie(adjacencyList_d, adjacencyList_size);
+        }
+
         // TODO verify that the functions below are ok!
 
-        __global__ void breadthFirstSearchKernel(int *adjacencyList, int* startIdxArray, bool* visited, bool* border, int n) {
+        __global__ void
+        breadthFirstSearchKernel(int *adjacencyList, int *startIdxArray, bool *visited, bool *border, int n) {
             int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
             if (tid >= n) {
@@ -300,7 +333,10 @@ namespace GsDBSCAN {
             }
         }
 
-        inline void breadthFirstSearch(int *adjacencyList_d, int* startIdxArray_d, int* degArray_h, bool* visited, int* clusterLabels, const size_t n, int seedVertexIdx, int thisClusterLabel, int minPts, int blockSize = 256) {
+        inline void breadthFirstSearch(int *adjacencyList_d, int *startIdxArray_d, int *degArray_h, bool *visited,
+                                       int *clusterLabels, int *typeLabels, const size_t n, int seedVertexIdx,
+                                       int thisClusterLabel,
+                                       int minPts, int blockSize = 256) {
             auto visitedThisBfs_d = utils::allocateCudaArray<bool>(n);
             auto borderThisBfs_d = utils::allocateCudaArray<bool>(n);
 
@@ -311,7 +347,8 @@ namespace GsDBSCAN {
             int gridSize = (n + blockSize - 1) / blockSize;
 
             while (countVisitedThisBfs > 0) {
-                breadthFirstSearchKernel<<<gridSize, blockSize>>>(adjacencyList_d, startIdxArray_d, visitedThisBfs_d, borderThisBfs_d, n);
+                breadthFirstSearchKernel<<<gridSize, blockSize>>>(adjacencyList_d, startIdxArray_d, visitedThisBfs_d,
+                                                                  borderThisBfs_d, n);
                 cudaDeviceSynchronize();
                 auto thrust_ptr = thrust::device_pointer_cast(visitedThisBfs_d);
                 countVisitedThisBfs = thrust::reduce(thrust_ptr, thrust_ptr + n, 0);
@@ -324,16 +361,21 @@ namespace GsDBSCAN {
                 if (visited_h[i]) {
                     clusterLabels[i] = thisClusterLabel;
                     visited[i] = 1;
-                    if (degArray_h[i] < minPts) {
-                        // Assign as border point
+                    if (degArray_h[i] >= minPts) {
+                        typeLabels[i] = 1; // Core pt
+                    } else if (degArray_h[i] < minPts) {
+                        typeLabels[i] = 0; // Border pt
                     }
                 }
             }
         }
 
 
-        inline std::vector<int> formClusters(int* adjacencyList_d, int n, int* startIdxArray_d, int* degArray_d, int minPts) {
+        inline std::tuple<int *, int *>
+        formClusters(int *adjacencyList_d, int *startIdxArray_d, const int *degArray_d, int n, int minPts) {
             int *clusterLabels = new int[n];
+            int *typeLabels = new int[n];
+            std::fill(std::execution::par, typeLabels, typeLabels + n, -1); // TODO change to parallel
             bool *visited = new bool[n];
 
             auto degArray_h = utils::copyDeviceToHost(degArray_d, n);
@@ -344,22 +386,12 @@ namespace GsDBSCAN {
                 if ((!visited[i]) && (degArray_h[i] >= minPts)) {
                     visited[i] = true;
                     clusterLabels[i] = currCluster;
-                    breadthFirstSearch(adjacencyList_d, startIdxArray_d, degArray_h, visited, clusterLabels, n, i, currCluster, minPts);
+                    breadthFirstSearch(adjacencyList_d, startIdxArray_d, degArray_h, visited, clusterLabels, n, i,
+                                       currCluster, minPts);
                     currCluster += 1;
                 }
             }
-        }
-
-        /**
-         * Performs the actual clustering step of the algorithm
-         *
-         * I.e. returns the formed clusters based on the inputted adjacency list
-         *
-         * @param adjacencyList af array adjacency list for each of the dataset vectors as per the GsDBSCAN algorithm
-         * @param V af array containing the starting index of each of the dataset vectors within the adjacency list
-         */
-        inline void performClustering(af::array &adjacencyList, af::array &V) {
-            // TODO implement me!
+            return std::tie<clusterLabels, typeLabels>;
         }
     }
 }
