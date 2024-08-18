@@ -22,7 +22,8 @@
 
 namespace GsDBSCAN {
     namespace clustering {
-        /**
+
+    /**
      * Calculates the degree of the query vectors as per the G-DBSCAN algorithm.
      *
      * Does this using MatX
@@ -36,22 +37,25 @@ namespace GsDBSCAN {
      * @param eps       The epsilon value for DBSCAN. Should be a scalar array of the same data type
      *                  as the distances array.
      *
-     * @return The degree array of the query vectors, with shape (datasetSize, 1).
+     * @return Pointer to the degree array. Since this is intended to be how this is used for later steps
      */
         template <typename T>
-        auto constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps) {
+        T* constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps) {
             auto lt = distances < eps;
             auto lt_f = matx::as_type<float>(lt);
             // TODO raise a GH as to why i need to cast first, should be able to sum over the bools
-            return matx::sum(lt_f, {0});
+            auto res = matx::make_tensor<T, 2>();
+            (res =  matx::sum(lt_f, {0})).run();
+            return res.Data();
         }
 
         template <typename T>
-        auto processQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &E) {
+        T* processQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &E) {
             // MatX's cumsum works along the rows.
-            return matx::cumsum(E) - E;
+            auto res = matx::make_tensor<T, 2>(); // TODO use thrust here!
+            (res = matx::cumsum(E) - E).run();
+            return res.Data();
         }
-
 
         /**
          * Calculates the degree of the query vectors as per the G-DBSCAN algorithm.
@@ -174,8 +178,8 @@ namespace GsDBSCAN {
          * @param distances matrix containing the distances between each query vector and it's candidate vectors
          * @param adjacencyList
          * @param V vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
-         * @param A A matrix, see constructABMatrices. Stored flat as a float array
-         * @param B B matrix, see constructABMatrices. Stored flat as a float array
+         * @param A A matrix, see constructABMatricesAF. Stored flat as a float array
+         * @param B B matrix, see constructABMatricesAF. Stored flat as a float array
          * @param n number of query vectors in the dataset
          * @param eps epsilon DBSCAN density param
          */
@@ -213,8 +217,8 @@ namespace GsDBSCAN {
          * @param distances matrix containing the distances between each query vector and it's candidate vectors
          * @param E vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
          * @param V vector containing the starting index of each query vector in the resultant adjacency list (See the G-DBSCAN algorithm)
-         * @param A A matrix, see constructABMatrices
-         * @param B B matrix, see constructABMatrices
+         * @param A A matrix, see constructABMatricesAF
+         * @param B B matrix, see constructABMatricesAF
          * @param eps epsilon DBSCAN density param
          * @param blockSize size of each block when calculating the adjacency list - essentially the amount of query vectors to process per block
          */

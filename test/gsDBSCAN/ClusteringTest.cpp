@@ -77,11 +77,11 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
             15, 2, 6, 7
     };
 
-    auto distancesData_d = GsDBSCAN::hostToManagedArray(distancesData, 16);
+    auto distancesData_d = GsDBSCAN::utils::hostToManagedArray(distancesData, 16);
 
-    auto distances_t = matx::make_tensor<float>(distancesData_d, {4, 4});
+    matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4});
 
-    auto E = GsDBSCAN::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1);
+    float* E = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx(distances_t, 2.1); // TODO fix me!
 
     cudaDeviceSynchronize();
 
@@ -113,7 +113,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInput) {
 
     float eps = 2.1;
 
-    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
+    af::array E = GsDBSCAN::clustering::constructQueryVectorDegreeArray(distances, eps);
 
     float expectedData[] = {3, 4, 1, 1};
 
@@ -129,7 +129,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestMnist) {
 
     tu::Time start = tu::timeNow();
 
-    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
+    af::array E = GsDBSCAN::clustering::constructQueryVectorDegreeArray(distances, eps);
 
     E.eval();
     af::sync();
@@ -150,7 +150,7 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputMatX) {
 
     print(E);
 
-    auto V = GsDBSCAN::clustering::processQueryVectorDegreeArrayMatx<float>(E);
+    auto V = GsDBSCAN::clustering::processQueryVectorDegreeArrayMatx<float>(E); // TODO, don't know why IDE is complaining here
 
     cudaDeviceSynchronize();
 
