@@ -87,7 +87,7 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
 
     ASSERT_TRUE(expected.dims(0) == 5 && expected.dims(1) == 6); // Checking gtest is sane
 
-    af::array distances = GsDBSCAN::distances::findDistances(X, A, B);
+    af::array distances = GsDBSCAN::distances::findDistancesL2AF(X, A, B);
 
     af::print("distances", af::pow(distances, 2));
 
@@ -355,7 +355,7 @@ TEST_F(TestFindingDistances, TestLargeInput) {
 
     tu::Time start = tu::timeNow();
 
-    af::array distances = GsDBSCAN::distances::findDistances(X, A, B);
+    af::array distances = GsDBSCAN::distances::findDistancesL2AF(X, A, B);
 
     tu::printDurationSinceStart(start);
 }
