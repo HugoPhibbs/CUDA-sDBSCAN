@@ -294,7 +294,7 @@ namespace GsDBSCAN {
          * @param k k parameter as per the DBSCAN algorithm
          * @param m m parameter as per the DBSCAN algorithm
          */
-        inline std::tuple<af::array, af::array> constructABMatrices(const af::array &projections, int k, int m) {
+        inline std::tuple<af::array, af::array> constructABMatricesAF(const af::array &projections, int k, int m) {
             // Assume projections has shape (n, D)
             int n = projections.dims(0);
             int D = projections.dims(1);
@@ -319,6 +319,12 @@ namespace GsDBSCAN {
             B(BOddIdx, af::span) = af::transpose(randomToDataIdxSorted(af::seq(n - m, af::end), af::span));
 
             return std::make_tuple(A, B);
+        }
+
+        inline af::array performProjections(af::array X, int D) {
+            int d = X.dims(1);
+            auto Y = af::randn(d, D);
+            return af::matmul(X, Y);
         }
     }
 }
