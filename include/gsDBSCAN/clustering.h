@@ -73,7 +73,8 @@ namespace GsDBSCAN {
             int *startIdxArray_d = utils::allocateCudaArray<int>(n);
             thrust::device_ptr<int> startIdxArray_thrust(startIdxArray_d);
             thrust::device_ptr<int> degArray_thrust(degArray_d);
-            thrust::exclusive_scan(degArray_thrust, degArray_thrust + n, startIdxArray_thrust); // Somehow this still runs anyhow?
+            thrust::exclusive_scan(degArray_thrust, degArray_thrust + n,
+                                   startIdxArray_thrust); // Somehow this still runs anyhow?
             return startIdxArray_d;
         }
 
@@ -320,7 +321,8 @@ namespace GsDBSCAN {
         // TODO verify that the functions below are ok!
 
         __global__ void
-        inline breadthFirstSearchKernel(int *adjacencyList_d, int *startIdxArray_d, int *visited_d, int *border_d, int n) {
+        inline
+        breadthFirstSearchKernel(int *adjacencyList_d, int *startIdxArray_d, int *visited_d, int *border_d, int n) {
             int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
             if (tid >= n) {
@@ -346,11 +348,15 @@ namespace GsDBSCAN {
         inline void breadthFirstSearch(int *adjacencyList_d, int *startIdxArray_d, int *degArray_h, int *visited,
                                        int *clusterLabels, int *typeLabels, size_t n, int seedVertexIdx,
                                        int thisClusterLabel,
-                                       int minPts, int blockSize = 256) {
+                                       int minPts, int blockSize) {
             // NB: Fa is Border from GsDBSCAN paper, Xa is Visited,
-            int* visitedThisBfs_d = utils::allocateCudaArray<int>(n, true); // Managed memory allows to set values from the CPU, and still be used in the GPU
-            int* borderThisBfs_d = utils::allocateCudaArray<int>(n, true);
+            int *borderThisBfs_d = utils::allocateCudaArray<int>(n, true);
 
+            int *visitedThisBfs_d = utils::allocateCudaArray<int>(n,
+                                                                  true); // Managed memory allows to set values from the CPU, and still be used in the GPU
+
+            cudaMemset(borderThisBfs_d, 0, n * sizeof(int));
+            cudaMemset(visitedThisBfs_d, 0, n * sizeof(int));
             borderThisBfs_d[seedVertexIdx] = 1;
 
             int countBordersThisBfs = 1;
@@ -365,8 +371,6 @@ namespace GsDBSCAN {
                 thrust::device_ptr<int> borderThisBfs_thrust(borderThisBfs_d);
                 countBordersThisBfs = thrust::reduce(borderThisBfs_thrust, borderThisBfs_thrust + n, 0);
             }
-
-//            auto visited_h = utils::copyDeviceToHost(visitedThisBfs_d, n);
 
             #pragma omp parallel for
             for (int i = 0; i < n; i++) {
@@ -384,11 +388,13 @@ namespace GsDBSCAN {
 
 
         inline std::tuple<int *, int *>
-        formClusters(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int minPts) {
+        formClusters(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int minPts,
+                     int blockSize = 256) {
             int *clusterLabels = new int[n];
             int *typeLabels = new int[n];
 //            std::fill(std::execution::par, typeLabels, typeLabels + n, -1); // TODO change to parallel, perhaps could use managed memory for the arrays?
-            std::fill(clusterLabels, clusterLabels + n, -1); // Less than 100us for n=70000, so practically negligible in grander scheme
+            std::fill(clusterLabels, clusterLabels + n,
+                      -1); // Less than 300us for n=70000, so practically negligible in grander scheme
             std::fill(typeLabels, typeLabels + n, -1);
             int *visited = new int[n];
 
@@ -400,8 +406,8 @@ namespace GsDBSCAN {
                 if ((!visited[i]) && (degArray_h[i] >= minPts)) {
                     visited[i] = 1;
                     clusterLabels[i] = currCluster;
-                    breadthFirstSearch(adjacencyList_d, startIdxArray_d, degArray_h, visited, clusterLabels, typeLabels, n, i,
-                                       currCluster, minPts);
+                    breadthFirstSearch(adjacencyList_d, startIdxArray_d, degArray_h, visited, clusterLabels, typeLabels,
+                                       n, i, currCluster, minPts, blockSize);
                     currCluster += 1;
                 }
             }
