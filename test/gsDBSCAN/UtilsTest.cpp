@@ -34,7 +34,7 @@ protected:
     template <typename T>
     T* afArrayToHostArray(af::array afArray) {
         T* deviceArray = afArray.device<float>();
-        return GsDBSCAN::copyDeviceToHost(deviceArray, afArray.elements(), GsDBSCAN::getAfCudaStream());
+        return GsDBSCAN::utils::copyDeviceToHost(deviceArray, afArray.elements(), GsDBSCAN::utils::getAfCudaStream());
     }
 };
 
@@ -52,7 +52,7 @@ TEST_F(TestColToRowMajorArrayConversion, TestSmallInput) {
     cudaMalloc(&d_colMajorArray, numRows * numCols * sizeof(float));
     cudaMemcpy(d_colMajorArray, h_colMajorArray, numRows * numCols * sizeof(float), cudaMemcpyHostToDevice);
 
-    float *d_rowMajorArray = GsDBSCAN::colMajorToRowMajorMat(d_colMajorArray, numRows, numCols);
+    float *d_rowMajorArray = GsDBSCAN::utils::colMajorToRowMajorMat(d_colMajorArray, numRows, numCols);
 
     float h_rowMajorArray[numRows * numCols];
     cudaMemcpy(h_rowMajorArray, d_rowMajorArray, numRows * numCols * sizeof(float), cudaMemcpyDeviceToHost);
@@ -70,7 +70,7 @@ TEST_F(TestColToRowMajorArrayConversion, TestLargeInput) {
     auto afArray = af::randu(n, d, f32);
     afArray.eval();
 
-    auto afCudaStream = GsDBSCAN::getAfCudaStream();
+    auto afCudaStream = GsDBSCAN::utils::getAfCudaStream();
 
     float *colMajorMat_d = afArray.device<float>();
 
@@ -78,15 +78,15 @@ TEST_F(TestColToRowMajorArrayConversion, TestLargeInput) {
 
     auto start = tu::timeNow();
 
-    float *rowMajorMat_d = GsDBSCAN::colMajorToRowMajorMat(colMajorMat_d, n, d, afCudaStream);
+    float *rowMajorMat_d = GsDBSCAN::utils::colMajorToRowMajorMat(colMajorMat_d, n, d, afCudaStream);
 
     tu::printDurationSinceStart(start);
 
     // Now copy back to the host and compare the two arrays
 
-    auto rowMajorMat_h = GsDBSCAN::copyDeviceToHost(rowMajorMat_d, n * d, afCudaStream);
+    auto rowMajorMat_h = GsDBSCAN::utils::copyDeviceToHost(rowMajorMat_d, n * d, afCudaStream);
 
-    auto colMajorMat_h = GsDBSCAN::copyDeviceToHost(colMajorMat_d, n * d, afCudaStream);
+    auto colMajorMat_h = GsDBSCAN::utils::copyDeviceToHost(colMajorMat_d, n * d, afCudaStream);
 
     assertColRowMajorMatsEqual(colMajorMat_h, rowMajorMat_h, n, d);
 
@@ -113,13 +113,13 @@ TEST_F(TestArrayFireToMatXConversion, TestSmallInput) {
 
     af::array afArray(numRows, numCols, h_colMajorArray);
 
-    auto matXTensor = GsDBSCAN::afArrayToMatXTensor<float, float>(afArray);
+    auto matXTensor = GsDBSCAN::utils::afMatToMatXTensor<float, float>(afArray);
 
     float *matxTensor_d = matXTensor.Data();
     float *afArray_d = afArray.device<float>();
 
-    auto *matxTensor_h = GsDBSCAN::copyDeviceToHost(matxTensor_d, numRows*numCols, GsDBSCAN::getAfCudaStream());
-    float *afArray_h = GsDBSCAN::copyDeviceToHost(afArray_d, numRows*numCols, GsDBSCAN::getAfCudaStream());
+    auto *matxTensor_h = GsDBSCAN::utils::copyDeviceToHost(matxTensor_d, numRows*numCols, GsDBSCAN::utils::getAfCudaStream());
+    float *afArray_h = GsDBSCAN::utils::copyDeviceToHost(afArray_d, numRows*numCols, GsDBSCAN::utils::getAfCudaStream());
 
     assertColRowMajorMatsEqual(afArray_h, matxTensor_h, numRows, numCols);
 
@@ -136,15 +136,15 @@ TEST_F(TestArrayFireToMatXConversion, TestLargeInput) {
 
     auto start = tu::timeNow();
 
-    auto matXTensor = GsDBSCAN::afArrayToMatXTensor<float, float>(afArray);
+    auto matXTensor = GsDBSCAN::utils::afMatToMatXTensor<float, float>(afArray);
 
     tu::printDurationSinceStart(start);
 
     float *matxTensor_d = matXTensor.Data();
     float *afArray_d = afArray.device<float>();
 
-    auto *matxTensor_h = GsDBSCAN::copyDeviceToHost(matxTensor_d, n*d, GsDBSCAN::getAfCudaStream());
-    float *afArray_h = GsDBSCAN::copyDeviceToHost(afArray_d, n*d, GsDBSCAN::getAfCudaStream());
+    auto *matxTensor_h = GsDBSCAN::utils::copyDeviceToHost(matxTensor_d, n*d, GsDBSCAN::utils::getAfCudaStream());
+    float *afArray_h = GsDBSCAN::utils::copyDeviceToHost(afArray_d, n*d, GsDBSCAN::utils::getAfCudaStream());
 
     assertColRowMajorMatsEqual(afArray_h, matxTensor_h, n, d);
 
@@ -153,70 +153,10 @@ TEST_F(TestArrayFireToMatXConversion, TestLargeInput) {
     afArray.unlock();
 }
 
-
-class TestEigenToMatXConversion : public UtilsTest {
+class TestReadMnist : public UtilsTest {
 
 };
 
-TEST_F(TestEigenToMatXConversion, TestSmallInput) {
-    Eigen::Matrix<Eigen::half, Eigen::Dynamic, Eigen::Dynamic, RowMajor> halfEigenMat(2, 2);
-
-    halfEigenMat(0, 0) = Eigen::half(1.0);
-    halfEigenMat(0, 1) = Eigen::half(2.0);
-    halfEigenMat(1, 0) = Eigen::half(3.0);
-    halfEigenMat(1, 1) = Eigen::half(4.0);
-
-    auto matXTensor = GsDBSCAN::eigenMatToMatXTensor<Eigen::half, matx::matxFp16>(halfEigenMat,
-                                                                                  matx::MATX_MANAGED_MEMORY);
-    cudaDeviceSynchronize();
-
-    matx::matxFp16 *matXData = matXTensor.Data();
-    Eigen::half *halfEigenData = halfEigenMat.data();
-
-    for (int i = 0; i < 4; i++) {
-        ASSERT_NEAR(halfEigenData[i], matXData[i], 1e-6);
-    }
-}
-
-TEST_F(TestEigenToMatXConversion, TestABInput) {
-    int n = 70000;
-    int D = 1024;
-    int k = 5;
-    int m = 50;
-
-    Matrix<int, -1, -1, RowMajor> AMat = (Eigen::MatrixXd::Random(n, 2 * k) * (2 * (D - 1))).cast<int>();
-    Matrix<int, -1, -1, RowMajor> BMat = (Eigen::MatrixXd::Random(2 * D, m) * (n - 1)).cast<int>();
-
-    auto start = tu::timeNow();
-
-    auto AMatXTensor = GsDBSCAN::eigenMatToMatXTensor<int, int>(AMat, matx::MATX_MANAGED_MEMORY);
-
-    cudaDeviceSynchronize();
-
-    tu::printDurationSinceStart(start, "Time taken for A");
-
-    start = tu::timeNow();
-
-    auto BMatXTensor = GsDBSCAN::eigenMatToMatXTensor<int, int>(BMat, matx::MATX_MANAGED_MEMORY);
-
-    cudaDeviceSynchronize();
-
-    tu::printDurationSinceStart(start, "Time taken for B");
-}
-
-TEST_F(TestEigenToMatXConversion, TestLargeInput) {
-    int n = 100000;
-    int d = 1000;
-
-    Matrix<double, -1, -1, RowMajor> mat = Eigen::MatrixXd::Random(n, d);
-
-    auto start = tu::timeNow();
-
-    auto matXTensor = GsDBSCAN::eigenMatToMatXTensor<double, double>(mat, matx::MATX_MANAGED_MEMORY);
-
-    cudaDeviceSynchronize();
-
-    tu::printDurationSinceStart(start, "Time taken to convert Eigen to MatX");
-
-    // TODO fix the above! don't really want to use double here
+TEST_F(TestReadMnist, TestNormally) {
+    GsDBSCAN::utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/mnist_images_col_major.csv", 0);
 }

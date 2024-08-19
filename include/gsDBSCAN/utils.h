@@ -10,6 +10,8 @@
 #include <arrayfire.h>
 #include <af/cuda.h>
 #include <cuda_runtime.h>
+#include <tuple>
+#include "../../include/rapidcsv.h"
 
 /*
  * This file contains util functions that don't belong in a single file
@@ -218,6 +220,13 @@ namespace GsDBSCAN {
 
             return array;
         }
+
+        template <typename T>
+        std::vector<T> loadCsvColumnToVector(const std::string& filePath, size_t columnIndex = 1) {
+            rapidcsv::Document csvDoc(filePath);
+            return csvDoc.GetColumn<T>(columnIndex);
+        }
+
     }
 }
 
