@@ -25,7 +25,7 @@ namespace GsDBSCAN {
     /**
     * Performs the gs dbscan algorithm
     *
-    * @param X array storing the dataset. Should be in ROW major order. Stored on the GPU
+    * @param X array storing the dataset. Should be in COL major order. Stored on the GPU
     * @param n number of entries in the X dataset
     * @param d dimension of the X dataset
     * @param D int for number of random vectors to generate
@@ -40,9 +40,11 @@ namespace GsDBSCAN {
     *  An integer array of size n containing the type labels for each point in the X dataset - e.g. Noise, Core, Border // TODO decide on how this will work?
     */
     inline std::tuple<int*, int*>  performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha=1.2, std::string distanceMetric="L2") {
-        auto X_col_major = utils::colMajorToRowMajorMat(X, n, d);
-        auto X_af = af::array(n, d, X_col_major);
+//        auto X_col_major = utils::colMajorToRowMajorMat(X, n, d);
+        auto X_af = af::array(n, d, X, afDevice);
         auto projections = projections::performProjections(X_af, D);
+
+        projections.eval();
 
         auto [A_af, B_af] = projections::constructABMatricesAF(projections, k, m);
 
