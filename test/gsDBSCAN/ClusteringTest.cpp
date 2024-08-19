@@ -77,7 +77,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
             15, 2, 6, 7
     };
 
-    auto distancesData_d = GsDBSCAN::utils::hostToManagedArray(distancesData, 16);
+    auto distancesData_d = GsDBSCAN::utils::copyHostToDevice(distancesData, 16, true);
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4});
 
@@ -144,7 +144,7 @@ class TestProcessQueryVectorDegreeArray : public ClusteringTest {
 TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputMatX) {
     int EData[] = {3, 4, 1, 1};
 
-    auto EData_d = GsDBSCAN::utils::hostToManagedArray(EData, 4);
+    auto EData_d = GsDBSCAN::utils::copyHostToDevice(EData, 4, true);
 
     auto V = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(EData_d, 4);
 
