@@ -26,7 +26,7 @@ namespace GsDBSCAN {
     /**
     * Performs the gs dbscan algorithm
     *
-    * @param X array storing the dataset. Should be in ROW major order.
+    * @param X array storing the dataset. Should be in ROW major order. Stored on the GPU
     * @param n number of entries in the X dataset
     * @param d dimension of the X dataset
     * @param D int for number of random vectors to generate
