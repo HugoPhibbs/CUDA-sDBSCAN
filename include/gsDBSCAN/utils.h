@@ -19,40 +19,6 @@
 
 namespace GsDBSCAN {
     namespace utils {
-        template<typename eigenType, typename matxType>
-        inline matx::tensor_t<matxType , 2> eigenMatToMatXTensor(Eigen::Matrix<eigenType, Eigen::Dynamic, Eigen::Dynamic, RowMajor> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
-            eigenType *eigenData = matEigen.data();
-            int numElements = matEigen.rows() * matEigen.cols();
-
-            matxType* deviceArray;
-            size_t size = sizeof(eigenType) * numElements;
-
-            cudaError_t err;
-
-            if (matXMemorySpace == matx::MATX_MANAGED_MEMORY) {
-                err = cudaMallocManaged(&deviceArray, size);
-            } else {
-                // Assume device memory, yes isn't all that robust, but for our use cases, should be ok.
-                err = cudaMalloc(&deviceArray, size);
-            }
-
-            if (err != cudaSuccess) {
-                std::cerr << "Error allocating memory: " << cudaGetErrorString(err) << std::endl;
-                return matx::tensor_t<matxType, 2>();  // Empty tensor
-            }
-
-            err = cudaMemcpy(deviceArray, eigenData, size, cudaMemcpyHostToDevice);
-
-            if (err != cudaSuccess) {
-                std::cerr << "Error copying data to device: " << cudaGetErrorString(err) << std::endl;
-                cudaFree(deviceArray);
-                return matx::tensor_t<matxType, 2>(); // Empty tensor
-            }
-
-            auto tensor = matx::make_tensor<matxType>(deviceArray, {matEigen.rows(), matEigen.cols()}, matXMemorySpace);
-
-            return tensor;
-        }
 
         /**
          * Gets the CUDA stream from ArrayFire
