@@ -20,7 +20,7 @@
 namespace GsDBSCAN {
     namespace utils {
         template<typename eigenType, typename matxType>
-        inline static matx::tensor_t<matxType , 2> eigenMatToMatXTensor(Eigen::Matrix<eigenType, Eigen::Dynamic, Eigen::Dynamic, RowMajor> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
+        inline matx::tensor_t<matxType , 2> eigenMatToMatXTensor(Eigen::Matrix<eigenType, Eigen::Dynamic, Eigen::Dynamic, RowMajor> &matEigen, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
             eigenType *eigenData = matEigen.data();
             int numElements = matEigen.rows() * matEigen.cols();
 
@@ -69,28 +69,33 @@ namespace GsDBSCAN {
             return afcu::getStream(cudaId);
         }
 
-
         template <typename T>
-        inline static T* hostToManagedArray(const T* hostData, size_t numElements) {
-            T* managedArray;
+        inline T* copyHostToDevice(const T* hostData, size_t numElements, bool managedMemory = false) {
+            T* deviceArray;
             size_t size = numElements * sizeof(T);
 
-            // Allocate managed memory
-            cudaError_t err = cudaMallocManaged(&managedArray, size);
+            cudaError_t err;
+
+            if (managedMemory) {
+                err = cudaMallocManaged(&deviceArray, size);
+            } else {
+                err = cudaMalloc(&deviceArray, size);
+            }
+
             if (err != cudaSuccess) {
-                std::cerr << "Error allocating managed memory: " << cudaGetErrorString(err) << std::endl;
+                std::cerr << "Error allocating memory: " << cudaGetErrorString(err) << std::endl;
                 return nullptr;
             }
 
-            // Copy data from host to managed memory
-            err = cudaMemcpy(managedArray, hostData, size, cudaMemcpyHostToDevice);
+            err = cudaMemcpy(deviceArray, hostData, size, cudaMemcpyHostToDevice);
+
             if (err != cudaSuccess) {
-                std::cerr << "Error copying data to managed memory: " << cudaGetErrorString(err) << std::endl;
-                cudaFree(managedArray);
+                std::cerr << "Error copying data to device: " << cudaGetErrorString(err) << std::endl;
+                cudaFree(deviceArray);
                 return nullptr;
             }
 
-            return managedArray;
+            return deviceArray;
         }
 
         template <typename T>
