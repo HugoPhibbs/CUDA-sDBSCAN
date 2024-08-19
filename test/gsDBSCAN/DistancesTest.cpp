@@ -250,16 +250,16 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
      * This test checks if results calculated by C++/MatX are identical to those with Python/CuPy
      */
 
-    auto AVector = tu::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/A_n1000_k3.csv");
+    auto AVector = GsDBSCAN::utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/A_n1000_k3.csv");
     int *A_h = AVector.data();
 
-    auto BVector = tu::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/B_D100_m20.csv");
+    auto BVector = GsDBSCAN::utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/B_D100_m20.csv");
     int *B_h = BVector.data();
 
-    auto XVector = tu::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/X_n1000_d20.csv");
+    auto XVector = GsDBSCAN::utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/X_n1000_d20.csv");
     float *X_h = XVector.data();
 
-    auto distancesVector = tu::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/distances_n1000_k3_m20.csv");
+    auto distancesVector = GsDBSCAN::utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/distances_n1000_k3_m20.csv");
 
     float *distances_expected_h = distancesVector.data();
 
@@ -322,7 +322,7 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
     tu::Time start = tu::timeNow();
 
-    auto distances = GsDBSCAN::distances::findDistancesMatX<float>(X, A, B, 1.2, 2000, matx::MATX_MANAGED_MEMORY);
+    auto distances = GsDBSCAN::distances::findDistancesMatX<float>(X, A, B, 1.2, 2000, (std::string &) "L2", matx::MATX_MANAGED_MEMORY);
     cudaDeviceSynchronize();
 
     cudaCheckError();
