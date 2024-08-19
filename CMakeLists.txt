@@ -5,7 +5,7 @@ project(sDbscan)
 
 set(CMAKE_CXX_STANDARD 17)
 SET(CMAKE_CUDA_ARCHITECTURES 86)
-set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.5/bin/nvcc") # Somehow CLion needs this here (smh)
+set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.6/bin/nvcc") # Somehow CLion needs this here (smh)
 #SET(CMAKE_C_COMPILER "/usr/bin/g++")
 #add_definitions(-DINDEX_64_BIT)
 
@@ -31,7 +31,7 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 set(CUDA_TOOLKIT_ROOT_DIR $ENV{CUDA_HOME})
-find_package(CUDAToolkit 12.5 REQUIRED)
+find_package(CUDAToolkit 12.6 REQUIRED)
 #find_package(CUDAToolkit 11.8 REQUIRED)
 
 # ArrayFire
@@ -54,25 +54,51 @@ link_directories(
 add_subdirectory(lib/googletest)
 
 set_source_files_properties(
-        src/dbscan/GsDBSCAN.cpp
-        test/gsDBSCANTest.cpp
+        test/gsDBSCAN/GsDBSCANTest.cpp
+        test/gsDBSCAN/UtilsTest.cpp
+        test/gsDBSCAN/ProjectionsTest.cpp
+        test/gsDBSCAN/DistancesTest.cpp
+        test/gsDBSCAN/ClusteringTest.cpp
+        include/gsDBSCAN/projections.h
+        include/gsDBSCAN/GsDBSCAN.h
+        include/gsDBSCAN/projections.h
+        include/gsDBSCAN/clustering.h
+        include/gsDBSCAN/utils.h
+        src/gs_main.cpp
+        test/repro2.cu
         PROPERTIES LANGUAGE CUDA)
 
+
 add_executable(${PROJECT_NAME}
-        src/main.cpp
+#        src/main.cpp
+        src/gs_main.cpp
         src/Utilities.cpp
         src/dbscan/sDbscan.cpp
         src/fast_copy.c
-        src/dbscan/GsDBSCAN.cpp
         src/fht/fht.c
+        include/gsDBSCAN/projections.h
+        include/gsDBSCAN/utils.h
+        include/gsDBSCAN/distances.h
+        include/gsDBSCAN/clustering.h
 )
 
 add_executable(run_gs_dbscan_tests
-        test/gsDBSCANTest.cpp
-        src/dbscan/GsDBSCAN.cpp
+        test/gsDBSCAN/GsDBSCANTest.cpp
         test/TestUtils.cpp
+        test/gsDBSCAN/UtilsTest.cpp
+        test/gsDBSCAN/ProjectionsTest.cpp
+        test/gsDBSCAN/DistancesTest.cpp
+        test/gsDBSCAN/ClusteringTest.cpp
 )
+
+add_executable(repro2
+        test/repro2.cu
+)
+
+set_target_properties(repro2 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 
 target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main)
 target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda Eigen3::Eigen matx::matx)
+
+target_link_libraries(repro2 PRIVATE CCCL::CCCL matx::matx)

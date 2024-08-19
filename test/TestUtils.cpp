@@ -74,7 +74,7 @@ namespace testUtils {
     af::array createMockDistances(int n, int D) {
         af::array distances = af::randu(n, D, f32);
 
-        distances = distances.as(f16);
+//        distances = distances.as(f16); // sort doesn't work with f16
 
         return distances;
     }
@@ -129,37 +129,6 @@ namespace testUtils {
         }
 
         return array;
-    }
-
-    void readFlatCSV(const std::string& filename, float* data, size_t size) {
-        std::ifstream file(filename);
-
-        if (!file.is_open()) {
-            std::cerr << "Failed to open file: " << filename << std::endl;
-            return;
-        }
-
-        std::string line;
-        size_t index = 0;
-
-        while (std::getline(file, line) && index < size) {
-            std::stringstream ss(line);
-            std::string value;
-
-            while (std::getline(ss, value, ',') && index < size) {
-                try {
-                    data[index++] = std::stof(value);
-                } catch (const std::invalid_argument& e) {
-                    std::cerr << "Invalid float value: " << value << std::endl;
-                }
-            }
-        }
-
-        if (index < size) {
-            std::cerr << "Warning: The file contains fewer values than expected." << std::endl;
-        }
-
-        file.close();
     }
 }
 

@@ -1,46 +1,35 @@
 //
-// Created by hphi344 on 10/05/24.
+// Created by hphi344 on 9/08/24.
 //
-#include <gtest/gtest.h>
-#include <matx.h>
-#include <chrono>
-#include <arrayfire.h>
-#include <af/cuda.h>
-#include <vector>
-#include <string>
-#include <cmath>
-#include <Eigen/Dense>
-#include <unsupported/Eigen/CXX11/Tensor>
 
-#include "../include/rapidcsv.h"
-#include "../include/GsDBSCAN.h"
-#include "../include/TestUtils.h"
+#include <gtest/gtest.h>
+#include "../../include/gsDBSCAN/GsDBSCAN.h"
+#include "../../include/TestUtils.h"
 
 namespace tu = testUtils;
 
 //Macro for checking cuda errors following a cuda launch or api call
 #define cudaCheckError() {                                           \
-    cudaError_t e = cudaGetLastError();                              \
-    if (e != cudaSuccess) {                                          \
-        printf("Cuda failure %s:%d: '%s'\n", __FILE__, __LINE__,     \
-               cudaGetErrorString(e));                               \
-        exit(EXIT_FAILURE);                                          \
-    } else {                                                         \
-        printf("CUDA call successful: %s:%d\n", __FILE__, __LINE__); \
-    }                                                                \
-}
+        cudaError_t e = cudaGetLastError();                              \
+        if (e != cudaSuccess) {                                          \
+            printf("Cuda failure %s:%d: '%s'\n", __FILE__, __LINE__,     \
+                   cudaGetErrorString(e));                               \
+            exit(EXIT_FAILURE);                                          \
+        } else {                                                         \
+            printf("CUDA call successful: %s:%d\n", __FILE__, __LINE__); \
+        }                                                                \
+    }
 
-
-class gsDBSCANTest : public ::testing::Test {
+class TestDistances : public ::testing::Test {
 
 };
 
-class TestCalculatingBatchSize : public gsDBSCANTest {
+class TestCalculatingBatchSize : public TestDistances {
 
 };
 
 TEST_F(TestCalculatingBatchSize, TestLargeInput) {
-    int batchSize = GsDBSCAN::findDistanceBatchSize(1, 1000000, 3, 2, 2000);
+    int batchSize = GsDBSCAN::distances::findDistanceBatchSize(1, 1000000, 3, 2, 2000);
 
     ASSERT_EQ(20, batchSize);
 }
@@ -48,104 +37,13 @@ TEST_F(TestCalculatingBatchSize, TestLargeInput) {
 TEST_F(TestCalculatingBatchSize, TestSmallInput) {
     int n = 100;
 
-    int batchSize = GsDBSCAN::findDistanceBatchSize(1, n, 3, 10, 10);
+    int batchSize = GsDBSCAN::distances::findDistanceBatchSize(1, n, 3, 10, 10);
 
     ASSERT_EQ(n, batchSize);
 }
 
-class TestConstructingABMatrices : public gsDBSCANTest {
 
-};
-
-TEST_F(TestConstructingABMatrices, TestSmallInput) {
-    int n = 100;
-    int D = 30;
-    int k = 5;
-    int m = 10;
-    std::string filename = "./data/projections.csv";
-    af::array projections = tu::csvToArray(filename);
-
-    int a = 1;
-
-    af::array A, B;
-
-    std::tie(A, B) = GsDBSCAN::constructABMatrices(projections, k, m);
-
-    ASSERT_TRUE(A.dims(0) == n && A.dims(1) == k);
-    ASSERT_TRUE(B.dims(0) == n && B.dims(1) == m);
-}
-
-class TestAfToMatXConversion : public gsDBSCANTest {
-
-};
-
-TEST_F(TestAfToMatXConversion, TestSmallInput) {
-    float afData[] = {
-            0, 1, 2, 3,
-            0, 2, 1, 0,
-            1, 8, 9, 11,
-            15, 2, 6, 7
-    };
-
-    auto *afDataManaged = GsDBSCAN::hostToManagedArray<float>(afData, 16);
-
-    af::array afArray(4, 4, afDataManaged);
-
-    auto matXTensor = GsDBSCAN::afArrayToMatXTensor<float, float>(afArray);
-
-    cudaDeviceSynchronize();
-
-    float *matXData = matXTensor.Data();
-
-    matx::print(matXTensor);
-//
-//    for (int i = 0; i < 16; i++) {
-//        ASSERT_NEAR(afDataManaged[i], matXData[i], 1e-6);
-//    }
-}
-
-class TestEigenToMatXConversion : public gsDBSCANTest {
-
-};
-
-TEST_F(TestEigenToMatXConversion, TestSmallInput) {
-    Eigen::Matrix<Eigen::half, Eigen::Dynamic, Eigen::Dynamic> halfEigenMat(2, 2);
-
-    halfEigenMat(0, 0) = Eigen::half(1.0);
-    halfEigenMat(0, 1) = Eigen::half(2.0);
-    halfEigenMat(1, 0) = Eigen::half(3.0);
-    halfEigenMat(1, 1) = Eigen::half(4.0);
-
-    auto matXTensor = GsDBSCAN::eigenMatToMatXTensor<Eigen::half, matx::matxFp16>(halfEigenMat, matx::MATX_MANAGED_MEMORY);
-
-    cudaDeviceSynchronize();
-
-    matx::matxFp16 *matXData = matXTensor.Data();
-    Eigen::half *halfEigenData = halfEigenMat.data();
-
-    for (int i = 0; i < 4; i++) {
-        ASSERT_NEAR(halfEigenData[i], matXData[i], 1e-6);
-    }
-}
-
-TEST_F(TestEigenToMatXConversion, TestLargeInput) {
-    int n = 100000;
-    int d = 1000;
-
-    Eigen::MatrixXd mat = Eigen::MatrixXd::Random(n, d);
-
-    auto start = tu::timeNow();
-
-    auto matXTensor = GsDBSCAN::eigenMatToMatXTensor<double, double>(mat, matx::MATX_MANAGED_MEMORY);
-
-    cudaDeviceSynchronize();
-
-    tu::printDurationSinceStart(start, "Time taken to convert Eigen to MatX");
-
-    // TODO fix the above! don't really want to use double here
-}
-
-class TestFindingDistances : public gsDBSCANTest {
+class TestFindingDistances : public TestDistances {
 
 };
 
@@ -189,7 +87,7 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
 
     ASSERT_TRUE(expected.dims(0) == 5 && expected.dims(1) == 6); // Checking gtest is sane
 
-    af::array distances = GsDBSCAN::findDistances(X, A, B);
+    af::array distances = GsDBSCAN::distances::findDistancesL2AF(X, A, B);
 
     af::print("distances", af::pow(distances, 2));
 
@@ -265,7 +163,7 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
     auto A_t = matx::make_tensor<int>(A_d, {5, 2}, true);
     auto B_t = matx::make_tensor<int>(B_d, {10, 3}, true);
 
-    auto distances_t = GsDBSCAN::findDistancesMatX(X_t_16, A_t, B_t);
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX(X_t_16, A_t, B_t);
 
     cudaDeviceSynchronize();
 
@@ -295,7 +193,7 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
             0, 0, 1
     };
 
-    float *X_d = hostArrayToCudaArray<float>(X, 15);
+    auto *X_d = hostArrayToCudaArray<float>(X, 15);
 
     int A[10] = {
             0, 3,
@@ -328,7 +226,7 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
     auto A_t = matx::make_tensor<int>(A_d, {5, 2}, true);
     auto B_t = matx::make_tensor<int>(B_d, {10, 3}, true);
 
-    auto distances_t = GsDBSCAN::findDistancesMatX(X_t_16, A_t, B_t, 1.2, 1);
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX(X_t_16, A_t, B_t, 1.2, 1);
 
     cudaDeviceSynchronize();
 
@@ -342,33 +240,26 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
             9, 6, 5, 5, 0, 6
     };
 
-    for (int i = 0; i < 5*6; i++) {
+    for (int i = 0; i < 5 * 6; i++) {
         ASSERT_NEAR(std::sqrt(expected_squared[i]), distances_ptr[i], 1e-3);
     }
 }
-
-template <typename T>
-std::vector<T> loadCsvColumnToVector(const std::string& filePath, size_t columnIndex = 1) {
-    rapidcsv::Document csvDoc(filePath);
-    return csvDoc.GetColumn<T>(columnIndex);
-}
-
 
 TEST_F(TestFindingDistances, TestMediumInputMatx) {
     /*
      * This test checks if results calculated by C++/MatX are identical to those with Python/CuPy
      */
 
-    auto AVector = loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/A_n1000_k3.csv");
+    auto AVector = GsDBSCAN::utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/A_n1000_k3.csv");
     int *A_h = AVector.data();
 
-    auto BVector = loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/B_D100_m20.csv");
+    auto BVector = GsDBSCAN::utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/B_D100_m20.csv");
     int *B_h = BVector.data();
 
-    auto XVector = loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/X_n1000_d20.csv");
+    auto XVector = GsDBSCAN::utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/X_n1000_d20.csv");
     float *X_h = XVector.data();
 
-    auto distancesVector = loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/distances_n1000_k3_m20.csv");
+    auto distancesVector = GsDBSCAN::utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/distances_n1000_k3_m20.csv");
 
     float *distances_expected_h = distancesVector.data();
 
@@ -391,8 +282,8 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
 
     auto start = tu::timeNow();
 
-    auto distances_t = GsDBSCAN::findDistancesMatX(X_t_16, A_t, B_t, 1.2, 100);
-    
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX<matx::matxFp16>(X_t_16, A_t, B_t, 1.2, 100);
+
     cudaDeviceSynchronize();
 
     matx::matxFp16 *distances_ptr = distances_t.Data();
@@ -403,6 +294,15 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
     }
 }
 
+TEST_F(TestFindingDistances, TestMockAf) {
+    auto YBatch = af::randu(20, 2000, 784);
+
+    auto start = tu::timeNow();
+
+    auto YBatchNorm = af::sqrt(af::sum(af::pow(YBatch, 2), 1));
+
+    tu::printDurationSinceStart(start);
+}
 
 
 TEST_F(TestFindingDistances, TestLargeInputMatX) {
@@ -412,18 +312,32 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
     int D = 1024;
     int d = 784;
 
-    auto A = tu::createMockAMatrixMatX(n, k, D);
-    auto B = tu::createMockBMatrixMatX(n, m, D);
-    auto X = tu::createMockMnistDatasetMatX(n, d);
+    auto A = tu::createMockAMatrixMatX(n, k, D, matx::MATX_MANAGED_MEMORY);
+    auto B = tu::createMockBMatrixMatX(n, m, D, matx::MATX_MANAGED_MEMORY);
+    auto X = tu::createMockMnistDatasetMatX<float>(n, d, matx::MATX_MANAGED_MEMORY);
 
     cudaDeviceSynchronize();
+
+    print(X);
 
     tu::Time start = tu::timeNow();
 
-    auto distances = GsDBSCAN::findDistancesMatX(X, A, B, 1.2, 250);
+    auto distances = GsDBSCAN::distances::findDistancesMatX<float>(X, A, B, 1.2, 2000, (std::string &) "L2", matx::MATX_MANAGED_MEMORY);
     cudaDeviceSynchronize();
 
+    cudaCheckError();
+
     tu::printDurationSinceStart(start); // This is too fn slow. Around 14 seconds, Cupy takes less than 0.7 seconds.
+
+
+    auto *distances_ptr = distances.Data();
+
+    for (int i = 0; i < n*2*k*m; i++) {
+//    printf("%f ", matx::promote_half_t<matx::matxFp16>(distances_ptr[i])); // Alot of zeros
+        printf("%d", i);
+        printf("%f ", distances_ptr[i]);
+
+    }
 
     printf("%lld %lld", distances.Shape()[0], distances.Shape()[1]);
 
@@ -433,95 +347,15 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
 TEST_F(TestFindingDistances, TestLargeInput) {
     int n = 70000;
-    af::array X = tu::createMockMnistDataset(n);
+    af::array X = tu::createMockMnistDataset(n, 784);
     af::array A, B;
-    std::tie(A, B) = tu::createMockABMatrices(n);
+    std::tie(A, B) = tu::createMockABMatrices(n, 5, 50, 1024);
 
     cudaDeviceSynchronize();
 
     tu::Time start = tu::timeNow();
 
-    af::array distances = GsDBSCAN::findDistances(X, A, B);
+    af::array distances = GsDBSCAN::distances::findDistancesL2AF(X, A, B);
 
     tu::printDurationSinceStart(start);
-}
-
-class TestConstructQueryVectorDegreeArray : public gsDBSCANTest {
-
-};
-
-TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInput) {
-    float distancesData[] = {
-            0, 1, 2, 3,
-            0, 2, 1, 0,
-            1, 8, 9, 11,
-            15, 2, 6, 7
-    };
-
-    af::array distances(4, 4, distancesData);
-
-    float eps = 2.1;
-
-    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
-
-    float expectedData[] = {3, 4, 1, 1};
-
-    af::array expected(1, 4, expectedData);
-
-    ASSERT_TRUE(af::allTrue<bool>(expected == E));
-}
-
-TEST_F(TestConstructQueryVectorDegreeArray, TestMnist) {
-    af::array distances = tu::createMockDistances();
-
-    float eps = af::randu(1, 1).scalar<float>();
-
-    tu::Time start = tu::timeNow();
-
-    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
-
-    E.eval();
-    af::sync();
-
-    tu::printDurationSinceStart(start);
-}
-
-class TestProcessQueryVectorDegreeArray : public gsDBSCANTest {
-
-};
-
-TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInput) {
-
-    float EData[] = {3, 4, 1, 1};
-    af::array E(1, 4, EData);
-
-    float VExpectedData[] = {0, 3, 7, 8};
-
-    af::array VExpected(1, 4, VExpectedData);
-
-    af::array V = GsDBSCAN::processQueryVectorDegreeArray(E);
-
-    ASSERT_TRUE(af::allTrue<bool>(VExpected ==  V));
-}
-
-TEST_F(TestProcessQueryVectorDegreeArray, TestMnist) {
-    af::array distances = tu::createMockDistances();
-
-    float eps = af::randu(1, 1).scalar<float>();
-
-    af::array E = GsDBSCAN::constructQueryVectorDegreeArray(distances, eps);
-
-    tu::Time start = tu::timeNow();
-
-    af::array V = GsDBSCAN::processQueryVectorDegreeArray(E);
-
-    V.eval();
-    af::sync();
-
-    tu::printDurationSinceStart(start);
-}
-
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
 }
