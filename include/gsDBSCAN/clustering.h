@@ -320,24 +320,24 @@ namespace GsDBSCAN {
         // TODO verify that the functions below are ok!
 
         __global__ void
-        inline breadthFirstSearchKernel(int *adjacencyList, int *startIdxArray, int *visited, int *border, int n) {
+        inline breadthFirstSearchKernel(int *adjacencyList_d, int *startIdxArray_d, int *visited_d, int *border_d, int n) {
             int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
             if (tid >= n) {
-                return;
+                return; // We allocate more blocks than we need, so we need to check if we are out of bounds
             }
 
-            if (visited[tid]) {
-                visited[tid] = 0;
-                border[tid] = 1;
+            if (border_d[tid]) {
+                border_d[tid] = 0;
+                visited_d[tid] = 1;
 
-                int startIdx = startIdxArray[tid];
+                int startIdx = startIdxArray_d[tid];
 
-                for (int i = startIdx; i < startIdxArray[tid + 1]; i++) {
-                    int neighbourIdx = adjacencyList[i];
+                for (int i = startIdx; i < startIdxArray_d[tid + 1]; i++) {
+                    int neighbourIdx = adjacencyList_d[i];
 
-                    if (!visited[neighbourIdx]) {
-                        visited[neighbourIdx] = 1;
+                    if (!visited_d[neighbourIdx]) {
+                        border_d[neighbourIdx] = 1;
                     }
                 }
             }
@@ -347,28 +347,30 @@ namespace GsDBSCAN {
                                        int *clusterLabels, int *typeLabels, size_t n, int seedVertexIdx,
                                        int thisClusterLabel,
                                        int minPts, int blockSize = 256) {
-            int* visitedThisBfs_d = utils::allocateCudaArray<int>(n);
-            int* borderThisBfs_d = utils::allocateCudaArray<int>(n);
+            // NB: Fa is Border from GsDBSCAN paper, Xa is Visited,
+            int* visitedThisBfs_d = utils::allocateCudaArray<int>(n, true); // Managed memory allows to set values from the CPU, and still be used in the GPU
+            int* borderThisBfs_d = utils::allocateCudaArray<int>(n, true);
 
-            visitedThisBfs_d[seedVertexIdx] = 1;
+            borderThisBfs_d[seedVertexIdx] = 1;
 
-            int countVisitedThisBfs = 1;
+            int countBordersThisBfs = 1;
 
             size_t gridSize = (n + blockSize - 1) / blockSize;
 
-            while (countVisitedThisBfs > 0) {
+            while (countBordersThisBfs > 0) {
+                // TODO, infinite loop here, need to fix this
                 breadthFirstSearchKernel<<<gridSize, blockSize>>>(adjacencyList_d, startIdxArray_d, visitedThisBfs_d,
                                                                   borderThisBfs_d, n);
                 cudaDeviceSynchronize();
-                thrust::device_ptr<int> visitedThisBfs_thrust(visitedThisBfs_d);
-                countVisitedThisBfs = thrust::reduce(visitedThisBfs_thrust, visitedThisBfs_thrust + n, 0);
+                thrust::device_ptr<int> borderThisBfs_thrust(borderThisBfs_d);
+                countBordersThisBfs = thrust::reduce(borderThisBfs_thrust, borderThisBfs_thrust + n, 0);
             }
 
-            auto visited_h = utils::copyDeviceToHost(visitedThisBfs_d, n);
+//            auto visited_h = utils::copyDeviceToHost(visitedThisBfs_d, n);
 
             #pragma omp parallel for
             for (int i = 0; i < n; i++) {
-                if (visited_h[i]) {
+                if (visitedThisBfs_d[i]) {
                     clusterLabels[i] = thisClusterLabel;
                     visited[i] = 1;
                     if (degArray_h[i] >= minPts) {
@@ -382,10 +384,11 @@ namespace GsDBSCAN {
 
 
         inline std::tuple<int *, int *>
-        formClusters(int *adjacencyList_d, int *startIdxArray_d, int *degArray_d, int n, int minPts) {
+        formClusters(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int minPts) {
             int *clusterLabels = new int[n];
             int *typeLabels = new int[n];
-//            std::fill(std::execution::par, typeLabels, typeLabels + n, -1); // TODO change to parallel
+//            std::fill(std::execution::par, typeLabels, typeLabels + n, -1); // TODO change to parallel, perhaps could use managed memory for the arrays?
+            std::fill(clusterLabels, clusterLabels + n, -1); // Less than 100us for n=70000, so practically negligible in grander scheme
             std::fill(typeLabels, typeLabels + n, -1);
             int *visited = new int[n];
 

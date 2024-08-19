@@ -28,7 +28,7 @@ class ClusteringTest : public ::testing::Test {
 
 };
 
-class TestSortingProjections : public ClusteringTest{
+class TestSortingProjections : public ClusteringTest {
 
 };
 
@@ -81,13 +81,13 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4}, matx::MATX_MANAGED_MEMORY);
 
-    int* E_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1); // TODO fix me!
+    int *E_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1); // TODO fix me!
 
     for (int i = 0; i < 4; i++) {
         printf("%d\n", E_d[i]);
     }
 
-    int* E_h = GsDBSCAN::utils::copyDeviceToHost(E_d, 4);
+    int *E_h = GsDBSCAN::utils::copyDeviceToHost(E_d, 4);
 
     float expectedData[] = {3, 4, 1, 1};
 
@@ -153,11 +153,11 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputThrust) {
 
     int degArray[] = {3, 4, 1, 1};
 
-    int* degArray_d= GsDBSCAN::utils::copyHostToDevice(degArray, 4, true);
+    int *degArray_d = GsDBSCAN::utils::copyHostToDevice(degArray, 4, true);
 
-    int* startIdxArray_d = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(degArray_d, 4);
+    int *startIdxArray_d = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(degArray_d, 4);
 
-    int* startIdxArray_h = GsDBSCAN::utils::copyDeviceToHost(startIdxArray_d, 4);
+    int *startIdxArray_h = GsDBSCAN::utils::copyDeviceToHost(startIdxArray_d, 4);
 
     int expectedData[] = {0, 3, 7, 8};
 
@@ -181,4 +181,49 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestMnist) {
     af::sync();
 
     tu::printDurationSinceStart(start);
+}
+
+class TestFormingClusters : public ClusteringTest {
+
+};
+
+TEST_F(TestFormingClusters, TestSmallInput) {
+    // A simple case I came up with from a sketch
+
+    int n = 12;
+    int minPts = 3;
+
+    int adjacencyList_h[18] = {
+            1,
+            0, 2, 3,
+            1,
+            1,
+            9, 6, 7,
+            5, 9,
+            9, 5,
+            5, 7, 6,
+            11,
+            10
+    };
+
+    int degArray_h[12] = {1, 3, 1, 1, 0, 3, 2, 2, 0, 3, 1, 1};
+    int startIdxArray_h[12] = {0, 1, 4, 5, 6, 6, 9, 11, 13, 13, 16, 17};
+
+    int *adjacencyList_d = GsDBSCAN::utils::copyHostToDevice(adjacencyList_h, 16, true);
+    int *degArray_d = GsDBSCAN::utils::copyHostToDevice(degArray_h, n, true);
+    int *startIdxArray_d = GsDBSCAN::utils::copyHostToDevice(startIdxArray_h, n, true);
+
+    auto start = tu::timeNow();
+
+    auto [clusterLabels_h, typeLabels_h] = GsDBSCAN::clustering::formClusters(adjacencyList_d, degArray_d, startIdxArray_d, n, minPts);
+
+    tu::printDurationSinceStart(start);
+
+    int clusterLabelsExpected_h[12] = {0, 0, 0, 0, -1, 1, 1, 1, -1, 1, -1, -1};
+    int typeLabelsExpected_h[12] = {0, 1, 0, 0, -1, 1, 0, 0, -1, 1, -1, -1};
+
+    for (int i = 0; i < n; i++) {
+        ASSERT_EQ(clusterLabelsExpected_h[i], clusterLabels_h[i]);
+        ASSERT_EQ(typeLabelsExpected_h[i], typeLabels_h[i]);
+    }
 }
