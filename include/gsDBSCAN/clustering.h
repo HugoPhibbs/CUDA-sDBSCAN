@@ -16,6 +16,8 @@
 #include "utils.h"
 #include "../Header.h"
 #include <thrust/device_vector.h>
+#include <thrust/device_ptr.h>
+#include <thrust/reduce.h>
 #include <thrust/functional.h>
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
@@ -45,11 +47,17 @@ namespace GsDBSCAN {
          */
         template<typename T>
         inline int *constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps) {
+            std::cout << eps << std::endl;
+            print(distances);
+
             auto lt = distances < eps;
-            auto lt_f = matx::as_type<int>(lt);
-            // TODO raise a GH as to why i need to cast first, should be able to sum over the bools
-            auto res = matx::make_tensor<int>({1, distances.Shape()[1]});
-            (res = matx::sum(lt_f, {0})).run();
+            auto lt_int = matx::as_type<int>(lt);
+
+            print(lt_int);
+            auto res = matx::make_tensor<int>({1, distances.Shape()[1]}, matx::MATX_MANAGED_MEMORY);
+            (res = matx::sum(lt_int, {0})).run();
+
+            print(res);
             return res.Data();
         }
 
@@ -63,7 +71,9 @@ namespace GsDBSCAN {
 
         inline int *processQueryVectorDegreeArrayThrust(int *degArray_d, int n) {
             int *startIdxArray_d = utils::allocateCudaArray<int>(n);
-            thrust::exclusive_scan(degArray_d, degArray_d + n, startIdxArray_d);
+            thrust::device_ptr<int> startIdxArray_thrust(startIdxArray_d);
+            thrust::device_ptr<int> degArray_thrust(degArray_d);
+            thrust::exclusive_scan(degArray_thrust, degArray_thrust + n, startIdxArray_thrust); // Somehow this still runs anyhow?
             return startIdxArray_d;
         }
 
@@ -309,89 +319,89 @@ namespace GsDBSCAN {
 
         // TODO verify that the functions below are ok!
 
-//        __global__ void
-//        breadthFirstSearchKernel(const int *adjacencyList, const int *startIdxArray, bool *visited, bool *border, int n) {
-//            int tid = blockIdx.x * blockDim.x + threadIdx.x;
-//
-//            if (tid >= n) {
-//                return;
-//            }
-//
-//            if (visited[tid]) {
-//                visited[tid] = 0;
-//                border[tid] = 1;
-//
-//                int startIdx = startIdxArray[tid];
-//
-//                for (int i = startIdx; i < startIdxArray[tid + 1]; i++) {
-//                    int neighbourIdx = adjacencyList[i];
-//
-//                    if (!visited[neighbourIdx]) {
-//                        visited[neighbourIdx] = 1;
-//                    }
-//                }
-//            }
-//        }
-//
-//        inline void breadthFirstSearch(const int *adjacencyList_d, const int *startIdxArray_d, const int *degArray_h, bool *visited,
-//                                       int *clusterLabels, int *typeLabels, const size_t n, int seedVertexIdx,
-//                                       int thisClusterLabel,
-//                                       int minPts, int blockSize = 256) {
-//            auto visitedThisBfs_d = utils::allocateCudaArray<bool>(n);
-//            auto borderThisBfs_d = utils::allocateCudaArray<bool>(n);
-//
-//            visitedThisBfs_d[seedVertexIdx] = 1;
-//
-//            int countVisitedThisBfs = 1;
-//
-//            int gridSize = (n + blockSize - 1) / blockSize;
-//
-//            while (countVisitedThisBfs > 0) {
-//                breadthFirstSearchKernel<<<gridSize, blockSize>>>(adjacencyList_d, startIdxArray_d, visitedThisBfs_d,
-//                                                                  borderThisBfs_d, n);
-//                cudaDeviceSynchronize();
-//                auto thrust_ptr = thrust::device_pointer_cast(visitedThisBfs_d);
-//                countVisitedThisBfs = thrust::reduce(thrust_ptr, thrust_ptr + n, 0);
-//            }
-//
-//            auto visited_h = utils::copyDeviceToHost(visitedThisBfs_d, n);
-//
-//            #pragma omp parallel for
-//            for (int i = 0; i < n; i++) {
-//                if (visited_h[i]) {
-//                    clusterLabels[i] = thisClusterLabel;
-//                    visited[i] = 1;
-//                    if (degArray_h[i] >= minPts) {
-//                        typeLabels[i] = 1; // Core pt
-//                    } else if (degArray_h[i] < minPts) {
-//                        typeLabels[i] = 0; // Border pt
-//                    }
-//                }
-//            }
-//        }
-//
-//
+        __global__ void
+        inline breadthFirstSearchKernel(int *adjacencyList, int *startIdxArray, int *visited, int *border, int n) {
+            int tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+            if (tid >= n) {
+                return;
+            }
+
+            if (visited[tid]) {
+                visited[tid] = 0;
+                border[tid] = 1;
+
+                int startIdx = startIdxArray[tid];
+
+                for (int i = startIdx; i < startIdxArray[tid + 1]; i++) {
+                    int neighbourIdx = adjacencyList[i];
+
+                    if (!visited[neighbourIdx]) {
+                        visited[neighbourIdx] = 1;
+                    }
+                }
+            }
+        }
+
+        inline void breadthFirstSearch(int *adjacencyList_d, int *startIdxArray_d, int *degArray_h, int *visited,
+                                       int *clusterLabels, int *typeLabels, size_t n, int seedVertexIdx,
+                                       int thisClusterLabel,
+                                       int minPts, int blockSize = 256) {
+            int* visitedThisBfs_d = utils::allocateCudaArray<int>(n);
+            int* borderThisBfs_d = utils::allocateCudaArray<int>(n);
+
+            visitedThisBfs_d[seedVertexIdx] = 1;
+
+            int countVisitedThisBfs = 1;
+
+            size_t gridSize = (n + blockSize - 1) / blockSize;
+
+            while (countVisitedThisBfs > 0) {
+                breadthFirstSearchKernel<<<gridSize, blockSize>>>(adjacencyList_d, startIdxArray_d, visitedThisBfs_d,
+                                                                  borderThisBfs_d, n);
+                cudaDeviceSynchronize();
+                thrust::device_ptr<int> visitedThisBfs_thrust(visitedThisBfs_d);
+                countVisitedThisBfs = thrust::reduce(visitedThisBfs_thrust, visitedThisBfs_thrust + n, 0);
+            }
+
+            auto visited_h = utils::copyDeviceToHost(visitedThisBfs_d, n);
+
+            #pragma omp parallel for
+            for (int i = 0; i < n; i++) {
+                if (visited_h[i]) {
+                    clusterLabels[i] = thisClusterLabel;
+                    visited[i] = 1;
+                    if (degArray_h[i] >= minPts) {
+                        typeLabels[i] = 1; // Core pt
+                    } else if (degArray_h[i] < minPts) {
+                        typeLabels[i] = 0; // Border pt
+                    }
+                }
+            }
+        }
+
+
         inline std::tuple<int *, int *>
-        formClusters(const int *adjacencyList_d, const int *startIdxArray_d, const int *degArray_d, int n, int minPts) {
+        formClusters(int *adjacencyList_d, int *startIdxArray_d, int *degArray_d, int n, int minPts) {
             int *clusterLabels = new int[n];
             int *typeLabels = new int[n];
-////            std::fill(std::execution::par, typeLabels, typeLabels + n, -1); // TODO change to parallel
-//            std::fill(typeLabels, typeLabels + n, -1);
-//            bool *visited = new bool[n];
-//
-//            auto degArray_h = utils::copyDeviceToHost(degArray_d, n);
-//
-//            int currCluster = 0;
-//
-//            for (int i = 0; i < n; i++) {
-//                if ((!visited[i]) && (degArray_h[i] >= minPts)) {
-//                    visited[i] = true;
-//                    clusterLabels[i] = currCluster;
-//                    breadthFirstSearch(adjacencyList_d, startIdxArray_d, degArray_h, visited, clusterLabels, typeLabels, n, i,
-//                                       currCluster, minPts);
-//                    currCluster += 1;
-//                }
-//            }
+//            std::fill(std::execution::par, typeLabels, typeLabels + n, -1); // TODO change to parallel
+            std::fill(typeLabels, typeLabels + n, -1);
+            int *visited = new int[n];
+
+            auto degArray_h = utils::copyDeviceToHost(degArray_d, n);
+
+            int currCluster = 0;
+
+            for (int i = 0; i < n; i++) {
+                if ((!visited[i]) && (degArray_h[i] >= minPts)) {
+                    visited[i] = 1;
+                    clusterLabels[i] = currCluster;
+                    breadthFirstSearch(adjacencyList_d, startIdxArray_d, degArray_h, visited, clusterLabels, typeLabels, n, i,
+                                       currCluster, minPts);
+                    currCluster += 1;
+                }
+            }
             return std::tie(clusterLabels, typeLabels);
         }
     }
