@@ -36,7 +36,7 @@ namespace GsDBSCAN {
         }
 
         template <typename T>
-        inline T* copyHostToDevice(const T* hostData, size_t numElements, bool managedMemory = false) {
+        inline T* copyHostToDevice(T* hostData, size_t numElements, bool managedMemory = false) {
             T* deviceArray;
             size_t size = numElements * sizeof(T);
 
@@ -177,20 +177,36 @@ namespace GsDBSCAN {
         }
 
         template <typename T>
-        inline T* allocateCudaArray(int length){
+        inline T* allocateCudaArray(size_t length, bool managedMemory = false) {
             T *array;
             size_t size = sizeof(T) * length;
 
+            // Allocate memory on the device
             cudaError_t err;
-            err = cudaMemset(&array, 0, size); // Zero out the memory O(n)
+
+            if (managedMemory) {
+                err = cudaMallocManaged(&array, size);
+            } else {
+                err = cudaMalloc(&array, size);
+            }
 
             if (err != cudaSuccess) {
                 std::cerr << "Error allocating memory for array: " << cudaGetErrorString(err) << std::endl;
                 return nullptr;
             }
 
+            // Zero out the memory
+            err = cudaMemset(array, 0, size);  // Use array (not &array) for cudaMemset
+
+            if (err != cudaSuccess) {
+                std::cerr << "Error setting memory for array: " << cudaGetErrorString(err) << std::endl;
+                cudaFree(array);  // Free the memory if memset fails
+                return nullptr;
+            }
+
             return array;
         }
+
 
         template <typename T>
         std::vector<T> loadCsvColumnToVector(const std::string& filePath, size_t columnIndex = 1) {
