@@ -81,7 +81,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4});
 
-    float* E = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx(distances_t, 2.1); // TODO fix me!
+    int* E = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1); // TODO fix me!
 
     cudaDeviceSynchronize();
 
@@ -142,19 +142,13 @@ class TestProcessQueryVectorDegreeArray : public ClusteringTest {
 };
 
 TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputMatX) {
-    float EData[] = {3, 4, 1, 1};
+    int EData[] = {3, 4, 1, 1};
 
     auto EData_d = GsDBSCAN::utils::hostToManagedArray(EData, 4);
 
-    auto E = matx::make_tensor<float>(EData_d, {1, 4});
-
-    print(E);
-
-    auto V = GsDBSCAN::clustering::processQueryVectorDegreeArrayMatx<float>(E); // TODO, don't know why IDE is complaining here
+    auto V = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(EData_d, 4);
 
     cudaDeviceSynchronize();
-
-    print(V);
 
 //    auto VData = V.Data(); // TODO why can't i get a pointer to the data?
 }
