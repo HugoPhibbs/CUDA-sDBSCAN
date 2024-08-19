@@ -79,29 +79,25 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
 
     auto distancesData_d = GsDBSCAN::utils::copyHostToDevice(distancesData, 16, true);
 
-    matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4});
+    matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4}, matx::MATX_MANAGED_MEMORY);
 
-    int* E = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1); // TODO fix me!
+    int* E_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1); // TODO fix me!
 
-    cudaDeviceSynchronize();
+    for (int i = 0; i < 4; i++) {
+        printf("%d\n", E_d[i]);
+    }
 
-    // As as side reference,
+    int* E_h = GsDBSCAN::utils::copyDeviceToHost(E_d, 4);
 
-    // TODO fix why all this nonsense doesn't work
-//
-//    matx::tensor_t<float, 2> E_adj = matx::reshape(E, {1, 4});
-//
-//    float * EData = E_adj.Data();
-//
-//    float expectedData[] = {3, 4, 1, 1};
-//
-//    for (int i = 0; i < 4; i++) {
-//        ASSERT_EQ(EData[i], expectedData[i]);
-//    }
+    float expectedData[] = {3, 4, 1, 1};
+
+    for (int i = 0; i < 4; i++) {
+        ASSERT_EQ(E_h[i], expectedData[i]);
+    }
 }
 
 
-TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInput) {
+TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputAF) {
     float distancesData[] = {
             0, 1, 2, 3,
             0, 2, 1, 0,
@@ -153,18 +149,21 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputMatX) {
 //    auto VData = V.Data(); // TODO why can't i get a pointer to the data?
 }
 
-TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInput) {
+TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputThrust) {
 
-    float EData[] = {3, 4, 1, 1};
-    af::array E(1, 4, EData);
+    int degArray[] = {3, 4, 1, 1};
 
-    float VExpectedData[] = {0, 3, 7, 8};
+    int* degArray_d= GsDBSCAN::utils::copyHostToDevice(degArray, 4, true);
 
-    af::array VExpected(1, 4, VExpectedData);
+    int* startIdxArray_d = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(degArray_d, 4);
 
-    af::array V = GsDBSCAN::clustering::processQueryVectorDegreeArray(E);
+    int* startIdxArray_h = GsDBSCAN::utils::copyDeviceToHost(startIdxArray_d, 4);
 
-    ASSERT_TRUE(af::allTrue<bool>(VExpected ==  V));
+    int expectedData[] = {0, 3, 7, 8};
+
+    for (int i = 0; i < 4; i++) {
+        ASSERT_EQ(expectedData[i], startIdxArray_h[i]);
+    }
 }
 
 TEST_F(TestProcessQueryVectorDegreeArray, TestMnist) {
