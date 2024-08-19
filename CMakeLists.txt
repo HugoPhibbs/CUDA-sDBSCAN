@@ -59,14 +59,19 @@ set_source_files_properties(
         test/gsDBSCAN/ProjectionsTest.cpp
         test/gsDBSCAN/DistancesTest.cpp
         test/gsDBSCAN/ClusteringTest.cpp
+        include/gsDBSCAN/projections.h
+        include/gsDBSCAN/GsDBSCAN.h
+        include/gsDBSCAN/projections.h
         include/gsDBSCAN/clustering.h
         include/gsDBSCAN/utils.h
+        src/gs_main.cpp
         test/repro2.cu
         PROPERTIES LANGUAGE CUDA)
 
 
 add_executable(${PROJECT_NAME}
-        src/main.cpp
+#        src/main.cpp
+        src/gs_main.cpp
         src/Utilities.cpp
         src/dbscan/sDbscan.cpp
         src/fast_copy.c
