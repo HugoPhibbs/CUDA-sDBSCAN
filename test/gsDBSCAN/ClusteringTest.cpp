@@ -81,18 +81,14 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4}, matx::MATX_MANAGED_MEMORY);
 
-    int *E_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1); // TODO fix me!
+    auto degArray_t = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_MANAGED_MEMORY); // TODO fix me!
+
+    auto degArray_d = degArray_t.Data();
+
+    int expectedData[] = {3, 4, 1, 1};
 
     for (int i = 0; i < 4; i++) {
-        printf("%d\n", E_d[i]);
-    }
-
-    int *E_h = GsDBSCAN::utils::copyDeviceToHost(E_d, 4);
-
-    float expectedData[] = {3, 4, 1, 1};
-
-    for (int i = 0; i < 4; i++) {
-        ASSERT_EQ(E_h[i], expectedData[i]);
+        ASSERT_EQ(degArray_d[i], expectedData[i]);
     }
 }
 
@@ -154,6 +150,33 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputThrust) {
     int degArray[] = {3, 4, 1, 1};
 
     int *degArray_d = GsDBSCAN::utils::copyHostToDevice(degArray, 4, true);
+
+    int *startIdxArray_d = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(degArray_d, 4);
+
+    int *startIdxArray_h = GsDBSCAN::utils::copyDeviceToHost(startIdxArray_d, 4);
+
+    int expectedData[] = {0, 3, 7, 8};
+
+    for (int i = 0; i < 4; i++) {
+        ASSERT_EQ(expectedData[i], startIdxArray_h[i]);
+    }
+}
+
+TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputIntegrationThrust) {
+    float distancesData[] = {
+            0, 1, 2, 3,
+            0, 2, 1, 0,
+            1, 8, 9, 11,
+            15, 2, 6, 7
+    };
+
+    auto distancesData_d = GsDBSCAN::utils::copyHostToDevice(distancesData, 16, false);
+
+    matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4}, matx::MATX_DEVICE_MEMORY);
+
+    auto degArray_t = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_DEVICE_MEMORY);
+
+    auto degArray_d = degArray_t.Data();
 
     int *startIdxArray_d = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(degArray_d, 4);
 
