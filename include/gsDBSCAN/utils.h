@@ -65,6 +65,31 @@ namespace GsDBSCAN {
         }
 
         template <typename T>
+        T* copyDeviceToHost(T* deviceArray, size_t numElements, cudaStream_t stream = nullptr) {
+            cudaError_t err;
+
+            T* hostArray = new T[numElements];
+
+            if (stream != nullptr) {
+                err = cudaMemcpyAsync(hostArray, deviceArray, numElements * sizeof(T), cudaMemcpyDeviceToHost, stream);
+                cudaStreamSynchronize(stream);
+            } else {
+                err = cudaMemcpy(hostArray, deviceArray, numElements * sizeof(T), cudaMemcpyDeviceToHost);
+                cudaDeviceSynchronize();  // Synchronize the entire device if no stream is provided
+            }
+
+            // Check for errors
+            if (err != cudaSuccess) {
+                cudaFree(deviceArray);  // Free the device memory to prevent leaks
+                delete [] hostArray;
+                std::string errMsg = "Error copying memory from device to host: " + std::string(cudaGetErrorString(err));
+                throw std::runtime_error(errMsg);
+            }
+
+            return hostArray;  // Return true if successful
+        }
+
+        template <typename T>
         __global__ void colMajorToRowArrayKernel(T* colMajorArray, T* rowMajorArray) {
             /*
              * Launch kernel with one block per row of the matrix
@@ -119,31 +144,6 @@ namespace GsDBSCAN {
             auto matxTensor = matx::make_tensor<matXType>(afRowMajorArray, {rows, cols}, matXMemorySpace);
 
             return matxTensor;
-        }
-
-        template <typename T>
-        T* copyDeviceToHost(T* deviceArray, size_t numElements, cudaStream_t stream = nullptr) {
-            cudaError_t err;
-
-            T* hostArray = new T[numElements];
-
-            if (stream != nullptr) {
-                err = cudaMemcpyAsync(hostArray, deviceArray, numElements * sizeof(T), cudaMemcpyDeviceToHost, stream);
-                cudaStreamSynchronize(stream);
-            } else {
-                err = cudaMemcpy(hostArray, deviceArray, numElements * sizeof(T), cudaMemcpyDeviceToHost);
-                cudaDeviceSynchronize();  // Synchronize the entire device if no stream is provided
-            }
-
-            // Check for errors
-            if (err != cudaSuccess) {
-                cudaFree(deviceArray);  // Free the device memory to prevent leaks
-                delete [] hostArray;  // Free the host memory to prevent leaks
-                std::string errMsg = "Error copying memory from device to host: " + std::string(cudaGetErrorString(err));
-                throw std::runtime_error(errMsg);
-            }
-
-            return hostArray;  // Return true if successful
         }
 
         inline void printCudaMemoryUsage() {

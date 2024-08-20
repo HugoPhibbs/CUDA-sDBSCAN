@@ -26,18 +26,20 @@ using json = nlohmann::json;
 
 namespace GsDBSCAN {
 
+    // Yes I shamelessly copied these from TestUtils
+
     using Time = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
-    Time timeNow() {
+    inline Time timeNow() {
         return std::chrono::high_resolution_clock::now();
     }
 
 
-    int duration(Time start, Time stop) {
+    inline int duration(Time start, Time stop) {
         return std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
     }
 
-    int durationSecs(Time start, Time stop) {
+    inline int durationSecs(Time start, Time stop) {
         return std::chrono::duration_cast<std::chrono::seconds>(stop - start).count();
     }
 
@@ -62,6 +64,8 @@ namespace GsDBSCAN {
     inline std::tuple<int*, int*, json>  performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha=1.2, std::string distanceMetric="L2", int clusterBlockSize=256, bool timeIt=false) {
 //        auto X_col_major = utils::colMajorToRowMajorMat(X, n, d);
         json times;
+
+        Time startOverAll = timeNow();
 
         // Projections
 
@@ -104,7 +108,8 @@ namespace GsDBSCAN {
 
         Time startClustering = timeNow();
 
-        int *degArray_d = clustering::constructQueryVectorDegreeArrayMatx(distances, eps);
+        auto degArray_t = clustering::constructQueryVectorDegreeArrayMatx(distances, eps);
+        auto degArray_d = degArray_t.Data(); // Can't embed this in the above function call, bc pointer gets downgraded to a host one
         int *startIdxArray_d = clustering::processQueryVectorDegreeArrayThrust(degArray_d, n);
 
         auto [adjacencyList_d, adjacencyList_size] = clustering::constructAdjacencyList(distances.Data(), degArray_d,
@@ -122,6 +127,8 @@ namespace GsDBSCAN {
         cudaFree(adjacencyList_d);
         cudaFree(degArray_d);
         cudaFree(startIdxArray_d);
+
+        if (timeIt) times["overall"] = duration(startOverAll, timeNow());
 
         return std::tie(clusterLabels, typeLabels, times);
     }

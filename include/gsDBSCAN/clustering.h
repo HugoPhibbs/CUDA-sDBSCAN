@@ -46,27 +46,13 @@ namespace GsDBSCAN {
          * @return Pointer to the degree array. Since this is intended to be how this is used for later steps
          */
         template<typename T>
-        inline int *constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps) {
-            std::cout << eps << std::endl;
-            print(distances);
-
+        inline matx::tensor_t<int, 1> constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps, matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY) {
             auto lt = distances < eps;
             auto lt_int = matx::as_type<int>(lt);
+            auto res = matx::make_tensor<int>({distances.Shape()[1]}, memorySpace);
+            (res = matx::sum(lt_int, {1})).run();
 
-            print(lt_int);
-            auto res = matx::make_tensor<int>({1, distances.Shape()[1]}, matx::MATX_MANAGED_MEMORY);
-            (res = matx::sum(lt_int, {0})).run();
-
-            print(res);
-            return res.Data();
-        }
-
-        template<typename T>
-        inline T *processQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &E) {
-            // MatX's cumsum works along the rows.
-            auto res = matx::make_tensor<T, 2>(); // TODO use thrust here!
-            (res = matx::cumsum(E) - E).run();
-            return res.Data();
+            return res; // Somehow if i return .Data() it casts the pointer to an unregistered host pointer, so I'm returning the tensor itself
         }
 
         inline int *processQueryVectorDegreeArrayThrust(int *degArray_d, int n) {
