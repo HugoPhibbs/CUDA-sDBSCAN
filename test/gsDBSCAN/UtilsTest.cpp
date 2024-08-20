@@ -160,3 +160,37 @@ class TestReadMnist : public UtilsTest {
 TEST_F(TestReadMnist, TestNormally) {
     GsDBSCAN::utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/mnist_images_col_major.csv", 0);
 }
+
+class TestCopying : public UtilsTest {
+
+};
+
+TEST_F(TestCopying, TestSmallInput) {
+    float h_array[5] = {1, 2, 3, 4, 5};
+
+    float *d_array = GsDBSCAN::utils::copyHostToDevice(h_array, 5);
+
+    float *h_array_copy = GsDBSCAN::utils::copyDeviceToHost(d_array, 5);
+
+    for (int i = 0; i < 5; ++i) {
+        ASSERT_NEAR(h_array[i], h_array_copy[i], 1e-6);
+    }
+}
+
+TEST_F(TestCopying, TestSmallInputMatx) {
+    float arr[5] = {1, 2, 3, 4, 5};
+    float *arr_d = GsDBSCAN::utils::copyHostToDevice(arr, 5);
+
+    auto tensor = matx::make_tensor<float>(arr_d, {5}, matx::MATX_DEVICE_MEMORY);
+
+    cudaPointerAttributes attributes;
+    cudaPointerGetAttributes(&attributes, tensor.Data());
+
+    float *arr_copy = GsDBSCAN::utils::copyDeviceToHost(tensor.Data(), 5);
+
+    std::cout << "Pointer type: " << attributes.type << std::endl;
+
+    for (int i = 0; i < 5; ++i) {
+        ASSERT_NEAR(arr[i], arr_copy[i], 1e-6);
+    }
+}
