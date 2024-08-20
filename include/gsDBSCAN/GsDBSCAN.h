@@ -26,6 +26,8 @@ using json = nlohmann::json;
 
 namespace GsDBSCAN {
 
+    // Yes I shamelessly copied these from TestUtils
+
     using Time = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
     Time timeNow() {
@@ -62,6 +64,8 @@ namespace GsDBSCAN {
     inline std::tuple<int*, int*, json>  performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha=1.2, std::string distanceMetric="L2", int clusterBlockSize=256, bool timeIt=false) {
 //        auto X_col_major = utils::colMajorToRowMajorMat(X, n, d);
         json times;
+
+        Time startOverAll = timeNow();
 
         // Projections
 
@@ -122,6 +126,8 @@ namespace GsDBSCAN {
         cudaFree(adjacencyList_d);
         cudaFree(degArray_d);
         cudaFree(startIdxArray_d);
+
+        if (timeIt) times["overall"] = duration(startOverAll, timeNow());
 
         return std::tie(clusterLabels, typeLabels, times);
     }
