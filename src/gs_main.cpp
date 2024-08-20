@@ -62,7 +62,7 @@ float *loadDatasetToDevice(std::string filename, int n, int d) {
     return X_d;
 }
 
-void writeResults(json args, json times, int* clusterLabels, int* typeLabels) {
+void writeResults(json &args, json &times, int* clusterLabels, int* typeLabels) {
     std::ofstream file(args["outFile"]);
     json combined;
     combined["args"] = args;
@@ -73,8 +73,11 @@ void writeResults(json args, json times, int* clusterLabels, int* typeLabels) {
     combined["clusterLabels"] = clusterLabelsVec;
     combined["typeLabels"] = typeLabelsVec;
 
+    json result = json::array(); // Array of JSON objects, so Pandas can read it
+    result.push_back(combined);
+
     if (file.is_open()) {
-        file << combined.dump(4);
+        file << result.dump(4);
         file.close();
     } else {
         throw std::runtime_error("Error: Unable to open file: " + (string) args["outFile"]);
@@ -91,26 +94,44 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Args: " << args.dump(4) << std::endl;
 
-    float *X_d = loadDatasetToDevice(args["datasetFilename"], args["n"], args["d"]);
+    // Create dummy clusterLabels and typeLabels arrays
+    int n = args["n"];
+    std::vector<int> clusterLabels(n, 1); // All elements initialized to 1
+    std::vector<int> typeLabels(n, 0); // All elements initialized to 0
 
-    auto [clusterLabels, typeLabels, times] = GsDBSCAN::performGsDbscan(
-            X_d,
-            args["n"],
-            args["d"],
-            args["D"],
-            args["minPts"],
-            args["k"],
-            args["m"],
-            args["eps"],
-            args["alpha"],
-            args["distanceMetric"],
-            args["--clusterBlockSize"],
-            args["--timeIt"] // 0: no timing, 1: timing
-    );
+    // Convert to raw pointers (simulating the output of a function like GsDBSCAN::performGsDbscan)
+    int* clusterLabelsPtr = clusterLabels.data();
+    int* typeLabelsPtr = typeLabels.data();
 
-    cudaFree(X_d);
+    // Create a dummy times JSON object
+    json times = {
+            {"init", 0.1},
+            {"compute", 2.3},
+            {"total", 2.4}
+    };
 
-    writeResults(args, times, clusterLabels, typeLabels);
+    writeResults(args, times, clusterLabelsPtr, typeLabelsPtr);
+
+//    float *X_d = loadDatasetToDevice(args["datasetFilename"], args["n"], args["d"]);
+//
+//    auto [clusterLabels, typeLabels, times] = GsDBSCAN::performGsDbscan(
+//            X_d,
+//            args["n"],
+//            args["d"],
+//            args["D"],
+//            args["minPts"],
+//            args["k"],
+//            args["m"],
+//            args["eps"],
+//            args["alpha"],
+//            args["distanceMetric"],
+//            args["--clusterBlockSize"],
+//            args["--timeIt"] // 0: no timing, 1: timing
+//    );
+//
+//    cudaFree(X_d);
+
+//    writeResults(args, times, clusterLabels, typeLabels);
 
     return 0;
 }
