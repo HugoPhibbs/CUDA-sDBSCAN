@@ -30,16 +30,16 @@ namespace GsDBSCAN {
 
     using Time = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
-    Time timeNow() {
+    inline Time timeNow() {
         return std::chrono::high_resolution_clock::now();
     }
 
 
-    int duration(Time start, Time stop) {
+    inline int duration(Time start, Time stop) {
         return std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
     }
 
-    int durationSecs(Time start, Time stop) {
+    inline int durationSecs(Time start, Time stop) {
         return std::chrono::duration_cast<std::chrono::seconds>(stop - start).count();
     }
 
@@ -108,7 +108,8 @@ namespace GsDBSCAN {
 
         Time startClustering = timeNow();
 
-        int *degArray_d = clustering::constructQueryVectorDegreeArrayMatx(distances, eps);
+        auto degArray_t = clustering::constructQueryVectorDegreeArrayMatx(distances, eps);
+        auto degArray_d = degArray_t.Data();
         int *startIdxArray_d = clustering::processQueryVectorDegreeArrayThrust(degArray_d, n);
 
         auto [adjacencyList_d, adjacencyList_size] = clustering::constructAdjacencyList(distances.Data(), degArray_d,
