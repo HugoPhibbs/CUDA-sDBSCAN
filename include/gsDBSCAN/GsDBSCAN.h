@@ -13,14 +13,33 @@
 #include <arrayfire.h>
 #include <matx.h>
 #include <Eigen/Dense>
+#include <chrono>
 #include <tuple>
 
+#include "../json.hpp"
 #include "projections.h"
 #include "distances.h"
 #include "utils.h"
 #include "clustering.h"
 
+using json = nlohmann::json;
+
 namespace GsDBSCAN {
+
+    using Time = std::chrono::time_point<std::chrono::high_resolution_clock>;
+
+    Time timeNow() {
+        return std::chrono::high_resolution_clock::now();
+    }
+
+
+    int duration(Time start, Time stop) {
+        return std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+    }
+
+    int durationSecs(Time start, Time stop) {
+        return std::chrono::duration_cast<std::chrono::seconds>(stop - start).count();
+    }
 
     /**
     * Performs the gs dbscan algorithm
@@ -38,13 +57,27 @@ namespace GsDBSCAN {
     * @return a tuple containing:
     *  An integer array of size n containing the cluster labels for each point in the X dataset
     *  An integer array of size n containing the type labels for each point in the X dataset - e.g. Noise, Core, Border // TODO decide on how this will work?
+    *  A nlohmann json object containing the timing information
     */
-    inline std::tuple<int*, int*>  performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha=1.2, std::string distanceMetric="L2") {
+    inline std::tuple<int*, int*, json>  performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha=1.2, std::string distanceMetric="L2", int clusterBlockSize=256, bool timeIt=false) {
 //        auto X_col_major = utils::colMajorToRowMajorMat(X, n, d);
+        json times;
+
+        // Projections
+
+        Time startProjections = timeNow();
+
         auto X_af = af::array(n, d, X, afDevice);
         auto projections = projections::performProjections(X_af, D);
 
         projections.eval();
+
+        if (timeIt) times["projections"] = duration(startProjections, timeNow());
+
+
+        // AB matrices
+
+        Time startABMatrices = timeNow();
 
         auto [A_af, B_af] = projections::constructABMatricesAF(projections, k, m);
 
@@ -54,16 +87,43 @@ namespace GsDBSCAN {
                                                       matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
         auto X_t = utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
 
+        if (timeIt) times["constructABMatrices"] = duration(startABMatrices, timeNow());
+
+
+        // Distances
+
+        Time startDistances = timeNow();
+
         matx::tensor_t<float, 2> distances = distances::findDistancesMatX(X_t, A_t, B_t, alpha, -1, distanceMetric,
                                                                           matx::MATX_DEVICE_MEMORY);
+
+        if (timeIt) times["distances"] = duration(startDistances, timeNow());
+
+
+        // Clustering
+
+        Time startClustering = timeNow();
+
         int *degArray_d = clustering::constructQueryVectorDegreeArrayMatx(distances, eps);
         int *startIdxArray_d = clustering::processQueryVectorDegreeArrayThrust(degArray_d, n);
 
         auto [adjacencyList_d, adjacencyList_size] = clustering::constructAdjacencyList(distances.Data(), degArray_d,
                                                                                         startIdxArray_d, A_t.Data(),
-                                                                                        B_t.Data(), n, k, m, eps);
+                                                                                        B_t.Data(), n, k, m, eps, clusterBlockSize);
 
-        return clustering::formClusters(adjacencyList_d, startIdxArray_d, degArray_d, n, minPts);
+        auto [clusterLabels, typeLabels] =  clustering::formClusters(adjacencyList_d, startIdxArray_d, degArray_d, n, minPts);
+
+        if (timeIt) times["clustering"] = duration(startClustering, timeNow());
+
+
+        // Free memory
+        A_af.unlock();
+        B_af.unlock();
+        cudaFree(adjacencyList_d);
+        cudaFree(degArray_d);
+        cudaFree(startIdxArray_d);
+
+        return std::tie(clusterLabels, typeLabels, times);
     }
 
 
