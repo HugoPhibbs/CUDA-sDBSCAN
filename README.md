@@ -40,11 +40,16 @@ mkdir build && cd build && cmake .. && make
 
 ## Test call
 
-
+### For S-DBSCAN
 Dataset must be d x n matrix.
 
 See test/test_sDbscan.py or test/plotOptics.py for Python examples and src/main.cpp for C++ example.
 
+### For GS-DBSCAN
+
+```bash
+./build/sDbscan --datasetFilename test_dataset.csv --outFile results.json --n 100 --d 2 --D 3 --minPts 4 --k 5 --m 6 --eps 0.5 --distanceMetric L2 --clusterBlockSize 256 --timeIt 1
+```
 
 ## Authors
 
