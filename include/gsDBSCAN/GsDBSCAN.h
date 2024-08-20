@@ -16,7 +16,7 @@
 #include <chrono>
 #include <tuple>
 
-#include "../json.hpp"
+#include "../include/json.hpp"
 #include "projections.h"
 #include "distances.h"
 #include "utils.h"
