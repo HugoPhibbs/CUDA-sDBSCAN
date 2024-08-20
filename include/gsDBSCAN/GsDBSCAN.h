@@ -109,7 +109,7 @@ namespace GsDBSCAN {
         Time startClustering = timeNow();
 
         auto degArray_t = clustering::constructQueryVectorDegreeArrayMatx(distances, eps);
-        auto degArray_d = degArray_t.Data();
+        auto degArray_d = degArray_t.Data(); // Can't embed this in the above function call, bc pointer gets downgraded to a host one
         int *startIdxArray_d = clustering::processQueryVectorDegreeArrayThrust(degArray_d, n);
 
         auto [adjacencyList_d, adjacencyList_size] = clustering::constructAdjacencyList(distances.Data(), degArray_d,
