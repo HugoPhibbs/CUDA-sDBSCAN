@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include "../../include/gsDBSCAN/GsDBSCAN.h"
 #include "../../include/TestUtils.h"
+#include "../../include/gsDBSCAN/run_utils.h"
 
 namespace tu = testUtils;
 
@@ -301,16 +302,16 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
      * This test checks if results calculated by C++/MatX are identical to those with Python/CuPy
      */
 
-    auto AVector = GsDBSCAN::algo_utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/A_n1000_k3.csv");
+    auto AVector = GsDBSCAN::run_utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/A_n1000_k3.csv");
     int *A_h = AVector.data();
 
-    auto BVector = GsDBSCAN::algo_utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/B_D100_m20.csv");
+    auto BVector = GsDBSCAN::run_utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/B_D100_m20.csv");
     int *B_h = BVector.data();
 
-    auto XVector = GsDBSCAN::algo_utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/X_n1000_d20.csv");
+    auto XVector = GsDBSCAN::run_utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/X_n1000_d20.csv");
     float *X_h = XVector.data();
 
-    auto distancesVector = GsDBSCAN::algo_utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/distances_n1000_k3_m20.csv");
+    auto distancesVector = GsDBSCAN::run_utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/distances_n1000_k3_m20.csv");
 
     float *distances_expected_h = distancesVector.data();
 

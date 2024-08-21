@@ -58,15 +58,45 @@ namespace GsDBSCAN::run_utils {
         return cleanArgs(args);
     }
 
-    inline float *loadCSVDatasetToDevice(std::string filename, int n, int d) {
-        std::vector<float> X_vec = GsDBSCAN::algo_utils::loadCsvColumnToVector<float>(filename, 0);
-        float *X_h = X_vec.data();
-        float *X_d = GsDBSCAN::algo_utils::copyHostToDevice(X_h, n * d);
+    template<typename T>
+    inline std::vector<T> loadBinFileToVector(const std::string &filePath) {
+
+        std::ifstream file(filePath, std::ios::binary);
+        if (!file.is_open()) {
+            throw std::runtime_error("Error opening file: " + filePath);
+        }
+
+        // Get the size of the file
+        file.seekg(0, std::ios::end);
+        size_t fileSize = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        // Read the file into a vector
+        std::vector<T> data(fileSize / sizeof(T));
+        file.read(reinterpret_cast<char *>(data.data()), fileSize);
+
+        file.close();
+
+        return data;
+    }
+
+    template <typename T>
+    inline T *loadBinDatasetToDevice(std::string filename, int n, int d) {
+        auto X_vec = GsDBSCAN::run_utils::loadBinFileToVector<T>(filename);
+        T *X_h = X_vec.data();
+        T *X_d = GsDBSCAN::algo_utils::copyHostToDevice(X_h, n * d);
         return X_d;
     }
 
-    inline float *loadBinDatasetToDevice(std::string filename, int n, int d) {
-        std::vector<float> X_vec = GsDBSCAN::algo_utils::loadBinFileToVector<float>(filename);
+
+    template<typename T>
+    inline std::vector<T> loadCsvColumnToVector(const std::string &filePath, size_t columnIndex = 1) {
+        rapidcsv::Document csvDoc(filePath);
+        return csvDoc.GetColumn<T>(columnIndex);
+    }
+
+    inline float *loadCSVDatasetToDevice(std::string filename, int n, int d) {
+        std::vector<float> X_vec = GsDBSCAN::run_utils::loadCsvColumnToVector<float>(filename, 0);
         float *X_h = X_vec.data();
         float *X_d = GsDBSCAN::algo_utils::copyHostToDevice(X_h, n * d);
         return X_d;
@@ -94,10 +124,12 @@ namespace GsDBSCAN::run_utils {
         }
     }
 
+
     inline std::tuple<int *, int *, json>
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
                 std::string distanceMetric, int clusterBlockSize) {
-        float *X_d = loadBinDatasetToDevice(datasetFileName, n, d);
+        // TODO write docs
+        float *X_d = loadBinDatasetToDevice<float>(datasetFileName, n, d);
 
         auto [clusterLabels, typeLabels, times] = performGsDbscan(
                 X_d,
