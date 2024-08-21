@@ -56,7 +56,7 @@ namespace GsDBSCAN::clustering {
     }
 
     inline int *processQueryVectorDegreeArrayThrust(int *degArray_d, int n) {
-        int *startIdxArray_d = utils::allocateCudaArray<int>(n);
+        int *startIdxArray_d = algo_utils::allocateCudaArray<int>(n);
         thrust::device_ptr<int> startIdxArray_thrust(startIdxArray_d);
         thrust::device_ptr<int> degArray_thrust(degArray_d);
         thrust::exclusive_scan(degArray_thrust, degArray_thrust + n,
@@ -267,7 +267,7 @@ namespace GsDBSCAN::clustering {
         int *B_d = B.device<int>();
 
         // Getting cuda stream from af
-        cudaStream_t afCudaStream = utils::getAfCudaStream();
+        cudaStream_t afCudaStream = algo_utils::getAfCudaStream();
 
         // Now we can call the kernel
         int numBlocks = std::max(1, n / blockSize);
@@ -292,7 +292,7 @@ namespace GsDBSCAN::clustering {
                            int m, float eps, int blockSize = 256) {
         int adjacencyList_size = degArray[n - 1] + startIdxArray[n - 1];
 
-        int *adjacencyList_d = utils::allocateCudaArray<int>(adjacencyList_size);
+        int *adjacencyList_d = algo_utils::allocateCudaArray<int>(adjacencyList_size);
 
 
         int numBlocks = std::max(1, n / blockSize);
@@ -336,10 +336,10 @@ namespace GsDBSCAN::clustering {
                                    int thisClusterLabel,
                                    int minPts, int blockSize) {
         // NB: Fa is Border from GsDBSCAN paper, Xa is Visited,
-        int *borderThisBfs_d = utils::allocateCudaArray<int>(n, true);
+        int *borderThisBfs_d = algo_utils::allocateCudaArray<int>(n, true);
 
-        int *visitedThisBfs_d = utils::allocateCudaArray<int>(n,
-                                                              true); // Managed memory allows to set values from the CPU, and still be used in the GPU
+        int *visitedThisBfs_d = algo_utils::allocateCudaArray<int>(n,
+                                                                   true); // Managed memory allows to set values from the CPU, and still be used in the GPU
 
         cudaMemset(borderThisBfs_d, 0, n * sizeof(int));
         cudaMemset(visitedThisBfs_d, 0, n * sizeof(int));
@@ -384,7 +384,7 @@ namespace GsDBSCAN::clustering {
         std::fill(typeLabels, typeLabels + n, -1);
         int *visited = new int[n];
 
-        auto degArray_h = utils::copyDeviceToHost(degArray_d, n);
+        auto degArray_h = algo_utils::copyDeviceToHost(degArray_d, n);
 
         int currCluster = 0;
 

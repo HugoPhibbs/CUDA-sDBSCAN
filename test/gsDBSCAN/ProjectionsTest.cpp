@@ -127,8 +127,8 @@ TEST_F(TestConstructingABMatrices, TestSmallInputAF) {
     auto A_array_d = A.device<float>();
     auto B_array_d = B.device<float>();
 
-    auto A_array_h = GsDBSCAN::utils::copyDeviceToHost(A_array_d, 6 * 4, GsDBSCAN::utils::getAfCudaStream());
-    auto B_array_h = GsDBSCAN::utils::copyDeviceToHost(B_array_d, 10 * 2, GsDBSCAN::utils::getAfCudaStream());
+    auto A_array_h = GsDBSCAN::algo_utils::copyDeviceToHost(A_array_d, 6 * 4, GsDBSCAN::algo_utils::getAfCudaStream());
+    auto B_array_h = GsDBSCAN::algo_utils::copyDeviceToHost(B_array_d, 10 * 2, GsDBSCAN::algo_utils::getAfCudaStream());
 
     assertColRowMajorMatsEqual(A_array_h, expectedA, 6, 4);
 //    assertColRowMajorMatsEqual(B_array_h, expectedB, 10, 2);
@@ -254,7 +254,7 @@ TEST_F(TestNormalisation, TestSmallInputAF) {
 
 
     auto XNorm_d = XNorm.device<float>();
-    auto XNorm_h = GsDBSCAN::utils::copyDeviceToHost(XNorm_d, 3 * 3, GsDBSCAN::utils::getAfCudaStream());
+    auto XNorm_h = GsDBSCAN::algo_utils::copyDeviceToHost(XNorm_d, 3 * 3, GsDBSCAN::algo_utils::getAfCudaStream());
 
     for (int i = 0; i < 3 * 3; ++i) {
         ASSERT_NEAR(expected[i], XNorm_h[i], 1e-6);
@@ -292,11 +292,11 @@ TEST_F(TestNormalisation, TestLargeInputAF) {
 //            7.0f / (float) std::sqrt(194), 8.0f / (float) std::sqrt(194), 9.0f / (float) std::sqrt(194)
 //    }; // Row-major order
 //
-//    auto *X_d = GsDBSCAN::utils::copyHostToDevice(X_data, 3*3);
+//    auto *X_d = GsDBSCAN::algo_utils::copyHostToDevice(X_data, 3*3);
 //    auto X = matx::make_tensor<float>(X_d, {3, 3});
 ////    auto XNorm = GsDBSCAN::projections::normaliseDatasetMatX(X);
 //
-//    auto XNorm_h = GsDBSCAN::utils::copyDeviceToHost(XNorm.Data(), 3*3);
+//    auto XNorm_h = GsDBSCAN::algo_utils::copyDeviceToHost(XNorm.Data(), 3*3);
 //
 //    for (int i = 0; i < 3*3; ++i) {
 //        ASSERT_NEAR(expected[i], XNorm_h[i], 1e-6);

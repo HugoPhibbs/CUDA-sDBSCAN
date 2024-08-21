@@ -121,7 +121,7 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
             0, 0, 1
     };
 
-    auto *X_d = GsDBSCAN::utils::copyHostToDevice<float>(X, 15);
+    auto *X_d = GsDBSCAN::algo_utils::copyHostToDevice<float>(X, 15);
 
     int A[10] = {
             0, 3,
@@ -131,7 +131,7 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
             2, 1
     };
 
-    auto *A_d = GsDBSCAN::utils::copyHostToDevice<int>(A, 10);
+    auto *A_d = GsDBSCAN::algo_utils::copyHostToDevice<int>(A, 10);
 
     int B[30] = {
         1, 2, 3,
@@ -146,7 +146,7 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
         0, 2, 1
     };
 
-    auto *B_d = GsDBSCAN::utils::copyHostToDevice<int>(B, 30);
+    auto *B_d = GsDBSCAN::algo_utils::copyHostToDevice<int>(B, 30);
 
     auto X_t = matx::make_tensor<float>(X_d, {5, 3});
     auto A_t = matx::make_tensor<int>(A_d, {5, 2});
@@ -158,7 +158,7 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
 
     auto *distances_d = distances_t.Data();
 
-    auto *distances_h = GsDBSCAN::utils::copyDeviceToHost(distances_d, 30);
+    auto *distances_h = GsDBSCAN::algo_utils::copyDeviceToHost(distances_d, 30);
 
     float expected_squared[30] = {
             11, 5, 14, 11, 0, 5,
@@ -183,7 +183,7 @@ TEST_F(TestFindingDistances, TestSmallInputCosineMatx) {
             0, 0, 1
     };
 
-    auto *X_d = GsDBSCAN::utils::copyHostToDevice<float>(X, 15);
+    auto *X_d = GsDBSCAN::algo_utils::copyHostToDevice<float>(X, 15);
 
     int A[10] = {
             0, 3,
@@ -193,7 +193,7 @@ TEST_F(TestFindingDistances, TestSmallInputCosineMatx) {
             2, 1
     };
 
-    int *A_d = GsDBSCAN::utils::copyHostToDevice<int>(A, 10);
+    int *A_d = GsDBSCAN::algo_utils::copyHostToDevice<int>(A, 10);
 
     int B[30] = {
             1, 2, 3,
@@ -208,7 +208,7 @@ TEST_F(TestFindingDistances, TestSmallInputCosineMatx) {
             0, 2, 1
     };
 
-    int *B_d = GsDBSCAN::utils::copyHostToDevice<int>(B, 30);
+    int *B_d = GsDBSCAN::algo_utils::copyHostToDevice<int>(B, 30);
 
     auto X_t = matx::make_tensor<float>(X_d, {5, 3});
     matx::tensor_t<matx::matxFp16, 2> X_t_16({5, 3});
@@ -221,7 +221,7 @@ TEST_F(TestFindingDistances, TestSmallInputCosineMatx) {
     cudaDeviceSynchronize();
 
     auto *distances_d = distances_t.Data();
-    auto *distances_h = GsDBSCAN::utils::copyDeviceToHost(distances_d, 30);
+    auto *distances_h = GsDBSCAN::algo_utils::copyDeviceToHost(distances_d, 30);
 
     float expectedDistances[30] = {
             2, 9, 3, 2, 10, 9,
@@ -245,7 +245,7 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
             0, 0, 1
     };
 
-    auto *X_d = GsDBSCAN::utils::copyHostToDevice<float>(X, 15);
+    auto *X_d = GsDBSCAN::algo_utils::copyHostToDevice<float>(X, 15);
 
     int A[10] = {
             0, 3,
@@ -255,7 +255,7 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
             2, 1
     };
 
-    int *A_d = GsDBSCAN::utils::copyHostToDevice<int>(A, 10);
+    int *A_d = GsDBSCAN::algo_utils::copyHostToDevice<int>(A, 10);
 
     int B[30] = {
             1, 2, 3,
@@ -270,7 +270,7 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
             0, 2, 1
     };
 
-    int *B_d = GsDBSCAN::utils::copyHostToDevice<int>(B, 30);
+    int *B_d = GsDBSCAN::algo_utils::copyHostToDevice<int>(B, 30);
 
     auto X_t = matx::make_tensor<float>(X_d, {5, 3});
     auto A_t = matx::make_tensor<int>(A_d, {5, 2});
@@ -281,7 +281,7 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
     cudaDeviceSynchronize();
 
     auto *distances_d = distances_t.Data();
-    auto *distances_h = GsDBSCAN::utils::copyDeviceToHost(distances_d, 30);
+    auto *distances_h = GsDBSCAN::algo_utils::copyDeviceToHost(distances_d, 30);
 
     float expected_squared[] = {
             11, 5, 14, 11, 0, 5,
@@ -301,16 +301,16 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
      * This test checks if results calculated by C++/MatX are identical to those with Python/CuPy
      */
 
-    auto AVector = GsDBSCAN::utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/A_n1000_k3.csv");
+    auto AVector = GsDBSCAN::algo_utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/A_n1000_k3.csv");
     int *A_h = AVector.data();
 
-    auto BVector = GsDBSCAN::utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/B_D100_m20.csv");
+    auto BVector = GsDBSCAN::algo_utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/B_D100_m20.csv");
     int *B_h = BVector.data();
 
-    auto XVector = GsDBSCAN::utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/X_n1000_d20.csv");
+    auto XVector = GsDBSCAN::algo_utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/X_n1000_d20.csv");
     float *X_h = XVector.data();
 
-    auto distancesVector = GsDBSCAN::utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/distances_n1000_k3_m20.csv");
+    auto distancesVector = GsDBSCAN::algo_utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/distances_n1000_k3_m20.csv");
 
     float *distances_expected_h = distancesVector.data();
 
@@ -320,9 +320,9 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
     int D = 100;
     int d = 20;
 
-    int *A_d = GsDBSCAN::utils::copyHostToDevice(A_h, n*2*k);
-    int *B_d = GsDBSCAN::utils::copyHostToDevice(B_h, 2*D*m);
-    float *X_d = GsDBSCAN::utils::copyHostToDevice(X_h, n*d);
+    int *A_d = GsDBSCAN::algo_utils::copyHostToDevice(A_h, n * 2 * k);
+    int *B_d = GsDBSCAN::algo_utils::copyHostToDevice(B_h, 2 * D * m);
+    float *X_d = GsDBSCAN::algo_utils::copyHostToDevice(X_h, n * d);
 
     auto X_t = matx::make_tensor<float>(X_d, {n, d});
 
@@ -336,7 +336,7 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
     cudaDeviceSynchronize();
 
     auto *distances_d = distances_t.Data();
-    auto *distances_h = GsDBSCAN::utils::copyDeviceToHost(distances_d, n*2*k*m);
+    auto *distances_h = GsDBSCAN::algo_utils::copyDeviceToHost(distances_d, n * 2 * k * m);
 
     for (int i = 0; i < n*2*k*m; i++) {
         // Python and CPP produce *slightly* different results. Hence, why I use a 1e-2 tolerance

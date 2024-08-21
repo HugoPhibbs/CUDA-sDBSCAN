@@ -77,7 +77,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
             15, 2, 6, 7
     };
 
-    auto distancesData_d = GsDBSCAN::utils::copyHostToDevice(distancesData, 16, true);
+    auto distancesData_d = GsDBSCAN::algo_utils::copyHostToDevice(distancesData, 16, true);
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4}, matx::MATX_MANAGED_MEMORY);
 
@@ -136,7 +136,7 @@ class TestProcessQueryVectorDegreeArray : public ClusteringTest {
 TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputMatX) {
     int EData[] = {3, 4, 1, 1};
 
-    auto EData_d = GsDBSCAN::utils::copyHostToDevice(EData, 4, true);
+    auto EData_d = GsDBSCAN::algo_utils::copyHostToDevice(EData, 4, true);
 
     auto V = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(EData_d, 4);
 
@@ -149,11 +149,11 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputThrust) {
 
     int degArray[] = {3, 4, 1, 1};
 
-    int *degArray_d = GsDBSCAN::utils::copyHostToDevice(degArray, 4, true);
+    int *degArray_d = GsDBSCAN::algo_utils::copyHostToDevice(degArray, 4, true);
 
     int *startIdxArray_d = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(degArray_d, 4);
 
-    int *startIdxArray_h = GsDBSCAN::utils::copyDeviceToHost(startIdxArray_d, 4);
+    int *startIdxArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(startIdxArray_d, 4);
 
     int expectedData[] = {0, 3, 7, 8};
 
@@ -170,7 +170,7 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputIntegrationThrust) {
             15, 2, 6, 7
     };
 
-    auto distancesData_d = GsDBSCAN::utils::copyHostToDevice(distancesData, 16, false);
+    auto distancesData_d = GsDBSCAN::algo_utils::copyHostToDevice(distancesData, 16, false);
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4}, matx::MATX_DEVICE_MEMORY);
 
@@ -180,7 +180,7 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputIntegrationThrust) {
 
     int *startIdxArray_d = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(degArray_d, 4);
 
-    int *startIdxArray_h = GsDBSCAN::utils::copyDeviceToHost(startIdxArray_d, 4);
+    int *startIdxArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(startIdxArray_d, 4);
 
     int expectedData[] = {0, 3, 7, 8};
 
@@ -232,9 +232,9 @@ TEST_F(TestFormingClusters, TestSmallInput) {
     int degArray_h[12] = {1, 3, 1, 1, 0, 3, 2, 2, 0, 3, 1, 1};
     int startIdxArray_h[12] = {0, 1, 4, 5, 6, 6, 9, 11, 13, 13, 16, 17};
 
-    int *adjacencyList_d = GsDBSCAN::utils::copyHostToDevice(adjacencyList_h, 16, true);
-    int *degArray_d = GsDBSCAN::utils::copyHostToDevice(degArray_h, n, true);
-    int *startIdxArray_d = GsDBSCAN::utils::copyHostToDevice(startIdxArray_h, n, true);
+    int *adjacencyList_d = GsDBSCAN::algo_utils::copyHostToDevice(adjacencyList_h, 16, true);
+    int *degArray_d = GsDBSCAN::algo_utils::copyHostToDevice(degArray_h, n, true);
+    int *startIdxArray_d = GsDBSCAN::algo_utils::copyHostToDevice(startIdxArray_h, n, true);
 
     auto start = tu::timeNow();
 
@@ -274,9 +274,9 @@ TEST_F(TestFormingClusters, TestSmallInputB) {
     int degArray_h[12] = {1, 3, 1, 1, 0, 3, 2, 2, 0, 3, 1, 1};
     int startIdxArray_h[12] = {0, 1, 4, 5, 6, 6, 9, 11, 13, 13, 16, 17};
 
-    int *adjacencyList_d = GsDBSCAN::utils::copyHostToDevice(adjacencyList_h, 16, true);
-    int *degArray_d = GsDBSCAN::utils::copyHostToDevice(degArray_h, n, true);
-    int *startIdxArray_d = GsDBSCAN::utils::copyHostToDevice(startIdxArray_h, n, true);
+    int *adjacencyList_d = GsDBSCAN::algo_utils::copyHostToDevice(adjacencyList_h, 16, true);
+    int *degArray_d = GsDBSCAN::algo_utils::copyHostToDevice(degArray_h, n, true);
+    int *startIdxArray_d = GsDBSCAN::algo_utils::copyHostToDevice(startIdxArray_h, n, true);
 
     int clusterLabelsExpected_h[12] = {0, 0, 0, 0, -1, 1, 1, 1, -1, 1, -1, -1};
     int typeLabelsExpected_h[12] = {0, 1, 0, 0, -1, 1, 0, 0, -1, 1, -1, -1};

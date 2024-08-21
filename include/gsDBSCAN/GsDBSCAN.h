@@ -62,7 +62,7 @@ namespace GsDBSCAN {
     *  A nlohmann json object containing the timing information
     */
     inline std::tuple<int*, int*, json>  performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha=1.2, std::string distanceMetric="L2", int clusterBlockSize=256, bool timeIt=false) {
-//        auto X_col_major = utils::colMajorToRowMajorMat(X, n, d);
+//        auto X_col_major = algo_utils::colMajorToRowMajorMat(X, n, d);
         json times;
 
         Time startOverAll = timeNow();
@@ -86,11 +86,11 @@ namespace GsDBSCAN {
 
         auto [A_af, B_af] = projections::constructABMatricesAF(projections, k, m);
 
-        auto A_t = utils::afMatToMatXTensor<int, int>(A_af,
-                                                      matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
-        auto B_t = utils::afMatToMatXTensor<int, int>(B_af,
-                                                      matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
-        auto X_t = utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
+        auto A_t = algo_utils::afMatToMatXTensor<int, int>(A_af,
+                                                           matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
+        auto B_t = algo_utils::afMatToMatXTensor<int, int>(B_af,
+                                                           matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
+        auto X_t = algo_utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
 
         if (timeIt) times["constructABMatrices"] = duration(startABMatrices, timeNow());
 
