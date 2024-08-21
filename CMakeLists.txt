@@ -63,11 +63,10 @@ set_source_files_properties(
         include/gsDBSCAN/GsDBSCAN.h
         include/gsDBSCAN/projections.h
         include/gsDBSCAN/clustering.h
-        include/gsDBSCAN/utils.h
+        include/gsDBSCAN/algo_utils.h
         src/gs_main.cpp
         test/repro2.cu
         PROPERTIES LANGUAGE CUDA)
-
 
 add_executable(${PROJECT_NAME}
 #        src/main.cpp
@@ -77,9 +76,11 @@ add_executable(${PROJECT_NAME}
         src/fast_copy.c
         src/fht/fht.c
         include/gsDBSCAN/projections.h
-        include/gsDBSCAN/utils.h
+        include/gsDBSCAN/algo_utils.h
         include/gsDBSCAN/distances.h
         include/gsDBSCAN/clustering.h
+        include/gsDBSCAN/run_utils.h
+
 )
 
 add_executable(run_gs_dbscan_tests
@@ -89,6 +90,7 @@ add_executable(run_gs_dbscan_tests
         test/gsDBSCAN/ProjectionsTest.cpp
         test/gsDBSCAN/DistancesTest.cpp
         test/gsDBSCAN/ClusteringTest.cpp
+        test/gsDBSCAN/gs_mainTest.cpp
 )
 
 add_executable(repro2
@@ -100,5 +102,8 @@ set_target_properties(repro2 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main)
 target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda Eigen3::Eigen matx::matx)
+#
+#target_precompile_headers(run_gs_dbscan_tests PRIVATE include/json.hpp include/rapidcsv.h)
+#target_precompile_headers(${PROJECT_NAME} PRIVATE include/json.hpp include/rapidcsv.h)
 
 target_link_libraries(repro2 PRIVATE CCCL::CCCL matx::matx)

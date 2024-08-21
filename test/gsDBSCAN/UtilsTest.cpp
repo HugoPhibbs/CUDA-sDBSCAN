@@ -157,9 +157,22 @@ class TestReadMnist : public UtilsTest {
 
 };
 
-TEST_F(TestReadMnist, TestNormally) {
+TEST_F(TestReadMnist, TestCSVNormally) {
+    auto start = tu::timeNow();
+
     GsDBSCAN::utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/mnist_images_col_major.csv", 0);
+
+    tu::printDurationSinceStart(start, "Reading MNIST via csv");
 }
+
+TEST_F(TestReadMnist, TestBinNormally) {
+    auto start = tu::timeNow();
+
+    auto vec = GsDBSCAN::utils::loadBinFileToVector<float>("/home/hphi344/Documents/Thesis/python/data/mnist_images_col_major.bin");
+
+    tu::printDurationSinceStart(start, "Reading MNIST via binary");
+}
+
 
 class TestCopying : public UtilsTest {
 

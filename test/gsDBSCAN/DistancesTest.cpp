@@ -47,7 +47,7 @@ class TestFindingDistances : public TestDistances {
 
 };
 
-TEST_F(TestFindingDistances, TestSmallInput)     {
+TEST_F(TestFindingDistances, TestSmallInputAF)     {
     // n = 5, d = 3
     float X_data[] = {
             0, 1, 2, 3, 0,
@@ -112,15 +112,6 @@ TEST_F(TestFindingDistances, TestSmallInput)     {
 
 }
 
-template <typename T>
-T* hostArrayToCudaArray(const T* hostArray, size_t numElements) {
-    T* deviceArray;
-    size_t size = sizeof(T) * numElements;
-    cudaMalloc(&deviceArray, size);
-    cudaMemcpy(deviceArray, hostArray, size, cudaMemcpyHostToDevice);
-    return deviceArray;
-}
-
 TEST_F(TestFindingDistances, TestSmallInputMatx) {
     float X[15] = {
             0, 1, 3,
@@ -130,7 +121,7 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
             0, 0, 1
     };
 
-    float *X_d = hostArrayToCudaArray<float>(X, 15);
+    auto *X_d = GsDBSCAN::utils::copyHostToDevice<float>(X, 15);
 
     int A[10] = {
             0, 3,
@@ -140,7 +131,69 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
             2, 1
     };
 
-    int *A_d = hostArrayToCudaArray<int>(A, 10);
+    auto *A_d = GsDBSCAN::utils::copyHostToDevice<int>(A, 10);
+
+    int B[30] = {
+        1, 2, 3,
+        0, 4, 1,
+        3, 1, 0,
+        1, 0, 2,
+        0, 2, 3,
+        1, 2, 0,
+        0, 4, 1,
+        3, 1, 2,
+        1, 0, 4,
+        0, 2, 1
+    };
+
+    auto *B_d = GsDBSCAN::utils::copyHostToDevice<int>(B, 30);
+
+    auto X_t = matx::make_tensor<float>(X_d, {5, 3});
+    auto A_t = matx::make_tensor<int>(A_d, {5, 2});
+    auto B_t = matx::make_tensor<int>(B_d, {10, 3});
+
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX(X_t, A_t, B_t);
+
+    cudaDeviceSynchronize();
+
+    auto *distances_d = distances_t.Data();
+
+    auto *distances_h = GsDBSCAN::utils::copyDeviceToHost(distances_d, 30);
+
+    float expected_squared[30] = {
+            11, 5, 14, 11, 0, 5,
+            9, 0, 11, 0, 14, 11,
+            5, 0, 5, 5, 8, 14,
+            9, 5, 0, 0, 9, 5,
+            9, 6, 5, 5, 0, 6
+    };
+
+    for (int i = 0; i < 5*6; i++) {
+        ASSERT_NEAR(std::sqrt(expected_squared[i]), distances_h[i], 1e-3);
+    }
+}
+
+TEST_F(TestFindingDistances, TestSmallInputCosineMatx) {
+
+    float X[15] = {
+            0, 1, 3,
+            1, 2, 0,
+            2, 0, 3,
+            3, 0, 1,
+            0, 0, 1
+    };
+
+    auto *X_d = GsDBSCAN::utils::copyHostToDevice<float>(X, 15);
+
+    int A[10] = {
+            0, 3,
+            2, 5,
+            4, 1,
+            0, 7,
+            2, 1
+    };
+
+    int *A_d = GsDBSCAN::utils::copyHostToDevice<int>(A, 10);
 
     int B[30] = {
             1, 2, 3,
@@ -155,32 +208,31 @@ TEST_F(TestFindingDistances, TestSmallInputMatx) {
             0, 2, 1
     };
 
-    int *B_d = hostArrayToCudaArray<int>(B, 30);
+    int *B_d = GsDBSCAN::utils::copyHostToDevice<int>(B, 30);
 
-    auto X_t = matx::make_tensor<float>(X_d, {5, 3}, true);
+    auto X_t = matx::make_tensor<float>(X_d, {5, 3});
     matx::tensor_t<matx::matxFp16, 2> X_t_16({5, 3});
     (X_t_16 = matx::as_type<matx::matxFp16>(X_t)).run();
-    auto A_t = matx::make_tensor<int>(A_d, {5, 2}, true);
-    auto B_t = matx::make_tensor<int>(B_d, {10, 3}, true);
+    auto A_t = matx::make_tensor<int>(A_d, {5, 2});
+    auto B_t = matx::make_tensor<int>(B_d, {10, 3});
 
-    auto distances_t = GsDBSCAN::distances::findDistancesMatX(X_t_16, A_t, B_t);
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX(X_t_16, A_t, B_t, 1.2, 1, "COSINE");
 
     cudaDeviceSynchronize();
 
-    cudaCheckError();
+    auto *distances_d = distances_t.Data();
+    auto *distances_h = GsDBSCAN::utils::copyDeviceToHost(distances_d, 30);
 
-    matx::matxFp16 *distances_ptr = distances_t.Data();
-
-    matx::matxFp16 expected_squared[] = {
-            11, 5, 14, 11, 0, 5,
-            9, 0, 11, 0, 14, 11,
-            5, 0, 5, 5, 8, 14,
-            9, 5, 0, 0, 9, 5,
-            9, 6, 5, 5, 0, 6
+    float expectedDistances[30] = {
+            2, 9, 3, 2, 10, 9,
+            3, 5, 2, 5, 2, 2,
+            9, 13, 9, 9, 3, 2,
+            3, 9, 10, 10, 3, 9,
+            1, 0, 3, 3, 1, 0
     };
 
     for (int i = 0; i < 5*6; i++) {
-        ASSERT_NEAR(std::sqrt(expected_squared[i]), distances_ptr[i], 1e-3);
+        ASSERT_NEAR(expectedDistances[i], distances_h[i], 1e-3);
     }
 }
 
@@ -193,7 +245,7 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
             0, 0, 1
     };
 
-    auto *X_d = hostArrayToCudaArray<float>(X, 15);
+    auto *X_d = GsDBSCAN::utils::copyHostToDevice<float>(X, 15);
 
     int A[10] = {
             0, 3,
@@ -203,7 +255,7 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
             2, 1
     };
 
-    int *A_d = hostArrayToCudaArray<int>(A, 10);
+    int *A_d = GsDBSCAN::utils::copyHostToDevice<int>(A, 10);
 
     int B[30] = {
             1, 2, 3,
@@ -218,21 +270,20 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
             0, 2, 1
     };
 
-    int *B_d = hostArrayToCudaArray<int>(B, 30);
+    int *B_d = GsDBSCAN::utils::copyHostToDevice<int>(B, 30);
 
-    auto X_t = matx::make_tensor<float>(X_d, {5, 3}, true);
-    matx::tensor_t<matx::matxFp16, 2> X_t_16({5, 3});
-    (X_t_16 = matx::as_type<matx::matxFp16>(X_t)).run();
-    auto A_t = matx::make_tensor<int>(A_d, {5, 2}, true);
-    auto B_t = matx::make_tensor<int>(B_d, {10, 3}, true);
+    auto X_t = matx::make_tensor<float>(X_d, {5, 3});
+    auto A_t = matx::make_tensor<int>(A_d, {5, 2});
+    auto B_t = matx::make_tensor<int>(B_d, {10, 3});
 
-    auto distances_t = GsDBSCAN::distances::findDistancesMatX(X_t_16, A_t, B_t, 1.2, 1);
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX(X_t, A_t, B_t, 1.2, 1);
 
     cudaDeviceSynchronize();
 
-    matx::matxFp16 *distances_ptr = distances_t.Data();
+    auto *distances_d = distances_t.Data();
+    auto *distances_h = GsDBSCAN::utils::copyDeviceToHost(distances_d, 30);
 
-    matx::matxFp16 expected_squared[] = {
+    float expected_squared[] = {
             11, 5, 14, 11, 0, 5,
             9, 0, 11, 0, 14, 11,
             5, 0, 5, 5, 8, 14,
@@ -241,7 +292,7 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
     };
 
     for (int i = 0; i < 5 * 6; i++) {
-        ASSERT_NEAR(std::sqrt(expected_squared[i]), distances_ptr[i], 1e-3);
+        ASSERT_NEAR(std::sqrt(expected_squared[i]), distances_h[i], 1e-3);
     }
 }
 
@@ -269,28 +320,27 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
     int D = 100;
     int d = 20;
 
-    int *A_d = hostArrayToCudaArray(A_h, n*2*k);
-    int *B_d = hostArrayToCudaArray(B_h, 2*D*m);
-    float *X_d = hostArrayToCudaArray(X_h, n*d);
+    int *A_d = GsDBSCAN::utils::copyHostToDevice(A_h, n*2*k);
+    int *B_d = GsDBSCAN::utils::copyHostToDevice(B_h, 2*D*m);
+    float *X_d = GsDBSCAN::utils::copyHostToDevice(X_h, n*d);
 
     auto X_t = matx::make_tensor<float>(X_d, {n, d});
-    matx::tensor_t<matx::matxFp16, 2> X_t_16({n, d});
-    (X_t_16 = matx::as_type<matx::matxFp16>(X_t)).run();
 
     auto A_t = matx::make_tensor<int>(A_d, {n, 2 * k});
     auto B_t = matx::make_tensor<int>(B_d, {2 * D, m});
 
     auto start = tu::timeNow();
 
-    auto distances_t = GsDBSCAN::distances::findDistancesMatX<matx::matxFp16>(X_t_16, A_t, B_t, 1.2, 100);
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX<float>(X_t, A_t, B_t, 1.2, 100);
 
     cudaDeviceSynchronize();
 
-    matx::matxFp16 *distances_ptr = distances_t.Data();
+    auto *distances_d = distances_t.Data();
+    auto *distances_h = GsDBSCAN::utils::copyDeviceToHost(distances_d, n*2*k*m);
 
     for (int i = 0; i < n*2*k*m; i++) {
         // Python and CPP produce *slightly* different results. Hence, why I use a 1e-2 tolerance
-        ASSERT_NEAR(distances_expected_h[i], matx::promote_half_t<matx::matxFp16>(distances_ptr[i]), 1e-2); // Doing a cast just to be sure
+        ASSERT_NEAR(distances_expected_h[i], distances_h[i], 1e-2); // Doing a cast just to be sure
     }
 }
 
@@ -322,7 +372,7 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
     tu::Time start = tu::timeNow();
 
-    auto distances = GsDBSCAN::distances::findDistancesMatX<float>(X, A, B, 1.2, 2000, (std::string &) "L2", matx::MATX_MANAGED_MEMORY);
+    auto distances = GsDBSCAN::distances::findDistancesMatX<float>(X, A, B, 1.2, 2000, "L2", matx::MATX_MANAGED_MEMORY);
     cudaDeviceSynchronize();
 
     cudaCheckError();

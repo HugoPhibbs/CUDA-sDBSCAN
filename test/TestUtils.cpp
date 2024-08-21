@@ -30,7 +30,7 @@ namespace testUtils {
 
     void printDurationSinceStart(Time start, const std::string& msg) {
         if (!msg.empty()) {
-            std::cout << msg << " ";
+            std::cout << msg << ": ";
         }
         std::cout << "Duration: " << duration(start, timeNow()) << " microseconds" << std::endl;
     }
