@@ -48,13 +48,14 @@ namespace GsDBSCAN {
             return std::make_tuple(A, B);
         }
 
-        inline af::array performProjections(af::array X, int D) {
+        inline af::array performProjectionsAF(af::array X, int D) {
             int d = X.dims(1);
             auto Y = af::randn(d, D);
             return af::matmul(X, Y);
         }
 
-        inline af::array normaliseDataset(af::array X) {
+        inline af::array normaliseDatasetAF(af::array X) {
+            // Normalise along the rows
             auto rowNorms = af::sqrt(af::sum(X*X, 1));
             return X / af::tile(rowNorms, 1, X.dims(1));
         }
