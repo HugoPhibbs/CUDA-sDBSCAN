@@ -8,8 +8,8 @@
 
 namespace tu = testUtils;
 
-class ProjectionsTest: public ::testing::Test {
-    protected:
+class ProjectionsTest : public ::testing::Test {
+protected:
     template<typename T>
     void assertColRowMajorMatsEqual(T *colMajorArray, T *rowMajorArray, size_t numRows, size_t numCols) {
 
@@ -106,7 +106,7 @@ TEST_F(TestConstructingABMatrices, TestSmallInputAF) {
     };
 
     // B is (2*D, m), or (2*5, 2) (row major)
-    float expectedB[(2*5) * 2] = {
+    float expectedB[(2 * 5) * 2] = {
             5, 0,
             4, 1,
             5, 2,
@@ -126,8 +126,8 @@ TEST_F(TestConstructingABMatrices, TestSmallInputAF) {
     auto A_array_d = A.device<float>();
     auto B_array_d = B.device<float>();
 
-    auto A_array_h = GsDBSCAN::utils::copyDeviceToHost(A_array_d, 6*4, GsDBSCAN::utils::getAfCudaStream());
-    auto B_array_h = GsDBSCAN::utils::copyDeviceToHost(B_array_d, 10*2, GsDBSCAN::utils::getAfCudaStream());
+    auto A_array_h = GsDBSCAN::utils::copyDeviceToHost(A_array_d, 6 * 4, GsDBSCAN::utils::getAfCudaStream());
+    auto B_array_h = GsDBSCAN::utils::copyDeviceToHost(B_array_d, 10 * 2, GsDBSCAN::utils::getAfCudaStream());
 
     assertColRowMajorMatsEqual(expectedA, A_array_h, 6, 4);
 //    assertColRowMajorMatsEqual(expectedB, B_array_h, 10, 2);
@@ -190,5 +190,46 @@ TEST_F(TestProjectionsSpeed, TestLargeInputMatx) {
     /*
      * What is needed is a FHT on the GPU. Instead of a simple mat mul.
      */
+    tu::printDurationSinceStart(start);
+}
+
+class TestNormalisation : public ProjectionsTest {
+
+};
+
+TEST_F(TestNormalisation, TestSmallInputAF) {
+    float X_data[] = {
+            1.0f, 4.0f, 7.0f,
+            2.0f, 5.0f, 8.0f,
+            3.0f, 6.0f, 9.0f
+    }; // Column major order
+
+    auto X = af::array(3, 3, X_data);
+
+    auto XNorm = GsDBSCAN::projections::normaliseDataset(X);
+
+    float expected[] = {
+            1.0f / (float) std::sqrt(14), 4.0f / (float) std::sqrt(77), 7.0f / (float) std::sqrt(194),
+            2.0f / (float) ::sqrt(14), 5.0f / (float) std::sqrt(77), 8.0f / (float) std::sqrt(194),
+            3.0f / (float) std::sqrt(14), 6.0f / (float) std::sqrt(77), 9.0f / (float) std::sqrt(194)
+    }; // Column major order
+
+
+    auto XNorm_d = XNorm.device<float>();
+    auto XNorm_h = GsDBSCAN::utils::copyDeviceToHost(XNorm_d, 3 * 3, GsDBSCAN::utils::getAfCudaStream());
+
+    for (int i = 0; i < 3 * 3; ++i) {
+        ASSERT_NEAR(expected[i], XNorm_h[i], 1e-6);
+    }
+}
+
+TEST_F(TestNormalisation, TestLargeInputAF) {
+    auto X = af::randu(70000, 784);
+
+    auto start = tu::timeNow();
+
+    auto XNorm = GsDBSCAN::projections::normaliseDataset(X);
+    XNorm.eval();
+
     tu::printDurationSinceStart(start);
 }

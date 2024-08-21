@@ -55,7 +55,8 @@ namespace GsDBSCAN {
         }
 
         inline af::array normaliseDataset(af::array X) {
-            return af::no
+            auto rowNorms = af::sqrt(af::sum(X*X, 1));
+            return X / af::tile(rowNorms, 1, X.dims(1));
         }
     }
 }
