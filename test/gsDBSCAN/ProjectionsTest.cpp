@@ -185,8 +185,9 @@ TEST_F(TestProjectionsSpeed, TestLargeInputMatx) {
     auto Y = matx::random<float>({d, D}, matx::UNIFORM);
 
     auto start = tu::timeNow();
-    auto Z = matx::matmul(X, Y);
-    Z.run();
+    auto Z = matx::make_tensor<float>({n, D});
+
+    (Z = matx::matmul(X, Y)).run();
     cudaDeviceSynchronize(); // 300ms faster than ArrayFire, still, this makes preprocessing slower than CPU.
     /*
      * What is needed is a FHT on the GPU. Instead of a simple mat mul.
@@ -198,15 +199,29 @@ class TestPerformProjections : public ProjectionsTest {
 
 };
 
-TEST_F(TestPerformProjections, TestSmallInputMatX) {
-    auto X = matx::random<float>({10, 3}, matx::UNIFORM);
-
+//TEST_F(TestPerformProjections, TestSmallInputMatX) {
+//    auto X = matx::random<float>({10, 3}, matx::UNIFORM);
+//
+//    auto start  = tu::timeNow();
+//
 //    auto projections = GsDBSCAN::projections::performProjectionsMatX(X, 3);
-}
+//
+//    cudaDeviceSynchronize();
+//
+//    tu::printDurationSinceStart(start);
+//}
 
-TEST_F(TestPerformProjections, TestLargeInputMatX) {
-
-}
+//TEST_F(TestPerformProjections, TestLargeInputMatX) {
+//    auto X = matx::random<float>({70000, 784}, matx::UNIFORM);
+//
+//    auto start = tu::timeNow();
+//
+//    auto projections = GsDBSCAN::projections::performProjectionsMatX(X, 50);
+//
+//    cudaDeviceSynchronize();
+//
+//    tu::printDurationSinceStart(start);
+//}
 
 TEST_F(TestPerformProjections, TestSmallInputAF) {
 
@@ -263,7 +278,7 @@ TEST_F(TestNormalisation, TestLargeInputAF) {
     ASSERT_EQ(XNorm.dims(1), 784);
 }
 
-TEST_F(TestNormalisation, TestSmallInputMatx) {
+//TEST_F(TestNormalisation, TestSmallInputMatx) {
 //    // TODO
 //    float X_data[] = {
 //            1.0f, 2.0f, 3.0f,
@@ -279,8 +294,14 @@ TEST_F(TestNormalisation, TestSmallInputMatx) {
 //
 //    auto *X_d = GsDBSCAN::utils::copyHostToDevice(X_data, 3*3);
 //    auto X = matx::make_tensor<float>(X_d, {3, 3});
-//    auto XNorm = GsDBSCAN::projections::normaliseDatasetMatX(X);
-}
+////    auto XNorm = GsDBSCAN::projections::normaliseDatasetMatX(X);
+//
+//    auto XNorm_h = GsDBSCAN::utils::copyDeviceToHost(XNorm.Data(), 3*3);
+//
+//    for (int i = 0; i < 3*3; ++i) {
+//        ASSERT_NEAR(expected[i], XNorm_h[i], 1e-6);
+//    }
+//}
 
 TEST_F(TestNormalisation, TestLargeInputMatx) {
     // TODO
