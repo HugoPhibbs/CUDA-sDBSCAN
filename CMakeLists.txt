@@ -55,10 +55,11 @@ add_subdirectory(lib/googletest)
 
 set_source_files_properties(
         test/gsDBSCAN/GsDBSCANTest.cpp
-        test/gsDBSCAN/UtilsTest.cpp
+        test/gsDBSCAN/AlgoUtilsTest.cpp
         test/gsDBSCAN/ProjectionsTest.cpp
         test/gsDBSCAN/DistancesTest.cpp
         test/gsDBSCAN/ClusteringTest.cpp
+        test/gsDBSCAN/RunUtilsTest.cpp
         include/gsDBSCAN/projections.h
         include/gsDBSCAN/GsDBSCAN.h
         include/gsDBSCAN/projections.h
@@ -67,7 +68,8 @@ set_source_files_properties(
         include/gsDBSCAN/run_utils.h
         src/gs_main.cpp
         test/repro2.cu
-        PROPERTIES LANGUAGE CUDA)
+        PROPERTIES LANGUAGE CUDA
+)
 
 add_executable(${PROJECT_NAME}
 #        src/main.cpp
@@ -81,17 +83,16 @@ add_executable(${PROJECT_NAME}
         include/gsDBSCAN/distances.h
         include/gsDBSCAN/clustering.h
         include/gsDBSCAN/run_utils.h
-
 )
 
 add_executable(run_gs_dbscan_tests
         test/gsDBSCAN/GsDBSCANTest.cpp
         test/TestUtils.cpp
-        test/gsDBSCAN/UtilsTest.cpp
+        test/gsDBSCAN/AlgoUtilsTest.cpp
         test/gsDBSCAN/ProjectionsTest.cpp
         test/gsDBSCAN/DistancesTest.cpp
         test/gsDBSCAN/ClusteringTest.cpp
-        test/gsDBSCAN/gs_mainTest.cpp
+        test/gsDBSCAN/RunUtilsTest.cpp
 )
 
 add_executable(repro2
