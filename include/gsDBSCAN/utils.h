@@ -214,6 +214,27 @@ namespace GsDBSCAN {
             return csvDoc.GetColumn<T>(columnIndex);
         }
 
+        template <typename T>
+        std::vector<T> loadBinFileToVector(const std::string& filePath) {
+
+            std::ifstream file(filePath, std::ios::binary);
+            if (!file.is_open()) {
+                throw std::runtime_error("Error opening file: " + filePath);
+            }
+
+            // Get the size of the file
+            file.seekg(0, std::ios::end);
+            size_t fileSize = file.tellg();
+            file.seekg(0, std::ios::beg);
+
+            // Read the file into a vector
+            std::vector<T> data(fileSize / sizeof(T));
+            file.read(reinterpret_cast<char*>(data.data()), fileSize);
+
+            file.close();
+
+            return data;
+        }
     }
 }
 
