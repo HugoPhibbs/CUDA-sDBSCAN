@@ -64,6 +64,7 @@ set_source_files_properties(
         include/gsDBSCAN/projections.h
         include/gsDBSCAN/clustering.h
         include/gsDBSCAN/algo_utils.h
+        include/gsDBSCAN/run_utils.h
         src/gs_main.cpp
         test/repro2.cu
         PROPERTIES LANGUAGE CUDA)
