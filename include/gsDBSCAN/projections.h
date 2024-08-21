@@ -69,16 +69,16 @@ namespace GsDBSCAN::projections {
 //            return res;
 //        }
 //
-//        template <typename T>
-//        inline matx::tensor_t<T, 2> normaliseDatasetMatX(matx::tensor_t<T, 2> X) {
-//            auto rowNorms_op = matx::vector_norm(X, {1}, matx::NormOrder::L2);
-//            auto rowNorms_op_2 = matx::clone(rowNorms_op, {1, matx::matxKeepDim});
-//            auto res = matx::make_tensor<float>({X.Shape()[0], X.Shape()[1]});
-//
-//            (res = X / matx::repmat(rowNorms_op_2, {1, X.Shape()[1]})).run();
-//
-//            return res;
-//        }
+        template <typename T>
+        inline matx::tensor_t<T, 2> normaliseDatasetMatX(matx::tensor_t<T, 2> X) {
+            auto rowNorms_op = matx::vector_norm(X, {1}, matx::NormOrder::L2);
+            auto rowNorms_op_2 = matx::clone(rowNorms_op, {1, matx::matxKeepDim});
+            auto res = matx::make_tensor<float>({X.Shape()[0], X.Shape()[1]});
+
+            (res = X / matx::repmat(rowNorms_op_2, {1, X.Shape()[1]})).run();
+
+            return res;
+        }
 }
 
 
