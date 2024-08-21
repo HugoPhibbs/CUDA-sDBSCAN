@@ -79,7 +79,7 @@ namespace testUtils {
 
         int a = 2 * (D - 1);
 
-        (A = matx::random<float>({n, 2*k}, matx::UNIFORM, 0, a)).run();
+        (A = matx::random<float>({n, 2*k}, matx::UNIFORM, 0)).run();
         (A_i = matx::as_type<int32_t>(A)).run();
 
         return A_i;
@@ -91,7 +91,7 @@ namespace testUtils {
 
         int a = n - 1;
 
-        (B = matx::random<float>({2*D, m}, matx::UNIFORM, 0, a)).run();
+        (B = matx::random<float>({2*D, m}, matx::UNIFORM, 0)).run();
         (B_i = matx::as_type<int32_t>(B)).run();
 
         return B_i;

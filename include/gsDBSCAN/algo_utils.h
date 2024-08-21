@@ -65,7 +65,7 @@ namespace GsDBSCAN::algo_utils {
     }
 
     template<typename T>
-    T *copyDeviceToHost(T *deviceArray, size_t numElements, cudaStream_t stream = nullptr) {
+    inline T *copyDeviceToHost(T *deviceArray, size_t numElements, cudaStream_t stream = nullptr) {
         cudaError_t err;
 
         T *hostArray = new T[numElements];
@@ -210,13 +210,13 @@ namespace GsDBSCAN::algo_utils {
 
 
     template<typename T>
-    std::vector<T> loadCsvColumnToVector(const std::string &filePath, size_t columnIndex = 1) {
+    inline std::vector<T> loadCsvColumnToVector(const std::string &filePath, size_t columnIndex = 1) {
         rapidcsv::Document csvDoc(filePath);
         return csvDoc.GetColumn<T>(columnIndex);
     }
 
     template<typename T>
-    std::vector<T> loadBinFileToVector(const std::string &filePath) {
+    inline std::vector<T> loadBinFileToVector(const std::string &filePath) {
 
         std::ifstream file(filePath, std::ios::binary);
         if (!file.is_open()) {

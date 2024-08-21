@@ -294,7 +294,7 @@ TEST_F(TestNormalisation, TestLargeInputAF) {
 //
 //    auto *X_d = GsDBSCAN::algo_utils::copyHostToDevice(X_data, 3*3);
 //    auto X = matx::make_tensor<float>(X_d, {3, 3});
-////    auto XNorm = GsDBSCAN::projections::normaliseDatasetMatX(X);
+//    auto XNorm = GsDBSCAN::projections::normaliseDatasetMatX(X);
 //
 //    auto XNorm_h = GsDBSCAN::algo_utils::copyDeviceToHost(XNorm.Data(), 3*3);
 //
