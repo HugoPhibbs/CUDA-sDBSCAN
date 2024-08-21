@@ -11,6 +11,8 @@
 #include <vector>
 
 #include "../json.hpp"
+#include "algo_utils.h"
+#include "GsDBSCAN.h"
 
 using json = nlohmann::json;
 
@@ -23,18 +25,18 @@ namespace GsDBSCAN::run_utils {
         newArgs["datasetFilename"] = args["--datasetFilename"];
         newArgs["outFile"] = args["--outFile"];
 
-        newArgs["n"] = std::stoi((string) args["--n"]);
-        newArgs["d"] = std::stoi((string) args["--d"]);
+        newArgs["n"] = std::stoi((std::string) args["--n"]);
+        newArgs["d"] = std::stoi((std::string) args["--d"]);
 
-        newArgs["D"] = std::stoi((string) args["--D"]);
-        newArgs["minPts"] = std::stoi((string) args["--minPts"]);
-        newArgs["k"] = std::stoi((string) args["--k"]);
-        newArgs["m"] = std::stoi((string) args["--m"]);
-        newArgs["eps"] = std::stof((string) args["--eps"]);
+        newArgs["D"] = std::stoi((std::string) args["--D"]);
+        newArgs["minPts"] = std::stoi((std::string) args["--minPts"]);
+        newArgs["k"] = std::stoi((std::string) args["--k"]);
+        newArgs["m"] = std::stoi((std::string) args["--m"]);
+        newArgs["eps"] = std::stof((std::string) args["--eps"]);
 
         newArgs["distanceMetric"] = args["--distanceMetric"];
 
-        newArgs["clusterBlockSize"] = std::stoi((string) args["--clusterBlockSize"]);
+        newArgs["clusterBlockSize"] = std::stoi((std::string) args["--clusterBlockSize"]);
 
         return newArgs;
     }
@@ -57,16 +59,16 @@ namespace GsDBSCAN::run_utils {
     }
 
     inline float *loadCSVDatasetToDevice(std::string filename, int n, int d) {
-        std::vector<float> X_vec = GsDBSCAN::utils::loadCsvColumnToVector<float>(filename, 0);
+        std::vector<float> X_vec = GsDBSCAN::algo_utils::loadCsvColumnToVector<float>(filename, 0);
         float *X_h = X_vec.data();
-        float *X_d = GsDBSCAN::utils::copyHostToDevice(X_h, n * d);
+        float *X_d = GsDBSCAN::algo_utils::copyHostToDevice(X_h, n * d);
         return X_d;
     }
 
     inline float *loadBinDatasetToDevice(std::string filename, int n, int d) {
-        std::vector<float> X_vec = GsDBSCAN::utils::loadBinFileToVector<float>(filename);
+        std::vector<float> X_vec = GsDBSCAN::algo_utils::loadBinFileToVector<float>(filename);
         float *X_h = X_vec.data();
-        float *X_d = GsDBSCAN::utils::copyHostToDevice(X_h, n * d);
+        float *X_d = GsDBSCAN::algo_utils::copyHostToDevice(X_h, n * d);
         return X_d;
     }
 
@@ -97,7 +99,7 @@ namespace GsDBSCAN::run_utils {
                 std::string distanceMetric, int clusterBlockSize) {
         float *X_d = loadBinDatasetToDevice(datasetFileName, n, d);
 
-        auto [clusterLabels, typeLabels, times] = GsDBSCAN::performGsDbscan(
+        auto [clusterLabels, typeLabels, times] = performGsDbscan(
                 X_d,
                 n,
                 d,

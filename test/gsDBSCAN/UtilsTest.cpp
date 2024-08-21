@@ -34,7 +34,7 @@ protected:
     template <typename T>
     T* afArrayToHostArray(af::array afArray) {
         T* deviceArray = afArray.device<float>();
-        return GsDBSCAN::utils::copyDeviceToHost(deviceArray, afArray.elements(), GsDBSCAN::utils::getAfCudaStream());
+        return GsDBSCAN::algo_utils::copyDeviceToHost(deviceArray, afArray.elements(), GsDBSCAN::algo_utils::getAfCudaStream());
     }
 };
 
@@ -52,7 +52,7 @@ TEST_F(TestColToRowMajorArrayConversion, TestSmallInput) {
     cudaMalloc(&d_colMajorArray, numRows * numCols * sizeof(float));
     cudaMemcpy(d_colMajorArray, h_colMajorArray, numRows * numCols * sizeof(float), cudaMemcpyHostToDevice);
 
-    float *d_rowMajorArray = GsDBSCAN::utils::colMajorToRowMajorMat(d_colMajorArray, numRows, numCols);
+    float *d_rowMajorArray = GsDBSCAN::algo_utils::colMajorToRowMajorMat(d_colMajorArray, numRows, numCols);
 
     float h_rowMajorArray[numRows * numCols];
     cudaMemcpy(h_rowMajorArray, d_rowMajorArray, numRows * numCols * sizeof(float), cudaMemcpyDeviceToHost);
@@ -70,7 +70,7 @@ TEST_F(TestColToRowMajorArrayConversion, TestLargeInput) {
     auto afArray = af::randu(n, d, f32);
     afArray.eval();
 
-    auto afCudaStream = GsDBSCAN::utils::getAfCudaStream();
+    auto afCudaStream = GsDBSCAN::algo_utils::getAfCudaStream();
 
     float *colMajorMat_d = afArray.device<float>();
 
@@ -78,15 +78,15 @@ TEST_F(TestColToRowMajorArrayConversion, TestLargeInput) {
 
     auto start = tu::timeNow();
 
-    float *rowMajorMat_d = GsDBSCAN::utils::colMajorToRowMajorMat(colMajorMat_d, n, d, afCudaStream);
+    float *rowMajorMat_d = GsDBSCAN::algo_utils::colMajorToRowMajorMat(colMajorMat_d, n, d, afCudaStream);
 
     tu::printDurationSinceStart(start);
 
     // Now copy back to the host and compare the two arrays
 
-    auto rowMajorMat_h = GsDBSCAN::utils::copyDeviceToHost(rowMajorMat_d, n * d, afCudaStream);
+    auto rowMajorMat_h = GsDBSCAN::algo_utils::copyDeviceToHost(rowMajorMat_d, n * d, afCudaStream);
 
-    auto colMajorMat_h = GsDBSCAN::utils::copyDeviceToHost(colMajorMat_d, n * d, afCudaStream);
+    auto colMajorMat_h = GsDBSCAN::algo_utils::copyDeviceToHost(colMajorMat_d, n * d, afCudaStream);
 
     assertColRowMajorMatsEqual(colMajorMat_h, rowMajorMat_h, n, d);
 
@@ -113,13 +113,13 @@ TEST_F(TestArrayFireToMatXConversion, TestSmallInput) {
 
     af::array afArray(numRows, numCols, h_colMajorArray);
 
-    auto matXTensor = GsDBSCAN::utils::afMatToMatXTensor<float, float>(afArray);
+    auto matXTensor = GsDBSCAN::algo_utils::afMatToMatXTensor<float, float>(afArray);
 
     float *matxTensor_d = matXTensor.Data();
     float *afArray_d = afArray.device<float>();
 
-    auto *matxTensor_h = GsDBSCAN::utils::copyDeviceToHost(matxTensor_d, numRows*numCols, GsDBSCAN::utils::getAfCudaStream());
-    float *afArray_h = GsDBSCAN::utils::copyDeviceToHost(afArray_d, numRows*numCols, GsDBSCAN::utils::getAfCudaStream());
+    auto *matxTensor_h = GsDBSCAN::algo_utils::copyDeviceToHost(matxTensor_d, numRows * numCols, GsDBSCAN::algo_utils::getAfCudaStream());
+    float *afArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(afArray_d, numRows * numCols, GsDBSCAN::algo_utils::getAfCudaStream());
 
     assertColRowMajorMatsEqual(afArray_h, matxTensor_h, numRows, numCols);
 
@@ -136,15 +136,15 @@ TEST_F(TestArrayFireToMatXConversion, TestLargeInput) {
 
     auto start = tu::timeNow();
 
-    auto matXTensor = GsDBSCAN::utils::afMatToMatXTensor<float, float>(afArray);
+    auto matXTensor = GsDBSCAN::algo_utils::afMatToMatXTensor<float, float>(afArray);
 
     tu::printDurationSinceStart(start);
 
     float *matxTensor_d = matXTensor.Data();
     float *afArray_d = afArray.device<float>();
 
-    auto *matxTensor_h = GsDBSCAN::utils::copyDeviceToHost(matxTensor_d, n*d, GsDBSCAN::utils::getAfCudaStream());
-    float *afArray_h = GsDBSCAN::utils::copyDeviceToHost(afArray_d, n*d, GsDBSCAN::utils::getAfCudaStream());
+    auto *matxTensor_h = GsDBSCAN::algo_utils::copyDeviceToHost(matxTensor_d, n * d, GsDBSCAN::algo_utils::getAfCudaStream());
+    float *afArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(afArray_d, n * d, GsDBSCAN::algo_utils::getAfCudaStream());
 
     assertColRowMajorMatsEqual(afArray_h, matxTensor_h, n, d);
 
@@ -160,7 +160,7 @@ class TestReadMnist : public UtilsTest {
 TEST_F(TestReadMnist, TestCSVNormally) {
     auto start = tu::timeNow();
 
-    GsDBSCAN::utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/mnist_images_col_major.csv", 0);
+    GsDBSCAN::algo_utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/mnist_images_col_major.csv", 0);
 
     tu::printDurationSinceStart(start, "Reading MNIST via csv");
 }
@@ -168,7 +168,7 @@ TEST_F(TestReadMnist, TestCSVNormally) {
 TEST_F(TestReadMnist, TestBinNormally) {
     auto start = tu::timeNow();
 
-    auto vec = GsDBSCAN::utils::loadBinFileToVector<float>("/home/hphi344/Documents/Thesis/python/data/mnist_images_col_major.bin");
+    auto vec = GsDBSCAN::algo_utils::loadBinFileToVector<float>("/home/hphi344/Documents/Thesis/python/data/mnist_images_col_major.bin");
 
     tu::printDurationSinceStart(start, "Reading MNIST via binary");
 }
@@ -181,9 +181,9 @@ class TestCopying : public UtilsTest {
 TEST_F(TestCopying, TestSmallInput) {
     float h_array[5] = {1, 2, 3, 4, 5};
 
-    float *d_array = GsDBSCAN::utils::copyHostToDevice(h_array, 5);
+    float *d_array = GsDBSCAN::algo_utils::copyHostToDevice(h_array, 5);
 
-    float *h_array_copy = GsDBSCAN::utils::copyDeviceToHost(d_array, 5);
+    float *h_array_copy = GsDBSCAN::algo_utils::copyDeviceToHost(d_array, 5);
 
     for (int i = 0; i < 5; ++i) {
         ASSERT_NEAR(h_array[i], h_array_copy[i], 1e-6);
@@ -192,14 +192,14 @@ TEST_F(TestCopying, TestSmallInput) {
 
 TEST_F(TestCopying, TestSmallInputMatx) {
     float arr[5] = {1, 2, 3, 4, 5};
-    float *arr_d = GsDBSCAN::utils::copyHostToDevice(arr, 5);
+    float *arr_d = GsDBSCAN::algo_utils::copyHostToDevice(arr, 5);
 
     auto tensor = matx::make_tensor<float>(arr_d, {5}, matx::MATX_DEVICE_MEMORY);
 
     cudaPointerAttributes attributes;
     cudaPointerGetAttributes(&attributes, tensor.Data());
 
-    float *arr_copy = GsDBSCAN::utils::copyDeviceToHost(tensor.Data(), 5);
+    float *arr_copy = GsDBSCAN::algo_utils::copyDeviceToHost(tensor.Data(), 5);
 
     std::cout << "Pointer type: " << attributes.type << std::endl;
 

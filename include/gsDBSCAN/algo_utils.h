@@ -18,7 +18,7 @@
  */
 
 
-namespace GsDBSCAN::utils {
+namespace GsDBSCAN::algo_utils {
 
     /**
      * Gets the CUDA stream from ArrayFire

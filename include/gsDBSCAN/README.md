@@ -3,4 +3,4 @@ I've broken down gsDBSCAN into 3 parts:
 2. Distance calculations
 3. Clustering
 
-There is also a utils file that contains helper functions for the above 3 parts.
+There is also a algo_utils file that contains helper functions for the above 3 parts.
