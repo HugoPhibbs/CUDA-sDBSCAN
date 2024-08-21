@@ -171,10 +171,6 @@ TEST_F(TestReadMnist, TestBinNormally) {
     auto vec = GsDBSCAN::utils::loadBinFileToVector<float>("/home/hphi344/Documents/Thesis/python/data/mnist_images_col_major.bin");
 
     tu::printDurationSinceStart(start, "Reading MNIST via binary");
-
-    for (int i = 0; i < 100; i++) {
-        std::cout << vec[i] << std::endl;
-    }
 }
 
 

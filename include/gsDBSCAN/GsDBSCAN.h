@@ -19,7 +19,7 @@
 #include "../json.hpp"
 #include "projections.h"
 #include "distances.h"
-#include "utils.h"
+#include "algo_utils.h"
 #include "clustering.h"
 
 using json = nlohmann::json;
