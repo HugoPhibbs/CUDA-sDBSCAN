@@ -108,7 +108,7 @@ namespace GsDBSCAN {
         template<typename T>
         matx::tensor_t<T, 2> inline
         findDistancesMatX(matx::tensor_t<T, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t, matx::tensor_t<int32_t, 2> &B_t,
-                          float alpha = 1.2, int batchSize = -1, std::string &distanceMetric= (string &) "L2", matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY) {
+                          float alpha = 1.2, int batchSize = -1, std::string distanceMetric= "L2", matx::matxMemorySpace_t memorySpace = matx::MATX_DEVICE_MEMORY) {
             // Handle distance metric
 
 
@@ -141,17 +141,22 @@ namespace GsDBSCAN {
 
                 auto XSubsetReshaped_t_op = matx::reshape(XSubset_t_op, {batchSize, 1, d});
 
-                auto YBatch_t_op = (XBatchReshaped_t_op - matx::repmat(XSubsetReshaped_t_op, {1, 2 * k * m,
-                                                                                              1})); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
 
-                if (distanceMetric == "L1") {
-                    auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, matx::NormOrder::L1);
-                    (matx::slice(distances_t, {i, 0}, {maxBatchIdx, matx::matxEnd}) = YBatch_t_norm_op).run();
-                } else if (distanceMetric == "L2") {
-                    auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, matx::NormOrder::L2);
-                    (matx::slice(distances_t, {i, 0}, {maxBatchIdx, matx::matxEnd}) = YBatch_t_norm_op).run(); // TODO: TBH I don't know the type of YBatch_norm_op, so I'm repeating the call like a noob
+                if (distanceMetric == "L1" || distanceMetric == "L2") {
+                    auto YBatch_t_op = (XBatchReshaped_t_op - matx::repmat(XSubsetReshaped_t_op, {1, 2 * k * m,
+                                                                                                  1})); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
+                    if (distanceMetric == "L1") {
+                        auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, matx::NormOrder::L1);
+                        (matx::slice(distances_t, {i, 0}, {maxBatchIdx, matx::matxEnd}) = YBatch_t_norm_op).run();
+                    } else if (distanceMetric == "L2") {
+                        auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, matx::NormOrder::L2);
+                        (matx::slice(distances_t, {i, 0}, {maxBatchIdx,
+                                                           matx::matxEnd}) = YBatch_t_norm_op).run(); // TODO: TBH I don't know the type of YBatch_norm_op, so I'm repeating the call like a noob
+                    }
                 } else if (distanceMetric == "COSINE") {
-                    // TODO implement me! - can be a smart way to do this with pre processing of dot products
+                    auto product_op = XBatchReshaped_t_op * XSubsetReshaped_t_op;
+                    auto product_sum_op = matx::sum(product_op, {2});
+                    (matx::slice(distances_t, {i, 0}, {maxBatchIdx, matx::matxEnd}) = product_sum_op).run();
                 } else {
                     throw std::runtime_error("Unknown distanceMetric: " + distanceMetric);
                 }
