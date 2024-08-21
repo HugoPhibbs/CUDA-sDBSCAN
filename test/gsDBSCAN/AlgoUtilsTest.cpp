@@ -153,26 +153,6 @@ TEST_F(TestArrayFireToMatXConversion, TestLargeInput) {
     afArray.unlock();
 }
 
-class TestReadMnist : public AlgoUtilsTest {
-
-};
-
-TEST_F(TestReadMnist, TestCSVNormally) {
-    auto start = tu::timeNow();
-
-    GsDBSCAN::algo_utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/mnist_images_col_major.csv", 0);
-
-    tu::printDurationSinceStart(start, "Reading MNIST via csv");
-}
-
-TEST_F(TestReadMnist, TestBinNormally) {
-    auto start = tu::timeNow();
-
-    auto vec = GsDBSCAN::algo_utils::loadBinFileToVector<float>("/home/hphi344/Documents/Thesis/python/data/mnist_images_col_major.bin");
-
-    tu::printDurationSinceStart(start, "Reading MNIST via binary");
-}
-
 
 class TestCopying : public AlgoUtilsTest {
 
