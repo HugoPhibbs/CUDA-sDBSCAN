@@ -72,7 +72,8 @@ namespace GsDBSCAN {
         Time startProjections = timeNow();
 
         auto X_af = af::array(n, d, X, afDevice);
-        auto projections = projections::performProjections(X_af, D);
+        X_af = projections::normaliseDatasetAF(X_af);
+        auto projections = projections::performProjectionsAF(X_af, D);
 
         projections.eval();
 
