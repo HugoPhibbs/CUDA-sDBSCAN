@@ -194,6 +194,28 @@ TEST_F(TestProjectionsSpeed, TestLargeInputMatx) {
     tu::printDurationSinceStart(start, "TestLargeInputMatx");
 }
 
+class TestPerformProjections : public ProjectionsTest {
+
+};
+
+TEST_F(TestPerformProjections, TestSmallInputMatX) {
+    auto X = matx::random<float>({10, 3}, matx::UNIFORM);
+
+//    auto projections = GsDBSCAN::projections::performProjectionsMatX(X, 3);
+}
+
+TEST_F(TestPerformProjections, TestLargeInputMatX) {
+
+}
+
+TEST_F(TestPerformProjections, TestSmallInputAF) {
+
+}
+
+TEST_F(TestPerformProjections, TestLargeInputAF) {
+
+}
+
 class TestNormalisation : public ProjectionsTest {
 
 };
@@ -239,4 +261,27 @@ TEST_F(TestNormalisation, TestLargeInputAF) {
 
     ASSERT_EQ(XNorm.dims(0), 70000);
     ASSERT_EQ(XNorm.dims(1), 784);
+}
+
+TEST_F(TestNormalisation, TestSmallInputMatx) {
+//    // TODO
+//    float X_data[] = {
+//            1.0f, 2.0f, 3.0f,
+//            4.0f, 5.0f, 6.0f,
+//            7.0f, 8.0f, 9.0f
+//    }; // Row-major order
+//
+//    float expected[] = {
+//            1.0f / (float) std::sqrt(14), 2.0f / (float) std::sqrt(14), 3.0f / (float) std::sqrt(14),
+//            4.0f / (float) std::sqrt(77), 5.0f / (float) std::sqrt(77), 6.0f / (float) std::sqrt(77),
+//            7.0f / (float) std::sqrt(194), 8.0f / (float) std::sqrt(194), 9.0f / (float) std::sqrt(194)
+//    }; // Row-major order
+//
+//    auto *X_d = GsDBSCAN::utils::copyHostToDevice(X_data, 3*3);
+//    auto X = matx::make_tensor<float>(X_d, {3, 3});
+//    auto XNorm = GsDBSCAN::projections::normaliseDatasetMatX(X);
+}
+
+TEST_F(TestNormalisation, TestLargeInputMatx) {
+    // TODO
 }
