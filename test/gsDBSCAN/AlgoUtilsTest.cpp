@@ -11,7 +11,7 @@
 
 namespace tu = testUtils;
 
-class UtilsTest : public ::testing::Test {
+class AlgoUtilsTest : public ::testing::Test {
 
 protected:
     template<typename T>
@@ -28,7 +28,7 @@ protected:
     }
 };
 
-class TestColToRowMajorArrayConversion : public UtilsTest {
+class TestColToRowMajorArrayConversion : public AlgoUtilsTest {
 
 protected:
     template <typename T>
@@ -97,7 +97,7 @@ TEST_F(TestColToRowMajorArrayConversion, TestLargeInput) {
     free(rowMajorMat_h);
 }
 
-class TestArrayFireToMatXConversion : public UtilsTest {
+class TestArrayFireToMatXConversion : public AlgoUtilsTest {
 
 };
 
@@ -153,7 +153,7 @@ TEST_F(TestArrayFireToMatXConversion, TestLargeInput) {
     afArray.unlock();
 }
 
-class TestReadMnist : public UtilsTest {
+class TestReadMnist : public AlgoUtilsTest {
 
 };
 
@@ -174,7 +174,7 @@ TEST_F(TestReadMnist, TestBinNormally) {
 }
 
 
-class TestCopying : public UtilsTest {
+class TestCopying : public AlgoUtilsTest {
 
 };
 
