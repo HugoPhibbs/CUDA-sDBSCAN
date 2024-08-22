@@ -129,10 +129,12 @@ namespace GsDBSCAN::run_utils {
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
                 std::string distanceMetric, int clusterBlockSize) {
         // TODO write docs
-        float *X_d = loadBinDatasetToDevice<float>(datasetFileName, n, d);
+//        float *X_d = loadBinDatasetToDevice<float>(datasetFileName, n, d);
+        auto X = loadBinFileToVector<float>(datasetFileName);
+        auto X_h = X.data();
 
         auto [clusterLabels, typeLabels, times] = performGsDbscan(
-                X_d,
+                X_h,
                 n,
                 d,
                 D,
@@ -146,7 +148,7 @@ namespace GsDBSCAN::run_utils {
                 true
         );
 
-        cudaFree(X_d);
+//        cudaFree(X_d);
 
         return std::tie(clusterLabels, typeLabels, times);
     }
