@@ -64,6 +64,13 @@ namespace GsDBSCAN::clustering {
         return startIdxArray_d;
     }
 
+    template <typename T>
+    inline T valueAtIdxDeviceToHost(T* deviceArray, int idx) {
+        T value;
+        cudaMemcpy(&value, deviceArray + idx, sizeof(T), cudaMemcpyDeviceToHost);
+        return value;
+    }
+
     /**
      * Calculates the degree of the query vectors as per the G-DBSCAN algorithm.
      *
@@ -184,7 +191,7 @@ namespace GsDBSCAN::clustering {
      *
      * @param distances matrix containing the distances between each query vector and it's candidate vectors
      * @param adjacencyList
-     * @param V vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
+     * @param startIdxArray vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
      * @param A A matrix, see constructABMatricesAF. Stored flat as a float array
      * @param B B matrix, see constructABMatricesAF. Stored flat as a float array
      * @param n number of query vectors in the dataset
@@ -192,14 +199,16 @@ namespace GsDBSCAN::clustering {
      */
     __global__ void
     inline
-    constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *V, int *A, int *B, float eps,
+    constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *startIdxArray, int *A, int *B, float eps,
                                          int n,
                                          int k, int m) {
+        // We assume one thread per query vector
+
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx >= n)
             return; // Exit if out of bounds. Don't assume that numQueryVectors is equal to the total number o threads
 
-        int curr_idx = V[idx];
+        int curr_idx = startIdxArray[idx];
 
         int distances_rows = 2 * k * m;
 
@@ -218,89 +227,24 @@ namespace GsDBSCAN::clustering {
         }
     }
 
-    /**
-     * Assembles the adjacency list for the cluster graph
-     *
-     * See https://arrayfire.org/docs/interop_cuda.htm for info on this
-     *
-     * @param distances matrix containing the distances between each query vector and it's candidate vectors
-     * @param E vector containing the degree of each query vector (how many candidate vectors are within eps distance of it)
-     * @param V vector containing the starting index of each query vector in the resultant adjacency list (See the G-DBSCAN algorithm)
-     * @param A A matrix, see constructABMatricesAF
-     * @param B B matrix, see constructABMatricesAF
-     * @param eps epsilon DBSCAN density param
-     * @param blockSize size of each block when calculating the adjacency list - essentially the amount of query vectors to process per block
-     */
-    inline af::array
-    constructAdjacencyListAF(af::array &distances, af::array &E, af::array &V, af::array &A, af::array &B,
-                             float eps,
-                             int blockSize) {
-        /*
-         * Check this issue:
-         *
-         * https://github.com/arrayfire/arrayfire/issues/3051
-         *
-         * May need to look further into this - i.e. how to use af/cuda.h properly
-         */
-
-
-        int n = E.dims(0);
-        int k = A.dims(1) / 2;
-        int m = B.dims(1);
-
-        af::array adjacencyList = af::constant(-1, (E(n - 1) + V(n - 1)).scalar<int>(), af::dtype::u32);
-
-        // Eval all matrices to ensure they are synced
-        adjacencyList.eval();
-        distances.eval();
-        E.eval();
-        V.eval();
-        A.eval();
-        B.eval();
-
-        // Getting device pointers
-        int *adjacencyList_d = adjacencyList.device<int>();
-        float *distances_d = distances.device<float>();
-        int *E_d = E.device<int>();
-        int *V_d = V.device<int>();
-        int *A_d = A.device<int>();
-        int *B_d = B.device<int>();
-
-        // Getting cuda stream from af
-        cudaStream_t afCudaStream = algo_utils::getAfCudaStream();
-
-        // Now we can call the kernel
-        int numBlocks = std::max(1, n / blockSize);
-        blockSize = std::min(n, blockSize);
-        constructAdjacencyListForQueryVector<<<numBlocks, blockSize, 0, afCudaStream>>>(distances_d,
-                                                                                        adjacencyList_d, V_d,
-                                                                                        A_d, B_d, eps, n, k, m);
-
-        // Unlock all the af arrays
-        adjacencyList.unlock();
-        distances.unlock();
-        E.unlock();
-        V.unlock();
-        A.unlock();
-        B.unlock();
-
-        return adjacencyList;
-    }
-
     inline std::tuple<int *, int>
-    constructAdjacencyList(float *distances_d, int *degArray, int *startIdxArray, int *A_d, int *B_d, int n, int k,
+    constructAdjacencyList(float *distances_d, int *degArray_d, int *startIdxArray_d, int *A_d, int *B_d, int n, int k,
                            int m, float eps, int blockSize = 256) {
-        int adjacencyList_size = degArray[n - 1] + startIdxArray[n - 1];
+        // Assume the arrays aren't stored in managed memory
+        int lastDegree = valueAtIdxDeviceToHost(degArray_d, n - 1);
+        int lastStartIdx = valueAtIdxDeviceToHost(startIdxArray_d, n - 1);
+
+        int adjacencyList_size = lastDegree + lastStartIdx; // This will cause a segfault if deg and/or start idx arrays not on the host
 
         int *adjacencyList_d = algo_utils::allocateCudaArray<int>(adjacencyList_size);
 
 
-        int numBlocks = std::max(1, n / blockSize);
+        int gridSize = (n + blockSize - 1) / blockSize;
         blockSize = std::min(n, blockSize);
-        constructAdjacencyListForQueryVector<<<numBlocks, blockSize, 0>>>(distances_d,
-                                                                          adjacencyList_d, startIdxArray,
+        constructAdjacencyListForQueryVector<<<gridSize, blockSize>>>(distances_d,
+                                                                          adjacencyList_d, startIdxArray_d,
                                                                           A_d, B_d, eps, n, k, m);
-
+        cudaDeviceSynchronize();
         return std::tie(adjacencyList_d, adjacencyList_size);
     }
 
