@@ -26,8 +26,8 @@ namespace GsDBSCAN::projections {
         int n = projections.dims(0);
         int D = projections.dims(1);
 
-        af::array A(n, 2 * k);
-        af::array B(2 * D, m);
+        af::array A(n, 2 * k, af::dtype::u32);
+        af::array B(2 * D, m, af::dtype::u32);
 
         af::array sortedValsTemp, dataToRandomIdxSorted;
 
