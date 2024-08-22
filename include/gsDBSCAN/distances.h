@@ -110,9 +110,6 @@ namespace GsDBSCAN::distances {
     findDistancesMatX(matx::tensor_t<T, 2> &X_t, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t,
                       float alpha = 1.2, int batchSize = -1, std::string distanceMetric = "L2",
                       matx::matxMemorySpace_t memorySpace = matx::MATX_DEVICE_MEMORY) {
-        // Handle distance metric
-
-
         const int k = A_t.Shape()[1] / 2;
         const int m = B_t.Shape()[1];
 

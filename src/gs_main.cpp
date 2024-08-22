@@ -30,6 +30,7 @@ int main(int argc, char *argv[]) {
             args["m"],
             args["eps"],
             args["alpha"],
+            args["distancesBatchSize"],
             args["distanceMetric"],
             args["clusterBlockSize"]
     );
