@@ -49,16 +49,16 @@ namespace GsDBSCAN::algo_utils {
         }
 
         if (err != cudaSuccess) {
-            std::cerr << "Error allocating memory: " << cudaGetErrorString(err) << std::endl;
-            return nullptr;
+            throw std::runtime_error(
+                    "Error copying memory from device to host: " + std::string(cudaGetErrorString(err)));
         }
 
         err = cudaMemcpy(deviceArray, hostData, size, cudaMemcpyHostToDevice);
 
         if (err != cudaSuccess) {
-            std::cerr << "Error copying data to device: " << cudaGetErrorString(err) << std::endl;
             cudaFree(deviceArray);
-            return nullptr;
+            throw std::runtime_error(
+                    "Error copying memory from device to host: " + std::string(cudaGetErrorString(err)));
         }
 
         return deviceArray;
@@ -82,11 +82,33 @@ namespace GsDBSCAN::algo_utils {
         if (err != cudaSuccess) {
             cudaFree(deviceArray);  // Free the device memory to prevent leaks
             delete[] hostArray;
-            std::string errMsg = "Error copying memory from device to host: " + std::string(cudaGetErrorString(err));
-            throw std::runtime_error(errMsg);
+            throw std::runtime_error(
+                    "Error copying memory from device to host: " + std::string(cudaGetErrorString(err)));
         }
 
         return hostArray;  // Return true if successful
+    }
+
+    inline void printCudaMemoryUsage() {
+        size_t free_mem, total_mem;
+        cudaError_t error;
+
+        cudaDeviceSynchronize();
+
+        // Get memory information
+        error = cudaMemGetInfo(&free_mem, &total_mem);
+        if (error != cudaSuccess) {
+            throw std::runtime_error("cudaMemGetInfo failed: " + std::string(cudaGetErrorString(error)));
+        }
+
+        // Convert bytes to gigabytes
+        double free_mem_gb = static_cast<double>(free_mem) / (1024.0 * 1024.0 * 1024.0);
+        double total_mem_gb = static_cast<double>(total_mem) / (1024.0 * 1024.0 * 1024.0);
+        double used_mem_gb = total_mem_gb - free_mem_gb;
+
+        std::cout << std::fixed << std::setprecision(2);
+        std::cout << "Memory Usage: " << used_mem_gb << " GB used, "
+                  << free_mem_gb << " GB free, " << total_mem_gb << " GB total" << std::endl;
     }
 
     template<typename T>
@@ -115,8 +137,7 @@ namespace GsDBSCAN::algo_utils {
         }
 
         if (err != cudaSuccess) {
-            std::cerr << "Error allocating memory: " << cudaGetErrorString(err) << std::endl;
-            return nullptr;
+            throw std::runtime_error("Error allocating memory: " + std::string(cudaGetErrorString(err)));
         }
 
         if (stream != nullptr) {
@@ -133,41 +154,19 @@ namespace GsDBSCAN::algo_utils {
     template<typename afType, typename matXType>
     inline static matx::tensor_t<matXType, (int) 2>
     afMatToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
-        auto *afColMajorArray = afArray.device<afType>(); // In col major
+        afType *afColMajorArray = afArray.device<afType>(); // In col major
 
         int rows = afArray.dims()[0];
         int cols = afArray.dims()[1];
 
-        auto *afRowMajorArray = colMajorToRowMajorMat(afColMajorArray, rows, cols, getAfCudaStream());
+//        auto *afRowMajorArray = colMajorToRowMajorMat(afColMajorArray, rows, cols, getAfCudaStream());
+        matXType *afRowMajorArray = colMajorToRowMajorMat<afType>(afColMajorArray, rows, cols);
 
         afArray.unlock();
 
         auto matxTensor = matx::make_tensor<matXType>(afRowMajorArray, {rows, cols}, matXMemorySpace);
 
         return matxTensor;
-    }
-
-    inline void printCudaMemoryUsage() {
-        size_t free_mem, total_mem;
-        cudaError_t error;
-
-        cudaDeviceSynchronize();
-
-        // Get memory information
-        error = cudaMemGetInfo(&free_mem, &total_mem);
-        if (error != cudaSuccess) {
-            std::cerr << "cudaMemGetInfo failed: " << cudaGetErrorString(error) << std::endl;
-            return;
-        }
-
-        // Convert bytes to gigabytes
-        double free_mem_gb = static_cast<double>(free_mem) / (1024.0 * 1024.0 * 1024.0);
-        double total_mem_gb = static_cast<double>(total_mem) / (1024.0 * 1024.0 * 1024.0);
-        double used_mem_gb = total_mem_gb - free_mem_gb;
-
-        std::cout << std::fixed << std::setprecision(2);
-        std::cout << "Memory Usage: " << used_mem_gb << " GB used, "
-                  << free_mem_gb << " GB free, " << total_mem_gb << " GB total" << std::endl;
     }
 
     template<typename T, int nDims>
@@ -178,7 +177,7 @@ namespace GsDBSCAN::algo_utils {
     }
 
     template<typename T>
-    inline T *allocateCudaArray(size_t length, bool managedMemory = false) {
+    inline T *allocateCudaArray(size_t length, bool managedMemory = false, bool fillWithZeros = true) {
         T *array;
         size_t size = sizeof(T) * length;
 
@@ -192,17 +191,17 @@ namespace GsDBSCAN::algo_utils {
         }
 
         if (err != cudaSuccess) {
-            std::cerr << "Error allocating memory for array: " << cudaGetErrorString(err) << std::endl;
-            return nullptr;
+            throw std::runtime_error("Error allocating memory for array: " + std::string(cudaGetErrorString(err)));
         }
 
-        // Zero out the memory
-        err = cudaMemset(array, 0, size);  // Use array (not &array) for cudaMemset
+        if (fillWithZeros) {
+            // Zero out the memory
+            err = cudaMemset(array, 0, size);  // Use array (not &array) for cudaMemset
 
-        if (err != cudaSuccess) {
-            std::cerr << "Error setting memory for array: " << cudaGetErrorString(err) << std::endl;
-            cudaFree(array);  // Free the memory if memset fails
-            return nullptr;
+            if (err != cudaSuccess) {
+                cudaFree(array);  // Free the memory if memset fails
+                throw std::runtime_error("Error setting memory for array: " + std::string(cudaGetErrorString(err)));
+            }
         }
 
         return array;
