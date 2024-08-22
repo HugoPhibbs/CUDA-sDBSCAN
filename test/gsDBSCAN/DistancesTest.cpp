@@ -345,7 +345,107 @@ TEST_F(TestFindingDistances, TestMediumInputMatx) {
     }
 }
 
-TEST_F(TestFindingDistances, TestMockAf) {
+TEST_F(TestFindingDistances, TestMediumInputMatXDeviceDistances) {
+    /*
+ * This test checks if results calculated by C++/MatX are identical to those with Python/CuPy
+ */
+
+    auto AVector = GsDBSCAN::run_utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/A_n1000_k3.csv");
+    int *A_h = AVector.data();
+
+    auto BVector = GsDBSCAN::run_utils::loadCsvColumnToVector<int>("/home/hphi344/Documents/Thesis/python/data/B_D100_m20.csv");
+    int *B_h = BVector.data();
+
+    auto XVector = GsDBSCAN::run_utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/X_n1000_d20.csv");
+    float *X_h = XVector.data();
+
+    auto distancesVector = GsDBSCAN::run_utils::loadCsvColumnToVector<float>("/home/hphi344/Documents/Thesis/python/data/distances_n1000_k3_m20.csv");
+
+    float *distances_expected_h = distancesVector.data();
+
+    int n = 1000;
+    int k = 3;
+    int m = 20;
+    int D = 100;
+    int d = 20;
+
+    int *A_d = GsDBSCAN::algo_utils::copyHostToDevice(A_h, n * 2 * k);
+    int *B_d = GsDBSCAN::algo_utils::copyHostToDevice(B_h, 2 * D * m);
+    float *X_d = GsDBSCAN::algo_utils::copyHostToDevice(X_h, n * d);
+
+    auto X_t = matx::make_tensor<float>(X_d, {n, d});
+
+    auto A_t = matx::make_tensor<int>(A_d, {n, 2 * k});
+    auto B_t = matx::make_tensor<int>(B_d, {2 * D, m});
+
+    auto start = tu::timeNow();
+
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX<float>(X_t, A_t, B_t, 1.2, 100, "L2", matx::MATX_DEVICE_MEMORY);
+
+    cudaDeviceSynchronize();
+
+    auto *distances_d = distances_t.Data();
+    auto *distances_h = GsDBSCAN::algo_utils::copyDeviceToHost(distances_d, n * 2 * k * m);
+
+    for (int i = 0; i < n*2*k*m; i++) {
+        // Python and CPP produce *slightly* different results. Hence, why I use a 1e-2 tolerance
+        ASSERT_NEAR(distances_expected_h[i], distances_h[i], 1e-2); // Doing a cast just to be sure
+    }
+}
+
+TEST_F(TestFindingDistances, TestMnistAFMatXIntegration) {
+
+    std::string datasetFileName = "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin";
+
+    int n = 70000;
+    int d = 784;
+
+    int k = 5;
+    int m = 10;
+
+    int D = 1024;
+
+    auto X = GsDBSCAN::run_utils::loadBinFileToVector<float>(datasetFileName);
+    auto X_h = X.data();
+
+    auto X_af = af::array(n, d, X_h);
+    X_af.eval();
+
+    X_af = GsDBSCAN::projections::normaliseDatasetAF(X_af);
+    auto projections = GsDBSCAN::projections::performProjectionsAF(X_af, D);
+
+
+    auto X_t = GsDBSCAN::algo_utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
+
+    auto [A_af, B_af] = GsDBSCAN::projections::constructABMatricesAF(projections, k, m);
+
+    int A_max = af::max<int>(A_af);
+    int B_max = af::max<int>(B_af);
+
+    ASSERT_TRUE(A_max <= 2 * D - 1);
+    ASSERT_TRUE(B_max <= n - 1);
+
+    auto A_t = GsDBSCAN::algo_utils::afMatToMatXTensor<int, int>(A_af,
+                                                                 matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
+    auto B_t = GsDBSCAN::algo_utils::afMatToMatXTensor<int, int>(B_af,
+                                                                 matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
+
+
+    auto start = tu::timeNow();
+
+    matx::tensor_t<float, 2> distances_t = GsDBSCAN::distances::findDistancesMatX(X_t, A_t, B_t, 1.2, -1, "L2",
+                                                                                  matx::MATX_DEVICE_MEMORY);
+
+    cudaDeviceSynchronize();
+
+    tu::printDurationSinceStart(start);
+
+    ASSERT_TRUE(distances_t.Shape()[0] == n);
+    ASSERT_TRUE(distances_t.Shape()[1] == 2 * k * m);
+}
+
+
+TEST_F(TestFindingDistances, TestMockAF) {
     auto YBatch = af::randu(20, 2000, 784);
 
     auto start = tu::timeNow();
@@ -369,7 +469,7 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
     cudaDeviceSynchronize();
 
-    print(X);
+//    print(X);
 
     tu::Time start = tu::timeNow();
 
@@ -385,8 +485,8 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 
     for (int i = 0; i < n*2*k*m; i++) {
 //    printf("%f ", matx::promote_half_t<matx::matxFp16>(distances_ptr[i])); // Alot of zeros
-        printf("%d", i);
-        printf("%f ", distances_ptr[i]);
+//        printf("%d", i);
+//        printf("%f ", distances_ptr[i]);
 
     }
 
@@ -396,7 +496,7 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
     ASSERT_TRUE(distances.Shape()[1] == 2*k*m);
 }
 
-TEST_F(TestFindingDistances, TestLargeInput) {
+TEST_F(TestFindingDistances, TestLargeInputAF) {
     int n = 70000;
     af::array X = tu::createMockMnistDataset(n, 784);
     af::array A, B;
