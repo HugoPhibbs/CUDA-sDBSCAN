@@ -129,7 +129,7 @@ namespace GsDBSCAN::run_utils {
 
     inline std::tuple<int *, int *, json>
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
-                int distanceBlockSize, std::string distanceMetric, int clusterBlockSize) {
+                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize) {
         // TODO write docs
 //        float *X_d = loadBinDatasetToDevice<float>(datasetFileName, n, d);
         auto X = loadBinFileToVector<float>(datasetFileName);
@@ -145,7 +145,7 @@ namespace GsDBSCAN::run_utils {
                 m,
                 eps,
                 alpha,
-                distanceBlockSize,
+                distancesBatchSize,
                 distanceMetric,
                 clusterBlockSize,
                 true
