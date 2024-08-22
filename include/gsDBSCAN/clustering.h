@@ -328,7 +328,7 @@ namespace GsDBSCAN::clustering {
         std::fill(typeLabels, typeLabels + n, -1);
         int *visited = new int[n];
 
-        auto degArray_h = algo_utils::copyDeviceToHost(degArray_d, n);
+        auto degArray_h = algo_utils::copyDeviceToHost(degArray_d, n); // TODO may be faster to keep this in managed memory - not sure
 
         int currCluster = 0;
 
