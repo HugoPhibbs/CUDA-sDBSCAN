@@ -11,6 +11,7 @@
 #include <iostream>
 #include <cstdio>
 #include <arrayfire.h>
+#include "../../include/gsDBSCAN/algo_utils.h"
 
 
 namespace GsDBSCAN::distances {
@@ -106,7 +107,7 @@ namespace GsDBSCAN::distances {
 
     template<typename T>
     matx::tensor_t<T, 2> inline
-    findDistancesMatX(matx::tensor_t<T, 2> &X_t, matx::tensor_t<int32_t, 2> &A_t, matx::tensor_t<int32_t, 2> &B_t,
+    findDistancesMatX(matx::tensor_t<T, 2> &X_t, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t,
                       float alpha = 1.2, int batchSize = -1, std::string distanceMetric = "L2",
                       matx::matxMemorySpace_t memorySpace = matx::MATX_DEVICE_MEMORY) {
         // Handle distance metric
