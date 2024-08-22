@@ -107,6 +107,8 @@ namespace GsDBSCAN {
         matx::tensor_t<float, 2> distances = distances::findDistancesMatX(X_t, A_t, B_t, alpha, -1, distanceMetric,
                                                                           matx::MATX_DEVICE_MEMORY);
 
+        cudaDeviceSynchronize();
+
         if (timeIt) times["distances"] = duration(startDistances, timeNow());
 
 
