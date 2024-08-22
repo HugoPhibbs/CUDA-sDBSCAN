@@ -63,7 +63,7 @@ namespace GsDBSCAN {
     */
     inline std::tuple<int *, int *, json>
     performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha = 1.2,
-                    int distancesBatchSize = 256, std::string distanceMetric = "L2", int clusterBlockSize = 256,
+                    int distancesBatchSize = -1, std::string distanceMetric = "L2", int clusterBlockSize = 256,
                     bool timeIt = false) {
 //        auto X_col_major = algo_utils::colMajorToRowMajorMat(X, n, d);
         json times;

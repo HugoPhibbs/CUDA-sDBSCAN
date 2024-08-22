@@ -35,7 +35,7 @@ namespace GsDBSCAN::run_utils {
         newArgs["eps"] = std::stof((std::string) args["--eps"]);
 
         newArgs["distanceMetric"] = args["--distanceMetric"];
-        newArgs["alpha"] = args["--alpha"];
+        newArgs["alpha"] = std::stof((std::string) args["--alpha"]);
         newArgs["distancesBatchSize"] = std::stoi((std::string) args["--distancesBatchSize"]);
 
         newArgs["clusterBlockSize"] = std::stoi((std::string) args["--clusterBlockSize"]);
