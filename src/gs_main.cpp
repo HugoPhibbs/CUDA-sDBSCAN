@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Args: " << args.dump(4) << std::endl;
 
-    auto [clusterLabels, typeLabels, times] = GsDBSCAN::run_utils::main_helper(
+    auto [clusterLabels, typeLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
             args["datasetFilename"],
             args["n"],
             args["d"],
@@ -35,7 +35,10 @@ int main(int argc, char *argv[]) {
             args["clusterBlockSize"]
     );
 
-    GsDBSCAN::run_utils::writeResults(args, times, clusterLabels, typeLabels);
+    GsDBSCAN::run_utils::writeResults(args, times, clusterLabels, typeLabels, numClusters);
+
+    std::cout << "Times: " << times.dump(4) << std::endl;
+    std::cout << "NumClusters: " << numClusters << std::endl;
 
     return 0;
 }

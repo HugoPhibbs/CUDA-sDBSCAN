@@ -104,7 +104,7 @@ namespace GsDBSCAN::run_utils {
         return X_d;
     }
 
-    inline void writeResults(json &args, json &times, int *clusterLabels, int *typeLabels) {
+    inline void writeResults(json &args, json &times, int *clusterLabels, int *typeLabels, int numClusters) {
         std::ofstream file(args["outFile"]);
         json combined;
         combined["args"] = args;
@@ -112,6 +112,7 @@ namespace GsDBSCAN::run_utils {
 
         std::vector<int> clusterLabelsVec(clusterLabels, clusterLabels + (size_t) args["n"]);
         std::vector<int> typeLabelsVec(typeLabels, typeLabels + (size_t) args["n"]);
+        combined["numClusters"] = numClusters;
         combined["clusterLabels"] = clusterLabelsVec;
         combined["typeLabels"] = typeLabelsVec;
 
@@ -127,7 +128,7 @@ namespace GsDBSCAN::run_utils {
     }
 
 
-    inline std::tuple<int *, int *, json>
+    inline std::tuple<int *, int *, int, json>
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
                 int distancesBatchSize, std::string distanceMetric, int clusterBlockSize) {
         // TODO write docs
@@ -135,7 +136,7 @@ namespace GsDBSCAN::run_utils {
         auto X = loadBinFileToVector<float>(datasetFileName);
         auto X_h = X.data();
 
-        auto [clusterLabels, typeLabels, times] = performGsDbscan(
+        auto [clusterLabels, typeLabels, numClusters, times] = performGsDbscan(
                 X_h,
                 n,
                 d,
@@ -153,7 +154,7 @@ namespace GsDBSCAN::run_utils {
 
 //        cudaFree(X_d);
 
-        return std::tie(clusterLabels, typeLabels, times);
+        return std::make_tuple(clusterLabels, typeLabels, numClusters, times);
     }
 }
 

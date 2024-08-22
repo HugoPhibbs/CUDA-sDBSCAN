@@ -411,7 +411,7 @@ TEST_F(TestFormingClusters, TestSmallInput) {
 
     auto start = tu::timeNow();
 
-    auto [clusterLabels_h, typeLabels_h] = GsDBSCAN::clustering::formClusters(adjacencyList_d, degArray_d, startIdxArray_d, n, minPts);
+    auto [clusterLabels_h, typeLabels_h, numClusters] = GsDBSCAN::clustering::formClusters(adjacencyList_d, degArray_d, startIdxArray_d, n, minPts);
 
     tu::printDurationSinceStart(start);
 
@@ -423,6 +423,7 @@ TEST_F(TestFormingClusters, TestSmallInput) {
         ASSERT_EQ(typeLabelsExpected_h[i], typeLabels_h[i]);
     }
 
+    ASSERT_EQ(numClusters, 2);
 }
 
 TEST_F(TestFormingClusters, TestSmallInputWithBatches) {
@@ -454,10 +455,12 @@ TEST_F(TestFormingClusters, TestSmallInputWithBatches) {
     int clusterLabelsExpected_h[12] = {0, 0, 0, 0, -1, 1, 1, 1, -1, 1, -1, -1};
     int typeLabelsExpected_h[12] = {0, 1, 0, 0, -1, 1, 0, 0, -1, 1, -1, -1};
 
-    auto [clusterLabels_h_small_block, typeLabels_h_small_block] = GsDBSCAN::clustering::formClusters(adjacencyList_d, degArray_d, startIdxArray_d, n, minPts, 3);
+    auto [clusterLabels_h_small_block, typeLabels_h_small_block, numClusters] = GsDBSCAN::clustering::formClusters(adjacencyList_d, degArray_d, startIdxArray_d, n, minPts, 3);
 
     for (int i = 0; i < n; i++) {
         ASSERT_EQ(clusterLabelsExpected_h[i], clusterLabels_h_small_block[i]);
         ASSERT_EQ(typeLabelsExpected_h[i], typeLabels_h_small_block[i]);
     }
+
+    ASSERT_EQ(numClusters, 2);
 }

@@ -317,7 +317,7 @@ namespace GsDBSCAN::clustering {
     }
 
 
-    inline std::tuple<int *, int *>
+    inline std::tuple<int *, int *, int>
     formClusters(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int minPts,
                  int blockSize = 256) {
         int *clusterLabels = new int[n];
@@ -341,7 +341,8 @@ namespace GsDBSCAN::clustering {
                 currCluster += 1;
             }
         }
-        return std::tie(clusterLabels, typeLabels);
+
+        return std::make_tuple(clusterLabels, typeLabels, currCluster + 1);
     }
 }
 

@@ -61,7 +61,7 @@ namespace GsDBSCAN {
     *  An integer array of size n containing the type labels for each point in the X dataset - e.g. Noise, Core, Border // TODO decide on how this will work?
     *  A nlohmann json object containing the timing information
     */
-    inline std::tuple<int *, int *, json>
+    inline std::tuple<int *, int *, int, json>
     performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha = 1.2,
                     int distancesBatchSize = -1, std::string distanceMetric = "L2", int clusterBlockSize = 256,
                     bool timeIt = false) {
@@ -87,7 +87,6 @@ namespace GsDBSCAN {
         // Get a tensor for X
 
         auto X_t = algo_utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
-
 
         // AB matrices
 
@@ -120,20 +119,36 @@ namespace GsDBSCAN {
 
         Time startClustering = timeNow();
 
+        Time startDegArray = timeNow();
+
         auto degArray_t = clustering::constructQueryVectorDegreeArrayMatx(distances, eps);
         auto degArray_d = degArray_t.Data(); // Can't embed this in the above function call, bc pointer gets downgraded to a host one
+
+        if (timeIt) times["degArray"] = duration(startDegArray, timeNow());
+
+        Time startStartIdxArray = timeNow();
+
         int *startIdxArray_d = clustering::processQueryVectorDegreeArrayThrust(degArray_d, n);
+
+        if (timeIt) times["startIdxArray"] = duration(startStartIdxArray, timeNow());
+
+        Time startAdjacencyList = timeNow();
 
         auto [adjacencyList_d, adjacencyList_size] = clustering::constructAdjacencyList(distances.Data(), degArray_d,
                                                                                         startIdxArray_d, A_t.Data(),
                                                                                         B_t.Data(), n, k, m, eps,
                                                                                         clusterBlockSize);
 
-        auto [clusterLabels, typeLabels] = clustering::formClusters(adjacencyList_d, startIdxArray_d, degArray_d, n,
+        if (timeIt) times["adjacencyList"] = duration(startAdjacencyList, timeNow());
+
+        Time startFormClusters = timeNow();
+
+        auto [clusterLabels, typeLabels, numClusters] = clustering::formClusters(adjacencyList_d, startIdxArray_d, degArray_d, n,
                                                                     minPts);
 
-        if (timeIt) times["clustering"] = duration(startClustering, timeNow());
+        if (timeIt) times["formClusters"] = duration(startFormClusters, timeNow());
 
+        if (timeIt) times["clusteringOverall"] = duration(startClustering, timeNow());
 
         // Free memory
         A_af.unlock();
@@ -144,7 +159,7 @@ namespace GsDBSCAN {
 
         if (timeIt) times["overall"] = duration(startOverAll, timeNow());
 
-        return std::tie(clusterLabels, typeLabels, times);
+        return std::make_tuple(clusterLabels, typeLabels, numClusters, times);
     }
 
 
