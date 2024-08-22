@@ -5,8 +5,12 @@
 #include <matx.h>
 #include <arrayfire.h>
 #include <Eigen/Dense>
+#include <cuda_runtime.h>
+
 #include "../../include/gsDBSCAN/GsDBSCAN.h"
 #include "../../include/TestUtils.h"
+#include "../../include/gsDBSCAN/algo_utils.h"
+#include "../../include/gsDBSCAN/run_utils.h"
 #include <omp.h>
 
 namespace tu = testUtils;
@@ -128,9 +132,11 @@ TEST_F(TestArrayFireToMatXConversion, TestSmallInput) {
     afArray.unlock();
 }
 
-TEST_F(TestArrayFireToMatXConversion, TestLargeInput) {
+
+
+TEST_F(TestArrayFireToMatXConversion, TestMnistInput) {
     const int n = 70000;
-    const int d = 1024;
+    const int d = 784;
 
     auto afArray = af::randu(n, d, f32);
 
@@ -152,6 +158,35 @@ TEST_F(TestArrayFireToMatXConversion, TestLargeInput) {
     free(afArray_h);
     afArray.unlock();
 }
+
+
+TEST_F(TestArrayFireToMatXConversion, TestMnistPointerInput) {
+    int n = 70000;
+    int d = 784;
+
+    auto X_d = GsDBSCAN::run_utils::loadBinDatasetToDevice<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", n, d);
+
+    auto afArray = af::array(n, d, X_d, afDevice);
+
+    auto start = tu::timeNow();
+
+    auto matXTensor = GsDBSCAN::algo_utils::afMatToMatXTensor<float, float>(afArray, matx::MATX_DEVICE_MEMORY);
+
+    tu::printDurationSinceStart(start);
+
+    float *matxTensor_d = matXTensor.Data();
+    float *afArray_d = afArray.device<float>();
+
+    auto *matxTensor_h = GsDBSCAN::algo_utils::copyDeviceToHost(matxTensor_d, n * d, GsDBSCAN::algo_utils::getAfCudaStream());
+    float *afArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(afArray_d, n * d, GsDBSCAN::algo_utils::getAfCudaStream());
+
+    assertColRowMajorMatsEqual(afArray_h, matxTensor_h, n, d);
+
+    free(matxTensor_h);
+    free(afArray_h);
+    afArray.unlock();
+}
+
 
 
 class TestCopying : public AlgoUtilsTest {
