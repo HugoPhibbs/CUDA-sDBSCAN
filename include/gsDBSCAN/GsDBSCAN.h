@@ -61,7 +61,10 @@ namespace GsDBSCAN {
     *  An integer array of size n containing the type labels for each point in the X dataset - e.g. Noise, Core, Border // TODO decide on how this will work?
     *  A nlohmann json object containing the timing information
     */
-    inline std::tuple<int*, int*, json> performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha=1.2, std::string distanceMetric="L2", int clusterBlockSize=256, bool timeIt=false) {
+    inline std::tuple<int *, int *, json>
+    performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha = 1.2,
+                    int distancesBatchSize = 256, std::string distanceMetric = "L2", int clusterBlockSize = 256,
+                    bool timeIt = false) {
 //        auto X_col_major = algo_utils::colMajorToRowMajorMat(X, n, d);
         json times;
 
@@ -104,7 +107,8 @@ namespace GsDBSCAN {
 
         Time startDistances = timeNow();
 
-        matx::tensor_t<float, 2> distances = distances::findDistancesMatX(X_t, A_t, B_t, alpha, -1, distanceMetric,
+        matx::tensor_t<float, 2> distances = distances::findDistancesMatX(X_t, A_t, B_t, alpha, distancesBatchSize,
+                                                                          distanceMetric,
                                                                           matx::MATX_DEVICE_MEMORY);
 
         cudaDeviceSynchronize();
@@ -122,9 +126,11 @@ namespace GsDBSCAN {
 
         auto [adjacencyList_d, adjacencyList_size] = clustering::constructAdjacencyList(distances.Data(), degArray_d,
                                                                                         startIdxArray_d, A_t.Data(),
-                                                                                        B_t.Data(), n, k, m, eps, clusterBlockSize);
+                                                                                        B_t.Data(), n, k, m, eps,
+                                                                                        clusterBlockSize);
 
-        auto [clusterLabels, typeLabels] =  clustering::formClusters(adjacencyList_d, startIdxArray_d, degArray_d, n, minPts);
+        auto [clusterLabels, typeLabels] = clustering::formClusters(adjacencyList_d, startIdxArray_d, degArray_d, n,
+                                                                    minPts);
 
         if (timeIt) times["clustering"] = duration(startClustering, timeNow());
 

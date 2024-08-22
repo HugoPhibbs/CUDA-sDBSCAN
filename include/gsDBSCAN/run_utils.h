@@ -35,6 +35,8 @@ namespace GsDBSCAN::run_utils {
         newArgs["eps"] = std::stof((std::string) args["--eps"]);
 
         newArgs["distanceMetric"] = args["--distanceMetric"];
+        newArgs["alpha"] = args["--alpha"];
+        newArgs["distancesBatchSize"] = std::stoi((std::string) args["--distancesBatchSize"]);
 
         newArgs["clusterBlockSize"] = std::stoi((std::string) args["--clusterBlockSize"]);
 
@@ -127,7 +129,7 @@ namespace GsDBSCAN::run_utils {
 
     inline std::tuple<int *, int *, json>
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
-                std::string distanceMetric, int clusterBlockSize) {
+                int distanceBlockSize, std::string distanceMetric, int clusterBlockSize) {
         // TODO write docs
 //        float *X_d = loadBinDatasetToDevice<float>(datasetFileName, n, d);
         auto X = loadBinFileToVector<float>(datasetFileName);
@@ -143,6 +145,7 @@ namespace GsDBSCAN::run_utils {
                 m,
                 eps,
                 alpha,
+                distanceBlockSize,
                 distanceMetric,
                 clusterBlockSize,
                 true
