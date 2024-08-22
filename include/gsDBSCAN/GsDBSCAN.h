@@ -61,7 +61,7 @@ namespace GsDBSCAN {
     *  An integer array of size n containing the type labels for each point in the X dataset - e.g. Noise, Core, Border // TODO decide on how this will work?
     *  A nlohmann json object containing the timing information
     */
-    inline std::tuple<int*, int*, json>  performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha=1.2, std::string distanceMetric="L2", int clusterBlockSize=256, bool timeIt=false) {
+    inline std::tuple<int*, int*, json> performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha=1.2, std::string distanceMetric="L2", int clusterBlockSize=256, bool timeIt=false) {
 //        auto X_col_major = algo_utils::colMajorToRowMajorMat(X, n, d);
         json times;
 
@@ -71,13 +71,19 @@ namespace GsDBSCAN {
 
         Time startProjections = timeNow();
 
-        auto X_af = af::array(n, d, X, afDevice);
+        auto X_af = af::array(n, d, X);
+        X_af.eval();
+
         X_af = projections::normaliseDatasetAF(X_af);
         auto projections = projections::performProjectionsAF(X_af, D);
 
         projections.eval();
 
         if (timeIt) times["projections"] = duration(startProjections, timeNow());
+
+        // Get a tensor for X
+
+        auto X_t = algo_utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
 
 
         // AB matrices
@@ -90,7 +96,6 @@ namespace GsDBSCAN {
                                                            matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
         auto B_t = algo_utils::afMatToMatXTensor<int, int>(B_af,
                                                            matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
-        auto X_t = algo_utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
 
         if (timeIt) times["constructABMatrices"] = duration(startABMatrices, timeNow());
 
