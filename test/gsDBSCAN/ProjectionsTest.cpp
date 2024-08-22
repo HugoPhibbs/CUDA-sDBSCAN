@@ -155,6 +155,15 @@ TEST_F(TestConstructingABMatrices, TestLargeInputAF) {
     B.eval();
 
     tu::printDurationSinceStart(start);
+
+    int A_max = af::max<int>(A);
+    int B_max = af::max<int>(B);
+
+    std::cout << A_max << std::endl;
+    std::cout << B_max << std::endl;
+
+    ASSERT_TRUE(A_max <= 2 * D - 1);
+    ASSERT_TRUE(B_max <= n - 1);
 }
 
 class TestProjectionsSpeed : public ProjectionsTest {
