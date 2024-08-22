@@ -66,7 +66,7 @@ namespace GsDBSCAN {
                     int distancesBatchSize = -1, std::string distanceMetric = "L2", int clusterBlockSize = 256,
                     bool timeIt = false) {
 //        auto X_col_major = algo_utils::colMajorToRowMajorMat(X, n, d);
-        json times;
+        nlohmann::ordered_json times;
 
         Time startOverAll = timeNow();
 
@@ -109,6 +109,7 @@ namespace GsDBSCAN {
         matx::tensor_t<float, 2> distances = distances::findDistancesMatX(X_t, A_t, B_t, alpha, distancesBatchSize,
                                                                           distanceMetric,
                                                                           matx::MATX_DEVICE_MEMORY);
+        print(matx::slice(distances, {0, 0}, {10, matx::matxEnd}));
 
         cudaDeviceSynchronize();
 
