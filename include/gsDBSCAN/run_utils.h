@@ -97,13 +97,6 @@ namespace GsDBSCAN::run_utils {
         return csvDoc.GetColumn<T>(columnIndex);
     }
 
-    inline float *loadCSVDatasetToDevice(std::string filename, int n, int d) {
-        std::vector<float> X_vec = GsDBSCAN::run_utils::loadCsvColumnToVector<float>(filename, 0);
-        float *X_h = X_vec.data();
-        float *X_d = GsDBSCAN::algo_utils::copyHostToDevice(X_h, n * d);
-        return X_d;
-    }
-
     inline void writeResults(json &args, json &times, int *clusterLabels, int *typeLabels, int numClusters) {
         std::ofstream file(args["outFile"]);
         json combined;
@@ -132,7 +125,6 @@ namespace GsDBSCAN::run_utils {
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
                 int distancesBatchSize, std::string distanceMetric, int clusterBlockSize) {
         // TODO write docs
-//        float *X_d = loadBinDatasetToDevice<float>(datasetFileName, n, d);
         auto X = loadBinFileToVector<float>(datasetFileName);
         auto X_h = X.data();
 

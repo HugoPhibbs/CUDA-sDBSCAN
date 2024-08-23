@@ -21,7 +21,7 @@ namespace GsDBSCAN::projections {
      * @param k k parameter as per the DBSCAN algorithm
      * @param m m parameter as per the DBSCAN algorithm
      */
-    inline std::tuple<af::array, af::array> constructABMatricesAF(const af::array &projections, int k, int m) {
+    inline std::tuple<af::array, af::array> constructABMatricesAF(const af::array &projections, int k, int m, std::string distanceMetric="L2") {
         // Assume projections has shape (n, D)
         int n = projections.dims(0);
         int D = projections.dims(1);
@@ -33,8 +33,7 @@ namespace GsDBSCAN::projections {
 
         af::sort(sortedValsTemp, dataToRandomIdxSorted, projections, 1); // Sort across the rows
 
-        A(af::span, af::seq(0, k - 1)) = 2 * dataToRandomIdxSorted(af::span, af::seq(0, k - 1));
-        A(af::span, af::seq(k, af::end)) = 2 * dataToRandomIdxSorted(af::span, af::seq(D - k, af::end)) + 1;
+        print("Sorted Vals", sortedValsTemp(af::seq(0, 3), af::span));
 
         af::seq BEvenIdx = af::seq(0, 2 * D - 1, 2); // Down the rows
         af::seq BOddIdx = af::seq(1, 2 * D - 1, 2);
@@ -42,8 +41,25 @@ namespace GsDBSCAN::projections {
         af::array sortedValsTemp2, randomToDataIdxSorted;
         af::sort(sortedValsTemp2, randomToDataIdxSorted, projections, 0); // Sort down the cols
 
-        B(BEvenIdx, af::span) = af::transpose(randomToDataIdxSorted(af::seq(0, m - 1), af::span));
-        B(BOddIdx, af::span) = af::transpose(randomToDataIdxSorted(af::seq(n - m, af::end), af::span));
+        print("Sorted Vals", sortedValsTemp(af::seq(0, 15), af::seq(0, 10)));
+
+        if (distanceMetric == "L1" || distanceMetric == "L2") {
+            // For L1 and L2 difference, we take a low projection rating to be close
+            A(af::span, af::seq(0, k - 1)) = 2 * dataToRandomIdxSorted(af::span, af::seq(0, k - 1));
+            A(af::span, af::seq(k, af::end)) = 2 * dataToRandomIdxSorted(af::span, af::seq(D - k, af::end)) + 1;
+
+            B(BEvenIdx, af::span) = af::transpose(randomToDataIdxSorted(af::seq(0, m - 1), af::span));
+            B(BOddIdx, af::span) = af::transpose(randomToDataIdxSorted(af::seq(n - m, af::end), af::span));
+        } else if (distanceMetric == "COSINE") {
+            // For COSINE similarity. We take +1 as close, 0 as orthogonal, and -1 as far
+            A(af::span, af::seq(0, k - 1)) = 2 * dataToRandomIdxSorted(af::span, af::seq(D - k, af::end));
+            A(af::span, af::seq(k, af::end)) = 2 * dataToRandomIdxSorted(af::span, af::seq(0, k - 1)) + 1;
+
+            B(BEvenIdx, af::span) = af::transpose(randomToDataIdxSorted(af::seq(n - m, af::end), af::span)); // close -> close
+            B(BOddIdx, af::span) = af::transpose(randomToDataIdxSorted(af::seq(0, m - 1), af::span)); // far -> far
+        } else {
+            throw std::runtime_error("Unknown distanceMetric: '" + distanceMetric + "'");
+        }
 
         return std::make_tuple(A, B);
     }
