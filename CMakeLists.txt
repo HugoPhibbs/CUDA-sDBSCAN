@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.27)
-project(DbscanCEOs LANGUAGES CXX CUDA C)
+project(GS-DBSCAN LANGUAGES CXX CUDA C)
 #enable_language(CUDA)
-project(sDbscan)
 
 set(CMAKE_CXX_STANDARD 17)
 SET(CMAKE_CUDA_ARCHITECTURES 86)
@@ -10,9 +9,6 @@ set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.6/bin/nvcc") # Somehow CLion needs t
 #add_definitions(-DINDEX_64_BIT)
 
 SET(CMAKE_BUILD_TYPE Debug)
-
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-find_package(Boost 1.71 REQUIRED NO_MODULE)
 
 # CCCL
 include(cmake/CPM.cmake)
@@ -54,12 +50,12 @@ link_directories(
 add_subdirectory(lib/googletest)
 
 set_source_files_properties(
-        test/gsDBSCAN/GsDBSCANTest.cpp
-        test/gsDBSCAN/AlgoUtilsTest.cpp
-        test/gsDBSCAN/ProjectionsTest.cpp
-        test/gsDBSCAN/DistancesTest.cpp
-        test/gsDBSCAN/ClusteringTest.cpp
-        test/gsDBSCAN/RunUtilsTest.cpp
+        test/GsDBSCANTest.cpp
+        test/AlgoUtilsTest.cpp
+        test/ProjectionsTest.cpp
+        test/DistancesTest.cpp
+        test/ClusteringTest.cpp
+        test/RunUtilsTest.cpp
         include/gsDBSCAN/projections.h
         include/gsDBSCAN/GsDBSCAN.h
         include/gsDBSCAN/projections.h
@@ -74,10 +70,6 @@ set_source_files_properties(
 add_executable(${PROJECT_NAME}
 #        src/main.cpp
         src/gs_main.cpp
-        src/Utilities.cpp
-        src/dbscan/sDbscan.cpp
-        src/fast_copy.c
-        src/fht/fht.c
         include/gsDBSCAN/projections.h
         include/gsDBSCAN/algo_utils.h
         include/gsDBSCAN/distances.h
@@ -86,13 +78,13 @@ add_executable(${PROJECT_NAME}
 )
 
 add_executable(run_gs_dbscan_tests
-        test/gsDBSCAN/GsDBSCANTest.cpp
+        test/GsDBSCANTest.cpp
         test/TestUtils.cpp
-        test/gsDBSCAN/AlgoUtilsTest.cpp
-        test/gsDBSCAN/ProjectionsTest.cpp
-        test/gsDBSCAN/DistancesTest.cpp
-        test/gsDBSCAN/ClusteringTest.cpp
-        test/gsDBSCAN/RunUtilsTest.cpp
+        test/AlgoUtilsTest.cpp
+        test/ProjectionsTest.cpp
+        test/DistancesTest.cpp
+        test/ClusteringTest.cpp
+        test/RunUtilsTest.cpp
 )
 
 add_executable(repro2
@@ -103,7 +95,7 @@ set_target_properties(repro2 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 
 target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main)
-target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda Eigen3::Eigen matx::matx)
+target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx)
 #
 #target_precompile_headers(run_gs_dbscan_tests PRIVATE include/json.hpp include/rapidcsv.h)
 #target_precompile_headers(${PROJECT_NAME} PRIVATE include/json.hpp include/rapidcsv.h)

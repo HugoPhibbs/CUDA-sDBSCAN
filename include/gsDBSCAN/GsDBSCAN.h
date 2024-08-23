@@ -5,14 +5,11 @@
 #ifndef DBSCANCEOS_GSDBSCAN_H
 #define DBSCANCEOS_GSDBSCAN_H
 
-#include "../Header.h"
-#include "../Utilities.h"
 #include <arrayfire.h>
 #include "cuda_runtime.h"
 #include <af/cuda.h>
 #include <arrayfire.h>
 #include <matx.h>
-#include <Eigen/Dense>
 #include <chrono>
 #include <tuple>
 
@@ -66,6 +63,11 @@ namespace GsDBSCAN {
                     int distancesBatchSize = -1, std::string distanceMetric = "L2", int clusterBlockSize = 256,
                     bool timeIt = false) {
 //        auto X_col_major = algo_utils::colMajorToRowMajorMat(X, n, d);
+
+        if (distanceMetric == "COSINE") {
+            eps = 1 - eps; // We use cosine similarity, thus we need to convert the eps to a cosine distance.
+        }
+
         nlohmann::ordered_json times;
 
         Time startOverAll = timeNow();
@@ -82,6 +84,8 @@ namespace GsDBSCAN {
 
         projections.eval();
 
+        af::print("Projections: ", ((1/std::sqrt(D)) * projections)(af::seq(0, 5), af::span));
+
         if (timeIt) times["projections"] = duration(startProjections, timeNow());
 
         // Get a tensor for X
@@ -92,7 +96,7 @@ namespace GsDBSCAN {
 
         Time startABMatrices = timeNow();
 
-        auto [A_af, B_af] = projections::constructABMatricesAF(projections, k, m);
+        auto [A_af, B_af] = projections::constructABMatricesAF(projections, k, m, distanceMetric);
 
         auto A_t = algo_utils::afMatToMatXTensor<int, int>(A_af,
                                                            matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
