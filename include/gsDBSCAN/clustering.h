@@ -14,7 +14,6 @@
 #include <boost/dynamic_bitset.hpp>
 //#include <execution>
 #include "algo_utils.h"
-#include "../Header.h"
 #include <thrust/device_vector.h>
 #include <thrust/device_ptr.h>
 #include <thrust/reduce.h>

@@ -6,7 +6,6 @@
 #define SDBSCAN_ALGO_UTILS_H
 
 #include <matx.h>
-#include <Eigen/Dense>
 #include <arrayfire.h>
 #include <af/cuda.h>
 #include <cuda_runtime.h>

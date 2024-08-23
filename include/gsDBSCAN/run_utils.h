@@ -116,7 +116,7 @@ namespace GsDBSCAN::run_utils {
             file << result.dump(4);
             file.close();
         } else {
-            throw std::runtime_error("Error: Unable to open file: " + (string) args["outFile"]);
+            throw std::runtime_error("Error: Unable to open file: " + (std::string) args["outFile"]);
         }
     }
 

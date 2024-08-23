@@ -5,14 +5,11 @@
 #ifndef DBSCANCEOS_GSDBSCAN_H
 #define DBSCANCEOS_GSDBSCAN_H
 
-#include "../Header.h"
-#include "../Utilities.h"
 #include <arrayfire.h>
 #include "cuda_runtime.h"
 #include <af/cuda.h>
 #include <arrayfire.h>
 #include <matx.h>
-#include <Eigen/Dense>
 #include <chrono>
 #include <tuple>
 

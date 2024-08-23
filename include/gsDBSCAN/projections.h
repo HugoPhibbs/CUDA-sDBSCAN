@@ -8,8 +8,6 @@
 #include <tuple>
 
 #include <arrayfire.h>
-#include "../Header.h"
-
 
 namespace GsDBSCAN::projections {
     /**
