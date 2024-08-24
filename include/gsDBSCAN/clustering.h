@@ -44,7 +44,7 @@ namespace GsDBSCAN::clustering {
      * @return Pointer to the degree array. Since this is intended to be how this is used for later steps
      */
     template<typename T>
-    inline matx::tensor_t<int, 1> constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps,
+    inline matx::tensor_t<int, 1> constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, const T eps,
                                                                       matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY, const std::string &distanceMetric = "L2") {
         /**
          * Yes, I know the below isn't very clean, but MatX is a bit of a pain when it comes to types.
