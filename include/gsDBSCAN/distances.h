@@ -118,51 +118,45 @@ namespace GsDBSCAN::distances {
 
         batchSize = (batchSize != -1) ? batchSize : findDistanceBatchSize(alpha, n, d, k, m);
 
-        auto AFlat_t = matx::flatten(A_t);
-
         auto distances_t = matx::make_tensor<T>({n, 2 * k * m}, memorySpace);
 
-        for (int i = 0; i < n; i += batchSize) {
-            auto start = std::chrono::high_resolution_clock::now(); // TODO remove me!
+        auto processBatches = [&](auto computeOperation) {
+            auto AFlat_t = matx::flatten(A_t);
 
-            int maxBatchIdx = i + batchSize; // Index within X along the ROWS
+            for (int i = 0; i < n; i += batchSize) {
+                int maxBatchIdx = i + batchSize;
 
-            auto XSubset_t_op = matx::slice(X_t, {i, 0}, {maxBatchIdx, matx::matxEnd});
+                auto XSubset_t_op = matx::slice(X_t, {i, 0}, {maxBatchIdx, matx::matxEnd});
+                auto ABatchFlat_t_op = matx::slice(AFlat_t, {i * 2 * k}, {maxBatchIdx * 2 * k});
+                auto BBatch_t_op = matx::remap<0>(B_t, ABatchFlat_t_op);
+                auto XBatch_t_op = matx::remap<0>(X_t, matx::flatten(BBatch_t_op));
+                auto XBatchReshaped_t_op = matx::reshape(XBatch_t_op, {batchSize, 2 * k * m, d});
+                auto XSubsetReshaped_t_op = matx::reshape(XSubset_t_op, {batchSize, 1, d});
 
-            auto ABatchFlat_t_op = matx::slice(AFlat_t, {i * 2 * k}, {maxBatchIdx * 2 * k});
+                computeOperation(XBatchReshaped_t_op, XSubsetReshaped_t_op, distances_t, i, maxBatchIdx);
+            }
+        };
 
-            auto BBatch_t_op = matx::remap<0>(B_t, ABatchFlat_t_op);
+        if (distanceMetric == "L1" || distanceMetric == "L2") {
+            auto normOrder = (distanceMetric == "L1") ? matx::NormOrder::L1 : matx::NormOrder::L2;
 
-            auto XBatch_t_op = matx::remap<0>(X_t, matx::flatten(BBatch_t_op));
-
-            auto XBatchReshaped_t_op = matx::reshape(XBatch_t_op, {batchSize, 2 * k * m, d});
-
-            auto XSubsetReshaped_t_op = matx::reshape(XSubset_t_op, {batchSize, 1, d});
-
-
-            if (distanceMetric == "L1" || distanceMetric == "L2") {
-                auto YBatch_t_op = (XBatchReshaped_t_op - matx::repmat(XSubsetReshaped_t_op, {1, 2 * k * m,
-                                                                                              1})); // Repmat is a workaround for minusing naively incompatibhle tensor shapes
-                if (distanceMetric == "L1") {
-                    auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, matx::NormOrder::L1);
-                    (matx::slice(distances_t, {i, 0}, {maxBatchIdx, matx::matxEnd}) = YBatch_t_norm_op).run();
-                } else if (distanceMetric == "L2") {
-                    auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, matx::NormOrder::L2);
-                    (matx::slice(distances_t, {i, 0}, {maxBatchIdx,
-                                                       matx::matxEnd}) = YBatch_t_norm_op).run(); // TODO: TBH I don't know the type of YBatch_norm_op, so I'm repeating the call like a noob
-                }
-            } else if (distanceMetric == "COSINE") {
+            processBatches([&](auto& XBatchReshaped_t_op, auto& XSubsetReshaped_t_op, auto& distances, int i, int maxBatchIdx) {
+                auto YBatch_t_op = XBatchReshaped_t_op - matx::repmat(XSubsetReshaped_t_op, {1, 2 * k * m, 1});
+                auto YBatch_t_norm_op = matx::vector_norm(YBatch_t_op, {2}, normOrder);
+                (matx::slice(distances, {i, 0}, {maxBatchIdx, matx::matxEnd}) = YBatch_t_norm_op).run();
+            });
+        } else if (distanceMetric == "COSINE") {
+            processBatches([&](auto& XBatchReshaped_t_op, auto& XSubsetReshaped_t_op, auto& distances, int i, int maxBatchIdx) {
                 auto product_op = XBatchReshaped_t_op * XSubsetReshaped_t_op;
                 auto product_sum_op = matx::sum(product_op, {2});
-                (matx::slice(distances_t, {i, 0}, {maxBatchIdx, matx::matxEnd}) = product_sum_op).run();
-            } else {
-                throw std::runtime_error("Unknown distanceMetric: " + distanceMetric);
-            }
+                (matx::slice(distances, {i, 0}, {maxBatchIdx, matx::matxEnd}) = product_sum_op).run();
+            });
+        } else {
+            throw std::runtime_error("Invalid distance metric: " + distanceMetric);
         }
 
         return distances_t;
     }
-
 }
 
 

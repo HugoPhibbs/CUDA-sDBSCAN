@@ -217,7 +217,9 @@ TEST_F(TestFindingDistances, TestSmallInputCosineMatx) {
     auto A_t = matx::make_tensor<int>(A_d, {5, 2});
     auto B_t = matx::make_tensor<int>(B_d, {10, 3});
 
-    auto distances_t = GsDBSCAN::distances::findDistancesMatX(X_t_16, A_t, B_t, 1.2, 1, "COSINE");
+    std::string distanceMetric = "COSINE";
+
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX(X_t_16, A_t, B_t, 1.2, 1, distanceMetric);
 
     cudaDeviceSynchronize();
 
