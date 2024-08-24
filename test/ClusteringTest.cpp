@@ -33,39 +33,6 @@ class TestSortingProjections : public ClusteringTest {
 
 };
 
-//TEST_F(TestSortingProjections, TestSortingProjectionsLargeInputMatX) {
-//    // A perf test, doesn't unit test anything
-//
-//    int n = 20000;
-//    int D = 1000;
-//
-//    auto mockProjections = matx::random<float>({n, D}, matx::UNIFORM) * 100;
-//
-//    mockProjections.run();
-//
-//    cudaDeviceSynchronize();
-//
-//    auto start = tu::timeNow();
-//
-//    matx::tensor_t<float, 2> projectionsSorted = matx::make_tensor<float>({n, D});
-//
-//    (projectionsSorted = matx::sort(mockProjections, matx::SORT_DIR_ASC)).run();
-//
-//    cudaDeviceSynchronize();
-//
-//    tu::printDurationSinceStart(start);
-//
-////    auto projectionsSortedT = matx::sort(matx::transpose(mockProjections), matx::SORT_DIR_ASC);
-////
-////    cudaDeviceSynchronize();
-////
-////    matx::print(projectionsSorted);
-//
-//
-//    // TODO figure out why the sorting is so quick, frankly there is no way it is that quick
-//};
-
-
 class TestConstructQueryVectorDegreeArray : public ClusteringTest {
 
 };
@@ -82,7 +49,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4}, matx::MATX_MANAGED_MEMORY);
 
-    auto degArray_t = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_MANAGED_MEMORY); // TODO fix me!
+    auto degArray_t = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_MANAGED_MEMORY);
 
     auto degArray_d = degArray_t.Data();
 
@@ -96,18 +63,6 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
 class TestProcessQueryVectorDegreeArray : public ClusteringTest {
 
 };
-
-TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputMatX) {
-    int EData[] = {3, 4, 1, 1};
-
-    auto EData_d = GsDBSCAN::algo_utils::copyHostToDevice(EData, 4, true);
-
-    auto V = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(EData_d, 4);
-
-    cudaDeviceSynchronize();
-
-//    auto VData = V.Data(); // TODO why can't i get a pointer to the data?
-}
 
 TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputThrust) {
 
