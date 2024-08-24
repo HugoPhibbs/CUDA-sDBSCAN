@@ -93,43 +93,6 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
     }
 }
 
-
-TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputAF) {
-    float distancesData[] = {
-            0, 1, 2, 3,
-            0, 2, 1, 0,
-            1, 8, 9, 11,
-            15, 2, 6, 7
-    };
-
-    af::array distances(4, 4, distancesData);
-
-    float eps = 2.1;
-
-    af::array E = GsDBSCAN::clustering::constructQueryVectorDegreeArray(distances, eps);
-
-    float expectedData[] = {3, 4, 1, 1};
-
-    af::array expected(1, 4, expectedData);
-
-    ASSERT_TRUE(af::allTrue<bool>(expected == E));
-}
-
-TEST_F(TestConstructQueryVectorDegreeArray, TestMnist) {
-    af::array distances = tu::createMockDistances();
-
-    float eps = af::randu(1, 1).scalar<float>();
-
-    tu::Time start = tu::timeNow();
-
-    af::array E = GsDBSCAN::clustering::constructQueryVectorDegreeArray(distances, eps);
-
-    E.eval();
-    af::sync();
-
-    tu::printDurationSinceStart(start);
-}
-
 class TestProcessQueryVectorDegreeArray : public ClusteringTest {
 
 };
@@ -188,23 +151,6 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputIntegrationThrust) {
     for (int i = 0; i < 4; i++) {
         ASSERT_EQ(expectedData[i], startIdxArray_h[i]);
     }
-}
-
-TEST_F(TestProcessQueryVectorDegreeArray, TestMnist) {
-    af::array distances = tu::createMockDistances();
-
-    float eps = af::randu(1, 1).scalar<float>();
-
-    af::array E = GsDBSCAN::clustering::constructQueryVectorDegreeArray(distances, eps);
-
-    tu::Time start = tu::timeNow();
-
-    af::array V = GsDBSCAN::clustering::processQueryVectorDegreeArray(E);
-
-    V.eval();
-    af::sync();
-
-    tu::printDurationSinceStart(start);
 }
 
 class TestCreatingAdjacencyList : public ClusteringTest {

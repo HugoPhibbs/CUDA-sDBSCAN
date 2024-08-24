@@ -45,13 +45,30 @@ namespace GsDBSCAN::clustering {
      */
     template<typename T>
     inline matx::tensor_t<int, 1> constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, T eps,
-                                                                      matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY) {
-        auto lt = distances < eps;
-        auto lt_int = matx::as_type<int>(lt);
-        auto res = matx::make_tensor<int>({distances.Shape()[1]}, memorySpace);
-        (res = matx::sum(lt_int, {1})).run();
+                                                                      matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY, const std::string &distanceMetric = "L2") {
+        /**
+         * Yes, I know the below isn't very clean, but MatX is a bit of a pain when it comes to types.
+         *
+         * Hence why I'm repeating code across two forloops
+         */
 
-        return res; // Somehow if i return .Data() it casts the pointer to an unregistered host pointer, so I'm returning the tensor itself
+        if (distanceMetric == "L1" || distanceMetric == "L2") {
+            auto closePoints = distances < eps;
+            auto closePoints_int = matx::as_type<int>(closePoints);
+            auto res = matx::make_tensor<int>({distances.Shape()[1]}, memorySpace);
+            (res = matx::sum(closePoints_int, {1})).run();
+            return res;
+        } else if (distanceMetric == "COSINE") {
+            auto closePoints = distances > eps;
+            auto closePoints_int = matx::as_type<int>(closePoints);
+            auto res = matx::make_tensor<int>({distances.Shape()[1]}, memorySpace);
+            (res = matx::sum(closePoints_int, {1})).run();
+            return res;
+        } else {
+            throw std::runtime_error("Invalid distance metric: " + distanceMetric);
+        }
+
+ // Somehow if i return .Data() it casts the pointer to an unregistered host pointer, so I'm returning the tensor itself
     }
 
     inline int *processQueryVectorDegreeArrayThrust(int *degArray_d, int n) {
@@ -64,28 +81,10 @@ namespace GsDBSCAN::clustering {
     }
 
     template <typename T>
-    inline T valueAtIdxDeviceToHost(T* deviceArray, int idx) {
+    inline T valueAtIdxDeviceToHost(const T* deviceArray, const int idx) {
         T value;
         cudaMemcpy(&value, deviceArray + idx, sizeof(T), cudaMemcpyDeviceToHost);
         return value;
-    }
-
-    /**
-     * Calculates the degree of the query vectors as per the G-DBSCAN algorithm.
-     *
-     * This function is used in the construction of the cluster graph by determining how many
-     *
-     * Put into its own method for testability
-     *
-     * @param distances The matrix containing the distances between the query and candidate vectors.
-     *                  Expected shape is (datasetSize, 2*k*m).
-     * @param eps       The epsilon value for DBSCAN. Should be a scalar array of the same data type
-     *                  as the distances array.
-     *
-     * @return The degree array of the query vectors, with shape (datasetSize, 1).
-     */
-    inline af::array constructQueryVectorDegreeArray(af::array &distances, float eps) {
-        return af::sum(distances < eps, 0);
     }
 
     /**
@@ -101,90 +100,6 @@ namespace GsDBSCAN::clustering {
                         false); // Do an exclusive scan// TODO, need to return the V array, this is here to satisfy the compiler.
     }
 
-
-//    /**
-//     * Performs the actual clustering step of the algorithm
-//     *
-//     * Rewritten from Ninh's original code
-//     *
-//     * @param adjacencyList af array adjacency list for each of the dataset vectors as per the GsDBSCAN algorithm
-//     * @param V starting index of each of the dataset vectors within the adjacency list
-//     * @param E degree of each query vector (how many candidate vectors are within eps distance of it)
-//     * @param n size of the dataset
-//     * @param minPts minimum number of points within eps distance to consider a point as a core point
-//     * @param clusterNoise whether to include noise points in the result
-//     * @return a tuple containing the cluster labels and the number of clusters found
-//     */
-//    std::tuple<std::vector<int>, int>
-//    inline formClusters(af::array &adjacencyList, af::array &V, af::array &E, int n, int minPts, bool clusterNoise) {
-//        int nClusters = 0;
-//        std::vector<int> labels = IVector(n, -1);
-//
-//        int iNewClusterID = -1;
-//
-//        auto isCore = [&](int idx) -> bool {
-//            // TODO use a bit set instead of a cumbersome af array
-//            return E(idx).scalar<int>() >= minPts;
-//        };
-//
-//        for (int i = -1; i < n; i++) {
-//
-//            if (!isCore(i) || (labels[i] != -1)) {
-//                continue;
-//            }
-//
-//            iNewClusterID++;
-//
-//            std::unordered_set<int> seedSet; //seedSet only contains core points
-//            seedSet.insert(i);
-//
-//            boost::dynamic_bitset<> connectedPoints(n);
-//            connectedPoints[i] = true;
-//
-//            int startIndex, endIndex;
-//
-//            while (!seedSet.empty()) {
-//                int Xi = *seedSet.begin();
-//                seedSet.erase(seedSet.begin());
-//
-//                startIndex = V(Xi).scalar<int>();
-//                endIndex = startIndex + E(Xi).scalar<int>();
-//                int Xj;
-//
-//                for (int j = startIndex; j < endIndex; j++) {
-//                    Xj = adjacencyList(j).scalar<int>();
-//
-//                    if (isCore(i)) {
-//                        if (!connectedPoints[Xj]) {
-//                            connectedPoints[Xj] = true;
-//
-//                            if (labels[Xj] == -1) seedSet.insert(Xj);
-//                        }
-//                    } else {
-//                        connectedPoints[Xj] = true;
-//                    }
-//
-//                }
-//            }
-//
-//            size_t Xj = connectedPoints.find_first();
-//
-//            while (Xj != boost::dynamic_bitset<>::npos) {
-//                if (labels[Xj] == -1) labels[Xj] = iNewClusterID;
-//
-//                Xj = connectedPoints.find_next(Xj);
-//            }
-//
-//            nClusters = iNewClusterID;
-//        }
-//
-//        if (clusterNoise) {
-//            // TODO, implement labeling of noise
-//        }
-//
-//        return make_tuple(labels, nClusters);
-//    }
-
     /**
      * Kernel for constructing part of the cluster graph adjacency list for a particular vector
      *
@@ -198,9 +113,9 @@ namespace GsDBSCAN::clustering {
      */
     __global__ void
     inline
-    constructAdjacencyListForQueryVector(float *distances, int *adjacencyList, int *startIdxArray, int *A, int *B, float eps,
-                                         int n,
-                                         int k, int m) {
+    constructAdjacencyListForQueryVector(const float *distances, int *adjacencyList, const int *startIdxArray, const int *A, const int *B, const float eps,
+                                         const int n,
+                                         const int k, const int m, bool(*pointInCluster)(const float, const float)) {
         // We assume one thread per query vector
 
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -214,7 +129,8 @@ namespace GsDBSCAN::clustering {
         int ACol, BCol, BRow, neighbourhoodVecIdx;
 
         for (int j = 0; j < distances_rows; j++) {
-            if (distances[idx * distances_rows + j] < eps) {
+
+            if (pointInCluster(distances[idx * distances_rows + j], eps)) {
                 ACol = j / m;
                 BCol = j % m;
                 BRow = A[idx * 2 * k + ACol];
@@ -226,9 +142,51 @@ namespace GsDBSCAN::clustering {
         }
     }
 
+    inline __device__ bool pointInClusterL1L2(const float distance, const float eps) {
+        return distance < eps;
+    }
+
+    inline __global__ void setPointInClusterL1L2(bool(**pointInCluster)(const float, const float)) {
+        *pointInCluster = pointInClusterL1L2;
+    }
+
+
+    inline __device__ bool pointInClusterCosine(const float distance, const float eps) {
+        return distance > eps;
+    }
+
+
+    inline __global__ void setPointInClusterCosine(bool(**pointInCluster)(const float, const float)) {
+        *pointInCluster = pointInClusterCosine;
+    }
+
+    inline auto getPointInCluster_h(const std::string &distanceMetric) {
+        /*
+         * Basically the problem is that I can't reference a device function from the host,
+         *
+         * SO I need to do a slight of hand to get around this.
+         *
+         * I don't fully understand it, but I used the below link:
+         *
+         * https://stackoverflow.com/questions/26738079/cuda-kernel-with-function-pointer-and-variadic-templates
+         */
+        unsigned long long *pointInCluster_d, *pointInCluster_h;
+        cudaMalloc(&pointInCluster_d, sizeof(unsigned long long));
+
+        if (distanceMetric == "L1" || distanceMetric == "L2") {
+            setPointInClusterL1L2<<<1, 1>>>((bool(**)(const float, const float)) pointInCluster_d);
+        } else if (distanceMetric == "COSINE") {
+            setPointInClusterCosine<<<1, 1>>>((bool(**)(const float, const float)) pointInCluster_d);
+        }
+
+        cudaMemcpy(&pointInCluster_h, pointInCluster_d, sizeof(unsigned long long), cudaMemcpyDeviceToHost);
+
+        return (bool(*)(const float, const float)) pointInCluster_h;
+    }
+
     inline std::tuple<int *, int>
-    constructAdjacencyList(float *distances_d, int *degArray_d, int *startIdxArray_d, int *A_d, int *B_d, int n, int k,
-                           int m, float eps, int blockSize = 256) {
+    constructAdjacencyList(const float *distances_d, const int *degArray_d, const int *startIdxArray_d, int *A_d, int *B_d, const int n, const int k,
+                           const int m, const float eps, int blockSize = 256, const std::string &distanceMetric= "L2") {
         // Assume the arrays aren't stored in managed memory
         int lastDegree = valueAtIdxDeviceToHost(degArray_d, n - 1);
         int lastStartIdx = valueAtIdxDeviceToHost(startIdxArray_d, n - 1);
@@ -240,9 +198,14 @@ namespace GsDBSCAN::clustering {
 
         int gridSize = (n + blockSize - 1) / blockSize;
         blockSize = std::min(n, blockSize);
+
+        auto pointInCluster_h = getPointInCluster_h(distanceMetric);
+
         constructAdjacencyListForQueryVector<<<gridSize, blockSize>>>(distances_d,
-                                                                          adjacencyList_d, startIdxArray_d,
-                                                                          A_d, B_d, eps, n, k, m);
+                                                                      adjacencyList_d, startIdxArray_d,
+                                                                      A_d, B_d, eps, n, k, m,
+                                                                      pointInCluster_h
+                                                                      );
         cudaDeviceSynchronize();
         return std::tie(adjacencyList_d, adjacencyList_size);
     }
