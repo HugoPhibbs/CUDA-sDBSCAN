@@ -6,6 +6,7 @@
 #define SDBSCAN_PROJECTIONS_H
 
 #include <tuple>
+#include <cmath>
 
 #include <arrayfire.h>
 
@@ -64,8 +65,9 @@ namespace GsDBSCAN::projections {
 
     inline af::array performProjectionsAF(af::array X, int D) {
         int d = X.dims(1);
-        auto Y = af::randn(d, D);
-        return af::matmul(X, Y);
+        auto Y = af::randn(d, D); // TODO should these be signed?
+        return (1 / std::sqrt(D)) * af::matmul(X, Y);
+//        return af::matmul(X, Y); // No normalisation, not needed, since the 1/sqrt(D) term is a constant
     }
 
     inline af::array normaliseDatasetAF(af::array X) {
