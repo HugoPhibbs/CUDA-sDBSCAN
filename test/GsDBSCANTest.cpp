@@ -9,8 +9,6 @@
 #include <vector>
 #include <string>
 #include <cmath>
-#include "Eigen/Dense"
-#include "unsupported/Eigen/CXX11/Tensor"
 
 #include "../include/rapidcsv.h"
 #include "../include/gsDBSCAN/GsDBSCAN.h"

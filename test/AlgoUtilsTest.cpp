@@ -4,7 +4,6 @@
 #include <gtest/gtest.h>
 #include <matx.h>
 #include <arrayfire.h>
-#include "Eigen/Dense"
 #include <cuda_runtime.h>
 
 #include "../include/gsDBSCAN/GsDBSCAN.h"
