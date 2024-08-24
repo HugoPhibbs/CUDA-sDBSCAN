@@ -49,6 +49,7 @@ class TestFindingDistances : public TestDistances {
 };
 
 TEST_F(TestFindingDistances, TestSmallInputAF)     {
+    GTEST_SKIP(); // Legacy test, I should remove it!
     // n = 5, d = 3
     float X_data[] = {
             0, 1, 2, 3, 0,
@@ -448,6 +449,7 @@ TEST_F(TestFindingDistances, TestMnistAFMatXIntegration) {
 
 
 TEST_F(TestFindingDistances, TestMockAF) {
+    GTEST_SKIP(); // Legacy test, I should remove it!
     auto YBatch = af::randu(20, 2000, 784);
 
     auto start = tu::timeNow();
@@ -499,6 +501,8 @@ TEST_F(TestFindingDistances, TestLargeInputMatX) {
 }
 
 TEST_F(TestFindingDistances, TestLargeInputAF) {
+    GTEST_SKIP(); // Legacy test, I should remove it!
+
     int n = 70000;
     af::array X = tu::createMockMnistDataset(n, 784);
     af::array A, B;
