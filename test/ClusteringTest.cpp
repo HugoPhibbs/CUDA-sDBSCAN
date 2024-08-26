@@ -6,6 +6,8 @@
 #include <arrayfire.h>
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
+#include "../include/gsDBSCAN/algo_utils.h"
+#include "../include/gsDBSCAN/run_utils.h"
 #include <cuda_runtime.h>
 #include <cmath>
 
@@ -60,6 +62,54 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
     for (int i = 0; i < 4; i++) {
         ASSERT_EQ(degArray_d[i], expectedData[i]);
     }
+}
+
+TEST_F(TestConstructQueryVectorDegreeArray, TestMnistAgainstPython) {
+    float eps = 1-0.11;
+
+    int n = 70000;
+    int numCandidates = 2*5*50; // 2 * k * m
+
+    auto distancesData = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/degArray_test/distances_test_row_major.bin");
+
+    auto distancesData_d = GsDBSCAN::algo_utils::copyHostToDevice(distancesData.data(), distancesData.size(), true);
+
+    matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {n, numCandidates}, matx::MATX_MANAGED_MEMORY);
+
+    auto degArray_t = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, eps, matx::MATX_MANAGED_MEMORY, "COSINE");
+
+    auto degArray_d = degArray_t.Data();
+
+    auto degArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(degArray_d, n);
+
+    auto degArrayExpected = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/degArray_test/degArray_test.bin");
+
+    int numMismatch = 0;
+
+    int maxMismatch = 0;
+    int maxMismatchIndex = 0;
+
+//    for (int i = 0; i < n; i++) {
+//        if (degArray_h[i] != degArrayExpected[i]) {
+////            std::cout << "Index: " << i << " Expected: " << degArrayExpected[i] << " Got: " << degArray_h[i] << std::endl;
+//            numMismatch ++;
+//            int thisMaxMismatch = std::abs(degArrayExpected[i] - degArray_h[i]);
+//            if (thisMaxMismatch > maxMismatch) {
+//                maxMismatch = thisMaxMismatch;
+//                maxMismatchIndex = i;
+//            }
+//        }
+//    }
+//
+//    std::cout<<numMismatch<<std::endl;
+//
+//    std::cout<<"Max mismatch: "<<maxMismatch<<std::endl;
+//    std::cout<<"Max mismatch index: "<<maxMismatchIndex<<std::endl;
+//    std::cout<<"Expected: "<<degArrayExpected[maxMismatchIndex]<<std::endl;
+//    std::cout<<"Got: "<<degArray_h[maxMismatchIndex]<<std::endl;
+//
+//    auto closePoints = distances_t > eps;
+//    auto closePoints_int = matx::as_type<int>(closePoints);
 }
 
 class TestProcessQueryVectorDegreeArray : public ClusteringTest {
