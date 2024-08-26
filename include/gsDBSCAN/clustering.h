@@ -216,7 +216,7 @@ namespace GsDBSCAN::clustering {
 
     __global__ void
     inline
-    breadthFirstSearchKernel(int *adjacencyList_d, int *startIdxArray_d, int *visited_d, int *border_d, int n) {
+    breadthFirstSearchKernel(int *adjacencyList_d, int *startIdxArray_d, int *visited_d, int *border_d, const int n) {
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
         if (tid >= n) {
@@ -241,7 +241,7 @@ namespace GsDBSCAN::clustering {
 
     inline void
     breadthFirstSearch(int *adjacencyList_d, int *degArray_h, int *startIdxArray_d, int *visited, int *clusterLabels,
-                       int *typeLabels, size_t n, int seedVertexIdx, int thisClusterLabel, int minPts, int blockSize) {
+                       int *typeLabels, const size_t n, const int seedVertexIdx, const int thisClusterLabel, const int minPts, const int blockSize) {
         // NB: Fa is Border from GsDBSCAN paper, Xa is Visited,
         int *borderThisBfs_d = algo_utils::allocateCudaArray<int>(n, true);
 
@@ -281,8 +281,8 @@ namespace GsDBSCAN::clustering {
 
 
     inline std::tuple<int *, int *, int>
-    formClusters(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int minPts,
-                 int blockSize = 256) {
+    formClusters(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, const int n, const int minPts,
+                 const int blockSize = 256) {
         int *clusterLabels = new int[n];
         int *typeLabels = new int[n];
 //            std::fill(std::execution::par, typeLabels, typeLabels + n, -1); // TODO change to parallel, perhaps could use managed memory for the arrays?
@@ -292,10 +292,6 @@ namespace GsDBSCAN::clustering {
         int *visited = new int[n];
 
         auto degArray_h = algo_utils::copyDeviceToHost(degArray_d, n); // TODO may be faster to keep this in managed memory - not sure
-
-        for (int i = 0; i < 600; i++) {
-            std::cout<<degArray_h[i]<<std::endl;
-        }
 
         int currCluster = 0;
 
