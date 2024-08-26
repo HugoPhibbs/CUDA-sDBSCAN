@@ -33,15 +33,11 @@ namespace GsDBSCAN::projections {
 
         af::sort(sortedValsTemp, dataToRandomIdxSorted, projections, 1); // Sort across the rows
 
-        print("Sorted Vals", sortedValsTemp(af::seq(0, 3), af::span));
-
         af::seq BEvenIdx = af::seq(0, 2 * D - 1, 2); // Down the rows
         af::seq BOddIdx = af::seq(1, 2 * D - 1, 2);
 
         af::array sortedValsTemp2, randomToDataIdxSorted;
         af::sort(sortedValsTemp2, randomToDataIdxSorted, projections, 0); // Sort down the cols
-
-        print("Sorted Vals", sortedValsTemp(af::seq(0, 15), af::seq(0, 10)));
 
         if (distanceMetric == "L1" || distanceMetric == "L2") {
             // For L1 and L2 difference, we take a low projection rating to be close
