@@ -53,6 +53,9 @@ namespace GsDBSCAN {
     * @param eps epsilon parameter for the sDBSCAN algorithm. I.e. the threshold for the distance between the random vec and the dataset vec
     * @param alpha float to tune the batch size when calculating distances
     * @param distanceMetric string for the distance metric to use. Options are "L1", "L2" or "COSINE"
+    * @param distancesBatchSize int for the batch size to use when calculating distances, set to -1 to calculate automatically
+    * @param clusterBlockSize int for the block size to use when clustering
+    * @param timeIt bool to indicate whether to time the algorithm or not
     * @return a tuple containing:
     *  An integer array of size n containing the cluster labels for each point in the X dataset
     *  An integer array of size n containing the type labels for each point in the X dataset - e.g. Noise, Core, Border // TODO decide on how this will work?
@@ -60,9 +63,8 @@ namespace GsDBSCAN {
     */
     inline std::tuple<int *, int *, int, json>
     performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha = 1.2,
-                    int distancesBatchSize = -1, std::string distanceMetric = "L2", int clusterBlockSize = 256,
+                    int distancesBatchSize = -1, const std::string &distanceMetric = "L2", int clusterBlockSize = 256,
                     bool timeIt = false) {
-//        auto X_col_major = algo_utils::colMajorToRowMajorMat(X, n, d);
 
         if (distanceMetric == "COSINE") {
             eps = 1 - eps; // We use cosine similarity, thus we need to convert the eps to a cosine distance.
@@ -84,13 +86,16 @@ namespace GsDBSCAN {
 
         projections.eval();
 
-        af::print("Projections: ", ((1/std::sqrt(D)) * projections)(af::seq(0, 5), af::span));
+//        af::print("Projections: ", ((1/std::sqrt(D)) * projections)(af::seq(0, 5), af::span));
+        af::print("Projections: ", (projections)(af::seq(0, 5), af::span));
 
         if (timeIt) times["projections"] = duration(startProjections, timeNow());
+
 
         // Get a tensor for X
 
         auto X_t = algo_utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
+
 
         // AB matrices
 
@@ -126,7 +131,7 @@ namespace GsDBSCAN {
 
         Time startDegArray = timeNow();
 
-        auto degArray_t = clustering::constructQueryVectorDegreeArrayMatx(distances, eps);
+        auto degArray_t = clustering::constructQueryVectorDegreeArrayMatx(distances, eps, matx::MATX_DEVICE_MEMORY, distanceMetric);
         auto degArray_d = degArray_t.Data(); // Can't embed this in the above function call, bc pointer gets downgraded to a host one
 
         if (timeIt) times["degArray"] = duration(startDegArray, timeNow());
@@ -142,18 +147,21 @@ namespace GsDBSCAN {
         auto [adjacencyList_d, adjacencyList_size] = clustering::constructAdjacencyList(distances.Data(), degArray_d,
                                                                                         startIdxArray_d, A_t.Data(),
                                                                                         B_t.Data(), n, k, m, eps,
-                                                                                        clusterBlockSize);
+                                                                                        clusterBlockSize,
+                                                                                        distanceMetric);
 
         if (timeIt) times["adjacencyList"] = duration(startAdjacencyList, timeNow());
 
         Time startFormClusters = timeNow();
 
-        auto [clusterLabels, typeLabels, numClusters] = clustering::formClusters(adjacencyList_d, startIdxArray_d, degArray_d, n,
-                                                                    minPts);
+        auto [clusterLabels, typeLabels, numClusters] = clustering::formClusters(adjacencyList_d, degArray_d, startIdxArray_d, n,
+                                                                    minPts, clusterBlockSize);
 
         if (timeIt) times["formClusters"] = duration(startFormClusters, timeNow());
 
         if (timeIt) times["clusteringOverall"] = duration(startClustering, timeNow());
+
+        // Algorithm done
 
         // Free memory
         A_af.unlock();

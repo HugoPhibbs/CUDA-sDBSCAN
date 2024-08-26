@@ -39,21 +39,23 @@ class TestConstructQueryVectorDegreeArray : public ClusteringTest {
 
 TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
     float distancesData[] = {
-            0, 1, 2, 3,
-            0, 2, 1, 0,
-            1, 8, 9, 11,
-            15, 2, 6, 7
+            0, 1, 2, 3, 5,
+            0, 2, 1, 0, 2,
+            1, 8, 9, 11, 0,
+            15, 2, 6, 7, 1
     };
 
-    auto distancesData_d = GsDBSCAN::algo_utils::copyHostToDevice(distancesData, 16, true);
+    auto distancesData_d = GsDBSCAN::algo_utils::copyHostToDevice(distancesData, 20, true);
 
-    matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4}, matx::MATX_MANAGED_MEMORY);
+    matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 5}, matx::MATX_MANAGED_MEMORY);
 
     auto degArray_t = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_MANAGED_MEMORY);
 
+    ASSERT_TRUE(degArray_t.Shape()[0] == 4);
+
     auto degArray_d = degArray_t.Data();
 
-    int expectedData[] = {3, 4, 1, 1};
+    int expectedData[] = {3, 5, 2, 2};
 
     for (int i = 0; i < 4; i++) {
         ASSERT_EQ(degArray_d[i], expectedData[i]);

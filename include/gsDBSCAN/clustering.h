@@ -40,6 +40,8 @@ namespace GsDBSCAN::clustering {
      *                  Expected shape is (datasetSize, 2*k*m).
      * @param eps       The epsilon value for DBSCAN. Should be a scalar array of the same data type
      *                  as the distances array.
+     * @param memorySpace The memory space to allocate the result tensor (and therefore the result) in.
+     * @param distanceMetric The distance metric to use. Can be "L1", "L2" or "COSINE". "COSINE" refers to cosine similarity
      *
      * @return Pointer to the degree array. Since this is intended to be how this is used for later steps
      */
@@ -51,17 +53,17 @@ namespace GsDBSCAN::clustering {
          *
          * Hence why I'm repeating code across two forloops
          */
+        int n = distances.Shape()[0];
+        auto res = matx::make_tensor<int>({n}, memorySpace);
 
         if (distanceMetric == "L1" || distanceMetric == "L2") {
             auto closePoints = distances < eps;
             auto closePoints_int = matx::as_type<int>(closePoints);
-            auto res = matx::make_tensor<int>({distances.Shape()[1]}, memorySpace);
             (res = matx::sum(closePoints_int, {1})).run();
             return res;
         } else if (distanceMetric == "COSINE") {
             auto closePoints = distances > eps;
             auto closePoints_int = matx::as_type<int>(closePoints);
-            auto res = matx::make_tensor<int>({distances.Shape()[1]}, memorySpace);
             (res = matx::sum(closePoints_int, {1})).run();
             return res;
         } else {
@@ -237,10 +239,9 @@ namespace GsDBSCAN::clustering {
         }
     }
 
-    inline void breadthFirstSearch(int *adjacencyList_d, int *startIdxArray_d, int *degArray_h, int *visited,
-                                   int *clusterLabels, int *typeLabels, size_t n, int seedVertexIdx,
-                                   int thisClusterLabel,
-                                   int minPts, int blockSize) {
+    inline void
+    breadthFirstSearch(int *adjacencyList_d, int *degArray_h, int *startIdxArray_d, int *visited, int *clusterLabels,
+                       int *typeLabels, size_t n, int seedVertexIdx, int thisClusterLabel, int minPts, int blockSize) {
         // NB: Fa is Border from GsDBSCAN paper, Xa is Visited,
         int *borderThisBfs_d = algo_utils::allocateCudaArray<int>(n, true);
 
@@ -292,13 +293,17 @@ namespace GsDBSCAN::clustering {
 
         auto degArray_h = algo_utils::copyDeviceToHost(degArray_d, n); // TODO may be faster to keep this in managed memory - not sure
 
+        for (int i = 0; i < 600; i++) {
+            std::cout<<degArray_h[i]<<std::endl;
+        }
+
         int currCluster = 0;
 
         for (int i = 0; i < n; i++) {
             if ((!visited[i]) && (degArray_h[i] >= minPts)) {
                 visited[i] = 1;
                 clusterLabels[i] = currCluster;
-                breadthFirstSearch(adjacencyList_d, startIdxArray_d, degArray_h, visited, clusterLabels, typeLabels,
+                breadthFirstSearch(adjacencyList_d, degArray_h, startIdxArray_d, visited, clusterLabels, typeLabels,
                                    n, i, currCluster, minPts, blockSize);
                 currCluster += 1;
             }
