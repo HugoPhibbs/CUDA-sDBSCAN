@@ -18,8 +18,8 @@ class TestMainHelper : public RunUtilsTest {
 
 TEST_F(TestMainHelper, TestNormally) {
     auto [clusterLabels, typeLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
-            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 5, 10,
-            0.11, 1.2, -1, "L2", 256);
+            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 5, 50,
+            0.11, 1.2, -1, "COSINE", 256);
 }
 
 class TestReadMnist : public RunUtilsTest {
