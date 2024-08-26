@@ -56,7 +56,7 @@ namespace GsDBSCAN::algo_utils {
     }
 
     template<typename T>
-    inline T *copyHostToDevice(T *hostData, size_t numElements, bool managedMemory = false) {
+    inline T *copyHostToDevice(T *hostData, const size_t numElements, bool managedMemory = false) {
         T *deviceArray;
         size_t size = numElements * sizeof(T);
 
@@ -83,7 +83,7 @@ namespace GsDBSCAN::algo_utils {
     }
 
     template<typename T>
-    inline T *copyDeviceToHost(T *deviceArray, size_t numElements, cudaStream_t stream = nullptr) {
+    inline T *copyDeviceToHost(T *deviceArray, const size_t numElements, cudaStream_t stream = nullptr) {
         cudaError_t err;
 
         T *hostArray = new T[numElements];
@@ -143,6 +143,7 @@ namespace GsDBSCAN::algo_utils {
 
     template<typename T>
     inline T *colMajorToRowMajorMat(T *colMajorMat, size_t numRows, size_t numCols, cudaStream_t stream = nullptr) {
+        // We assume that colMajorMat is on the GPU
         T *rowMajorMat;
         size_t size = numRows * numCols * sizeof(T);
 
