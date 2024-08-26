@@ -62,6 +62,7 @@ namespace GsDBSCAN::run_utils {
 
     template<typename T>
     inline std::vector<T> loadBinFileToVector(const std::string &filePath) {
+        // Use this instead of the loadBinDatasetToDevice function, I'm pre sure thats broken
 
         std::ifstream file(filePath, std::ios::binary);
         if (!file.is_open()) {
