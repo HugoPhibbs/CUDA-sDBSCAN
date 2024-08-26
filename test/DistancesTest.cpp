@@ -300,6 +300,52 @@ TEST_F(TestFindingDistances, TestSmallInputBatchingMatx) {
     }
 }
 
+TEST_F(TestFindingDistances, TestLargeInputMatXFromFile) {
+    auto AVector = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/distances_test/A_test_expected_row_major.bin");
+    auto BVector = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/distances_test/B_test_expected_row_major.bin");
+    auto distancesVector = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/distances_test/distances_test_row_major.bin");
+
+    auto XVector = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin");
+
+    int n = 70000;
+    int d = 784;
+    int k = 5;
+    int m = 50;
+    int D = 1024;
+
+    int *A_h = AVector.data();
+    int *B_h = BVector.data();
+    float *distances_expected_h = distancesVector.data();
+    float *X_h = XVector.data();
+
+    int *A_d = GsDBSCAN::algo_utils::copyHostToDevice(A_h, n * 2 * k);
+    int *B_d = GsDBSCAN::algo_utils::copyHostToDevice(B_h, 2 * D * m);
+
+    auto X_af = af::array(n, d, X_h);
+    X_af = GsDBSCAN::projections::normaliseDatasetAF(X_af);
+    X_af.eval();
+
+    auto X_t = GsDBSCAN::algo_utils::afMatToMatXTensor<float, float>(X_af);
+
+    auto A_t = matx::make_tensor<int>(A_d, {n, 2 * k});
+    auto B_t = matx::make_tensor<int>(B_d, {2 * D, m});
+
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX<float>(X_t, A_t, B_t, 1.2, 2000, "COSINE", matx::MATX_DEVICE_MEMORY);
+
+    cudaDeviceSynchronize();
+
+    auto *distances_d = distances_t.Data();
+
+    auto *distances_h = GsDBSCAN::algo_utils::copyDeviceToHost(distances_d, n * 2 * k * m);
+
+    for (int i = 0; i < n*2*k*m; i++) {
+        // Python and CPP produce *slightly* different results. Hence, why I use a 1e-2 tolerance
+        ASSERT_NEAR(distances_expected_h[i], distances_h[i], 1e-2); // Doing a cast just to be sure
+    }
+
+    // TODO compare the average distance of these two - may find some major differences
+}
+
 TEST_F(TestFindingDistances, TestMediumInputMatx) {
     /*
      * This test checks if results calculated by C++/MatX are identical to those with Python/CuPy
@@ -393,6 +439,54 @@ TEST_F(TestFindingDistances, TestMediumInputMatXDeviceDistances) {
     for (int i = 0; i < n*2*k*m; i++) {
         // Python and CPP produce *slightly* different results. Hence, why I use a 1e-2 tolerance
         ASSERT_NEAR(distances_expected_h[i], distances_h[i], 1e-2); // Doing a cast just to be sure
+    }
+}
+
+TEST_F(TestFindingDistances, TestLargeMnistMatxFromFiles) {
+    auto distancesVector = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/distances_test/distances_test_row_major.bin");
+    auto AVector = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/distances_test/A_test_expected_row_major.bin");
+    auto BVector = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/distances_test/B_test_expected_row_major.bin");
+
+    int n = 70000;
+    int d = 784;
+    int k = 5;
+    int m = 50;
+    int D = 1024;
+
+    float *distances_expected_h = distancesVector.data();
+    int *A_h = AVector.data();
+    int *B_h = BVector.data();
+
+    int *A_d = GsDBSCAN::algo_utils::copyHostToDevice(A_h, n * 2 * k);
+    int *B_d = GsDBSCAN::algo_utils::copyHostToDevice(B_h, 2 * D * m);
+    auto A_t = matx::make_tensor<int>(A_d, {n, 2 * k});
+    auto B_t = matx::make_tensor<int>(B_d, {2 * D, m});
+
+    auto X = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin");
+    auto X_af = af::array(n, d, X.data());
+    X_af.eval();
+
+    X_af = GsDBSCAN::projections::normaliseDatasetAF(X_af);
+    X_af.eval();
+
+    auto X_t = GsDBSCAN::algo_utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
+
+    auto distances_t = GsDBSCAN::distances::findDistancesMatX<float>(X_t, A_t, B_t, 1.2, 2000, "COSINE", matx::MATX_DEVICE_MEMORY);
+
+    cudaDeviceSynchronize();
+
+    auto *distances_d = distances_t.Data();
+    auto *distances_h = GsDBSCAN::algo_utils::copyDeviceToHost(distances_d, n * 2 * k * m);
+
+    for (int i = 0; i < n*2*k*m; i++) {
+        float diff = std::abs(distances_expected_h[i] - distances_h[i]);
+
+        if (diff > 1e-2) {
+            printf("i: %d, expected: %f, actual: %f, diff: %f\n", i, distances_expected_h[i], distances_h[i], diff);
+        }
+
+        // Python and CPP produce *slightly* different results. Hence, why I use a 1e-2 tolerance
+//        ASSERT_NEAR(distances_expected_h[i], distances_h[i], 1e-2); // Doing a cast just to be sure
     }
 }
 
