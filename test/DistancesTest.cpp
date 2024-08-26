@@ -478,16 +478,20 @@ TEST_F(TestFindingDistances, TestLargeMnistMatxFromFiles) {
     auto *distances_d = distances_t.Data();
     auto *distances_h = GsDBSCAN::algo_utils::copyDeviceToHost(distances_d, n * 2 * k * m);
 
+    int numDifferent = 0;
+
     for (int i = 0; i < n*2*k*m; i++) {
         float diff = std::abs(distances_expected_h[i] - distances_h[i]);
 
         if (diff > 1e-2) {
-            printf("i: %d, expected: %f, actual: %f, diff: %f\n", i, distances_expected_h[i], distances_h[i], diff);
+            numDifferent++;
         }
 
         // Python and CPP produce *slightly* different results. Hence, why I use a 1e-2 tolerance
 //        ASSERT_NEAR(distances_expected_h[i], distances_h[i], 1e-2); // Doing a cast just to be sure
     }
+
+    std::cout << "Num Different: " << numDifferent << std::endl;
 }
 
 TEST_F(TestFindingDistances, TestMnistAFMatXIntegration) {

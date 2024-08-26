@@ -301,6 +301,38 @@ class TestNormalisation : public ProjectionsTest {
 
 };
 
+TEST_F(TestNormalisation, TestLargeInputFileAF) {
+    auto X_data = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin");
+
+    auto X_normalised_expected = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/distances_test/X_normalised_col_major.bin");
+
+    auto X = af::array(70000, 784, X_data.data());
+
+    auto X_normalised = GsDBSCAN::projections::normaliseDatasetAF(X);
+
+    X_normalised.eval();
+    cudaDeviceSynchronize();
+
+    auto X_d = X_normalised.device<float>();
+    auto X_h = GsDBSCAN::algo_utils::copyDeviceToHost(X_d, 70000*784, GsDBSCAN::algo_utils::getAfCudaStream());
+
+    int countDiff = 0;
+
+    for (int i = 0; i < 70000*784; ++i) {
+        float diff = std::abs(X_normalised_expected[i] - X_h[i]);
+
+//        if (X_h[i] != 0) {
+//            std::cout << i << std::endl;
+//        }
+//
+        if (diff > 1e-6) {
+            countDiff ++;
+//            std::cout << "Index: " << i << " Expected: " << X_normalised_expected[i] << " Actual: " << X_h[i] << std::endl;
+        }
+    }
+    std::cout<<countDiff<<std::endl; // TODO complete me! - see this count
+}
+
 TEST_F(TestNormalisation, TestSmallInputAF) {
     float X_data[] = {
             1.0f, 4.0f, 7.0f,
