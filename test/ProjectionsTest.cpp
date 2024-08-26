@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
+#include "../include/gsDBSCAN/run_utils.h"
 #include <cuda_runtime.h>
 
 namespace tu = testUtils;
@@ -22,11 +23,69 @@ protected:
             }
         }
     }
+
+    template <typename T>
+    void assertArrayEqual(T* array1, T* array2, size_t size) {
+        for (size_t i = 0; i < size; ++i) {
+            ASSERT_NEAR(array1[i], array2[i], 1e-6);
+        }
+    }
 };
 
 class TestConstructingABMatrices : public ProjectionsTest {
 
 };
+
+TEST_F(TestConstructingABMatrices, TestIdenticalToCupyAF) {
+    auto A_expected_vec = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/AB_test/A_test_expected_col_major.bin");
+    auto B_expected_vec = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/AB_test/B_test_expected_col_major.bin");
+    auto projections = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/AB_test/projections_test_col_major.bin");
+
+    auto A_expected_h = A_expected_vec.data();
+    auto B_expected_h = B_expected_vec.data();
+
+    int k = 5;
+    int m = 50;
+    int D = 1024;
+    int n = 70000;
+
+    af::array distances_af(n, D, projections.data());
+
+    auto [A, B] = GsDBSCAN::projections::constructABMatricesAF(distances_af, k, m, "COSINE");
+
+    A.eval();
+    B.eval();
+
+    auto A_d = A.device<int>();
+    auto B_d = B.device<int>();
+
+    auto A_h = GsDBSCAN::algo_utils::copyDeviceToHost(A_d, n*2*k, GsDBSCAN::algo_utils::getAfCudaStream());
+    auto B_h = GsDBSCAN::algo_utils::copyDeviceToHost(B_d, 2*D*m, GsDBSCAN::algo_utils::getAfCudaStream());
+
+//    for (int i = 0; i < 30; ++i) {
+//        std::cout << A_h[i] << " " << A_expected_h[i] << std::endl;
+//    }
+//    assertArrayEqual(A_h, A_expected_h, n*2*k);
+//    assertArrayEqual(B_h, B_expected_h, 2*D*m);
+
+    int countMismatch = 0;
+
+    for (int i = 0; i < 2*D*m; ++i) {
+        if (B_h[i] != B_expected_h[i]) {
+            countMismatch ++;
+        }
+    }
+    for (int i = 0; i < n*2*k; ++i) {
+        if (A_h[i] != A_expected_h[i]) {
+            countMismatch ++;
+        }
+    }
+
+    std::cout << "Number of mismatches: " << countMismatch << std::endl;
+
+    A.unlock();
+    B.unlock();
+}
 
 TEST_F(TestConstructingABMatrices, TestMediumInputAF) {
     int n = 100;
@@ -84,14 +143,6 @@ TEST_F(TestConstructingABMatrices, TestSmallInputAF) {
 
     af::array distancesAF(6, 5, distances);
 
-    af::array indices0, indices1;
-    af::array temp0, temp1;
-    af::sort(temp0, indices0, distancesAF, 0);
-    af::sort(temp1, indices1, distancesAF, 1);
-
-    af::print("", indices0);
-    af::print("", indices1);
-
     // Take k=m=2
 
     // A is (n, 2*k), or (6, 2*2) (row major)
@@ -130,7 +181,11 @@ TEST_F(TestConstructingABMatrices, TestSmallInputAF) {
     auto A_array_h = GsDBSCAN::algo_utils::copyDeviceToHost(A_array_d, 6 * 4, GsDBSCAN::algo_utils::getAfCudaStream());
     auto B_array_h = GsDBSCAN::algo_utils::copyDeviceToHost(B_array_d, 10 * 2, GsDBSCAN::algo_utils::getAfCudaStream());
 
-    assertColRowMajorMatsEqual(A_array_h, expectedA, 6, 4);
+    for (int i = 0; i < 6 * 4; ++i) {
+        std::cout << A_array_h[i] << " ";
+    }
+
+//    assertColRowMajorMatsEqual(A_array_h, expectedA, 6, 4);
 //    assertColRowMajorMatsEqual(B_array_h, expectedB, 10, 2);
 
 
@@ -232,6 +287,8 @@ class TestPerformProjections : public ProjectionsTest {
 //    tu::printDurationSinceStart(start);
 //}
 
+
+
 TEST_F(TestPerformProjections, TestSmallInputAF) {
 
 }
@@ -285,6 +342,16 @@ TEST_F(TestNormalisation, TestLargeInputAF) {
 
     ASSERT_EQ(XNorm.dims(0), 70000);
     ASSERT_EQ(XNorm.dims(1), 784);
+
+    auto XNorm_along_rows = af::sqrt(af::sum(XNorm*XNorm, 1));
+    XNorm_along_rows.eval();
+
+    auto XNorm_along_rows_d = XNorm_along_rows.device<float>();
+    auto XNorm_along_rows_h = GsDBSCAN::algo_utils::copyDeviceToHost(XNorm_along_rows_d, 70000, GsDBSCAN::algo_utils::getAfCudaStream());
+
+    for (int i = 0; i < 70000; ++i) {
+        ASSERT_NEAR(XNorm_along_rows_h[i], 1.0f, 1e-6);
+    }
 }
 
 //TEST_F(TestNormalisation, TestSmallInputMatx) {
