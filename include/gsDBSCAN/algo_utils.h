@@ -10,6 +10,7 @@
 #include <af/cuda.h>
 #include <cuda_runtime.h>
 #include <tuple>
+#include <execinfo.h>
 #include "../../include/rapidcsv.h"
 
 /*
@@ -34,6 +35,26 @@ namespace GsDBSCAN::algo_utils {
         return afcu::getStream(cudaId);
     }
 
+    inline void printStackTrace() {
+        void *array[10];
+        size_t size;
+        size = backtrace(array, 10);
+
+        char **symbols = backtrace_symbols(array, size);
+        std::cerr << "Stack trace:" << std::endl;
+        for (size_t i = 0; i < size; i++) {
+            std::cerr << symbols[i] << std::endl;
+        }
+        free(symbols);
+    }
+
+    inline void throwCudaError(const std::string &msg, cudaError_t err) {
+        std::cout<<"An error occurred"<<std::endl;
+        printStackTrace();
+        std::cout<<"\n"<<std::endl;
+        throw std::runtime_error(msg + ": " + std::string(cudaGetErrorString(err)));
+    }
+
     template<typename T>
     inline T *copyHostToDevice(T *hostData, size_t numElements, bool managedMemory = false) {
         T *deviceArray;
@@ -48,16 +69,14 @@ namespace GsDBSCAN::algo_utils {
         }
 
         if (err != cudaSuccess) {
-            throw std::runtime_error(
-                    "Error copying memory from device to host: " + std::string(cudaGetErrorString(err)));
+            throwCudaError("Error copying memory from device to host", err);;
         }
 
         err = cudaMemcpy(deviceArray, hostData, size, cudaMemcpyHostToDevice);
 
         if (err != cudaSuccess) {
             cudaFree(deviceArray);
-            throw std::runtime_error(
-                    "Error copying memory from device to host: " + std::string(cudaGetErrorString(err)));
+            throwCudaError("Error copying memory from host to device", err);
         }
 
         return deviceArray;
@@ -81,8 +100,7 @@ namespace GsDBSCAN::algo_utils {
         if (err != cudaSuccess) {
             cudaFree(deviceArray);  // Free the device memory to prevent leaks
             delete[] hostArray;
-            throw std::runtime_error(
-                    "Error copying memory from device to host: " + std::string(cudaGetErrorString(err)));
+            throwCudaError("Error copying memory from device to host", err);
         }
 
         return hostArray;  // Return true if successful
@@ -136,7 +154,7 @@ namespace GsDBSCAN::algo_utils {
         }
 
         if (err != cudaSuccess) {
-            throw std::runtime_error("Error allocating memory: " + std::string(cudaGetErrorString(err)));
+            throwCudaError("Error allocating memory", err);
         }
 
         if (stream != nullptr) {
@@ -190,7 +208,7 @@ namespace GsDBSCAN::algo_utils {
         }
 
         if (err != cudaSuccess) {
-            throw std::runtime_error("Error allocating memory for array: " + std::string(cudaGetErrorString(err)));
+            throwCudaError("Error allocating memory for array", err);
         }
 
         if (fillWithZeros) {
@@ -199,7 +217,7 @@ namespace GsDBSCAN::algo_utils {
 
             if (err != cudaSuccess) {
                 cudaFree(array);  // Free the memory if memset fails
-                throw std::runtime_error("Error setting memory for array: " + std::string(cudaGetErrorString(err)));
+                throwCudaError("Error setting memory for array", err);
             }
         }
 
