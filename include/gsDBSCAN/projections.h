@@ -19,8 +19,9 @@ namespace GsDBSCAN::projections {
      * @param D projections, projections between query vectors and the random vectors, has shape (N, D)
      * @param k k parameter as per the DBSCAN algorithm
      * @param m m parameter as per the DBSCAN algorithm
+     * @param distanceMetric distance metric to use, one of "L1", "L2", or "COSINE"
      */
-    inline std::tuple<af::array, af::array> constructABMatricesAF(const af::array &projections, int k, int m, std::string distanceMetric="L2") {
+    inline std::tuple<af::array, af::array> constructABMatricesAF(const af::array &projections, int k, int m, const std::string &distanceMetric="L2") {
         // Assume projections has shape (n, D)
         int n = projections.dims(0);
         int D = projections.dims(1);
@@ -66,8 +67,8 @@ namespace GsDBSCAN::projections {
     inline af::array performProjectionsAF(af::array X, int D) {
         int d = X.dims(1);
         auto Y = af::randn(d, D); // TODO should these be signed?
-        return (1 / std::sqrt(D)) * af::matmul(X, Y);
-//        return af::matmul(X, Y); // No normalisation, not needed, since the 1/sqrt(D) term is a constant
+//        return (1 / std::sqrt(D)) * af::matmul(X, Y);
+        return af::matmul(X, Y); // No normalisation (not needed), since the 1 / sqrt(D) term is a constant
     }
 
     inline af::array normaliseDatasetAF(af::array X) {
