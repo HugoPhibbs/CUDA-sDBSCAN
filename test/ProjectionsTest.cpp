@@ -37,9 +37,9 @@ class TestConstructingABMatrices : public ProjectionsTest {
 };
 
 TEST_F(TestConstructingABMatrices, TestIdenticalToCupyAF) {
-    auto A_expected_vec = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/AB_test/A_test_expected_col_major.bin");
-    auto B_expected_vec = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/AB_test/B_test_expected_col_major.bin");
-    auto projections = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/AB_test/projections_test_col_major.bin");
+    auto A_expected_vec = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/complete_test/A_col_major.bin");
+    auto B_expected_vec = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/complete_test/B_col_major.bin");
+    auto projections = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/complete_test/projections_col_major.bin");
 
     auto A_expected_h = A_expected_vec.data();
     auto B_expected_h = B_expected_vec.data();
@@ -62,12 +62,6 @@ TEST_F(TestConstructingABMatrices, TestIdenticalToCupyAF) {
     auto A_h = GsDBSCAN::algo_utils::copyDeviceToHost(A_d, n*2*k, GsDBSCAN::algo_utils::getAfCudaStream());
     auto B_h = GsDBSCAN::algo_utils::copyDeviceToHost(B_d, 2*D*m, GsDBSCAN::algo_utils::getAfCudaStream());
 
-//    for (int i = 0; i < 30; ++i) {
-//        std::cout << A_h[i] << " " << A_expected_h[i] << std::endl;
-//    }
-//    assertArrayEqual(A_h, A_expected_h, n*2*k);
-//    assertArrayEqual(B_h, B_expected_h, 2*D*m);
-
     int countMismatch = 0;
 
     for (int i = 0; i < 2*D*m; ++i) {
@@ -83,6 +77,8 @@ TEST_F(TestConstructingABMatrices, TestIdenticalToCupyAF) {
 
     std::cout << "Number of mismatches: " << countMismatch << std::endl;
 
+    assertArrayEqual(B_h, B_expected_h, 2*D*m);
+    assertArrayEqual(A_h, A_expected_h, n*2*k);
     A.unlock();
     B.unlock();
 }
@@ -293,8 +289,30 @@ TEST_F(TestPerformProjections, TestSmallInputAF) {
 
 }
 
-TEST_F(TestPerformProjections, TestLargeInputAF) {
+TEST_F(TestPerformProjections, TestLargeFileInputAF) {
+    auto X_data = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/complete_test/mnist_images_col_major.bin");
 
+    auto X = af::array(70000, 784, X_data.data());
+
+    auto X_normalised = GsDBSCAN::projections::normaliseDatasetAF(X);
+
+    X_normalised.eval();
+    cudaDeviceSynchronize();
+
+    auto projections = GsDBSCAN::projections::performProjectionsAF(X_normalised, 1024);
+
+    projections.eval();
+
+    ASSERT_EQ(projections.dims(0), 70000);
+    ASSERT_EQ(projections.dims(1), 1024);
+
+    auto mean = af::sum(af::sum(projections)) / (70000 * 1024);
+
+    print("", mean); // Should be near 1
+
+    auto std = af::sqrt(af::sum(af::sum((projections - mean) * (projections - mean))) / (70000 * 1024));
+
+    print("", std); // Should be near 0
 }
 
 class TestNormalisation : public ProjectionsTest {
@@ -302,9 +320,9 @@ class TestNormalisation : public ProjectionsTest {
 };
 
 TEST_F(TestNormalisation, TestLargeInputFileAF) {
-    auto X_data = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin");
+    auto X_data = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/complete_test/mnist_images_col_major.bin");
 
-    auto X_normalised_expected = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/distances_test/X_normalised_col_major.bin");
+    auto X_normalised_expected = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/complete_test/X_normalised_col_major.bin");
 
     auto X = af::array(70000, 784, X_data.data());
 
@@ -314,23 +332,22 @@ TEST_F(TestNormalisation, TestLargeInputFileAF) {
     cudaDeviceSynchronize();
 
     auto X_d = X_normalised.device<float>();
-    auto X_h = GsDBSCAN::algo_utils::copyDeviceToHost(X_d, 70000*784, GsDBSCAN::algo_utils::getAfCudaStream());
+    auto X_normalised_h = GsDBSCAN::algo_utils::copyDeviceToHost(X_d, 70000 * 784, GsDBSCAN::algo_utils::getAfCudaStream());
 
     int countDiff = 0;
+    double totalDiff = 0.0f;
 
     for (int i = 0; i < 70000*784; ++i) {
-        float diff = std::abs(X_normalised_expected[i] - X_h[i]);
-
-//        if (X_h[i] != 0) {
-//            std::cout << i << std::endl;
-//        }
-//
+        float diff = std::abs(X_normalised_expected[i] - X_normalised_h[i]);
         if (diff > 1e-6) {
             countDiff ++;
-//            std::cout << "Index: " << i << " Expected: " << X_normalised_expected[i] << " Actual: " << X_h[i] << std::endl;
+            totalDiff += diff;
         }
     }
-    std::cout<<countDiff<<std::endl; // TODO complete me! - see this count
+
+    std::cout << "Number of differences: " << countDiff << std::endl;
+
+    assertArrayEqual(X_normalised_expected.data(), X_normalised_h, 70000*784);
 }
 
 TEST_F(TestNormalisation, TestSmallInputAF) {
