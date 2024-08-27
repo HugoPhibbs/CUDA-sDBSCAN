@@ -147,7 +147,7 @@ namespace GsDBSCAN::distances {
             });
         } else if (distanceMetric == "COSINE") {
             processBatches([&](auto& XBatchReshaped_t_op, auto& XSubsetReshaped_t_op, auto& distances, int i, int maxBatchIdx) {
-                auto product_op = XBatchReshaped_t_op * XSubsetReshaped_t_op;
+                auto product_op = XBatchReshaped_t_op * matx::repmat(XSubsetReshaped_t_op, {1, 2 * k * m, 1});
                 auto product_sum_op = matx::sum(product_op, {2});
                 (matx::slice(distances, {i, 0}, {maxBatchIdx, matx::matxEnd}) = product_sum_op).run();
             });
