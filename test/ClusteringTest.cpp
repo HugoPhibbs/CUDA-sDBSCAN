@@ -28,7 +28,14 @@ namespace tu = testUtils;
 
 
 class ClusteringTest : public ::testing::Test {
+protected:
 
+    template <typename T>
+    void assertArrayEqual(T* array1, T* array2, size_t size, T eps=1e-6) {
+        for (size_t i = 0; i < size; ++i) {
+            ASSERT_NEAR(array1[i], array2[i], eps);
+        }
+    }
 };
 
 class TestSortingProjections : public ClusteringTest {
@@ -70,7 +77,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestMnistAgainstPython) {
     int n = 70000;
     int numCandidates = 2*5*50; // 2 * k * m
 
-    auto distancesData = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/degArray_test/distances_test_row_major.bin");
+    auto distancesData = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/complete_test/distances_cosine_row_major.bin");
 
     auto distancesData_d = GsDBSCAN::algo_utils::copyHostToDevice(distancesData.data(), distancesData.size(), true);
 
@@ -82,34 +89,19 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestMnistAgainstPython) {
 
     auto degArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(degArray_d, n);
 
-    auto degArrayExpected = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/degArray_test/degArray_test.bin");
+    auto degArrayExpected = GsDBSCAN::run_utils::loadBinFileToVector<int>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/complete_test/deg_array_cosine.bin");
 
     int numMismatch = 0;
 
-    int maxMismatch = 0;
-    int maxMismatchIndex = 0;
+    for (int i = 0; i < n; i++) {
+        if (degArray_h[i] != degArrayExpected[i]) {
+            numMismatch ++;
+        }
+    }
 
-//    for (int i = 0; i < n; i++) {
-//        if (degArray_h[i] != degArrayExpected[i]) {
-////            std::cout << "Index: " << i << " Expected: " << degArrayExpected[i] << " Got: " << degArray_h[i] << std::endl;
-//            numMismatch ++;
-//            int thisMaxMismatch = std::abs(degArrayExpected[i] - degArray_h[i]);
-//            if (thisMaxMismatch > maxMismatch) {
-//                maxMismatch = thisMaxMismatch;
-//                maxMismatchIndex = i;
-//            }
-//        }
-//    }
-//
-//    std::cout<<numMismatch<<std::endl;
-//
-//    std::cout<<"Max mismatch: "<<maxMismatch<<std::endl;
-//    std::cout<<"Max mismatch index: "<<maxMismatchIndex<<std::endl;
-//    std::cout<<"Expected: "<<degArrayExpected[maxMismatchIndex]<<std::endl;
-//    std::cout<<"Got: "<<degArray_h[maxMismatchIndex]<<std::endl;
-//
-//    auto closePoints = distances_t > eps;
-//    auto closePoints_int = matx::as_type<int>(closePoints);
+    std::cout<< "Num mismatch: " <<numMismatch<<std::endl;
+
+    assertArrayEqual(degArrayExpected.data(), degArray_h, n);
 }
 
 class TestProcessQueryVectorDegreeArray : public ClusteringTest {
