@@ -195,7 +195,7 @@ namespace GsDBSCAN::algo_utils {
     }
 
     template<typename T>
-    inline T *allocateCudaArray(size_t length, bool managedMemory = false, bool fillWithZeros = true) {
+    inline T *allocateCudaArray(size_t length, bool managedMemory = false, bool fill = true, T fillValue = 0) {
         T *array;
         size_t size = sizeof(T) * length;
 
@@ -212,9 +212,9 @@ namespace GsDBSCAN::algo_utils {
             throwCudaError("Error allocating memory for array", err);
         }
 
-        if (fillWithZeros) {
+        if (fill) {
             // Zero out the memory
-            err = cudaMemset(array, 0, size);  // Use array (not &array) for cudaMemset
+            err = cudaMemset(array, fillValue, size);  // Use array (not &array) for cudaMemset
 
             if (err != cudaSuccess) {
                 cudaFree(array);  // Free the memory if memset fails
