@@ -3,14 +3,34 @@
 //
 
 #include <gtest/gtest.h>
+//#include <opencv4/opencv2/opencv.hpp>
 #include "../include/gsDBSCAN/run_utils.h"
 #include "../include/TestUtils.h"
 
 namespace tu = testUtils;
 
+
 class RunUtilsTest : public ::testing::Test {
 
 };
+
+class TestReadingImages: public RunUtilsTest {
+
+};
+
+//TEST_F(TestReadingImages, TestReadingImages) {
+//    auto start = tu::timeNow();
+//
+//    auto vec = GsDBSCAN::run_utils::loadBinFileToVector<float>(
+//            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin");
+//
+//    tu::printDurationSinceStart(start, "Reading MNIST images");
+//
+//    auto X_h = vec.data();
+//    auto X_h_row_major = GsDBSCAN::algo_utils::colMajorToRowMajorMat(X_h, 70000, 784);
+//
+//    cv::Mat img(28, 28, CV_8UC1);
+//}
 
 class TestMainHelper : public RunUtilsTest {
 
@@ -19,6 +39,12 @@ class TestMainHelper : public RunUtilsTest {
 TEST_F(TestMainHelper, TestNormally) {
     auto [clusterLabels, typeLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
             "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 5, 50,
+            0.11, 1.2, -1, "COSINE", 256);
+}
+
+TEST_F(TestMainHelper, TestExactDBSCAN) {
+    auto [clusterLabels, typeLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
+            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 1, 70000,
             0.11, 1.2, -1, "COSINE", 256);
 }
 
