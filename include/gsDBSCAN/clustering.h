@@ -26,9 +26,9 @@
 #include <cub/cub.cuh>
 #include <cuda/std/atomic>
 #include "algo_utils.h"
+#include "../json.hpp"
 
 namespace au = GsDBSCAN::algo_utils;
-using json = nlohmann::json;
 
 namespace GsDBSCAN::clustering {
 
