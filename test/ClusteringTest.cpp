@@ -409,3 +409,40 @@ TEST_F(TestFormingClusters, TestSmallInputWithBatches) {
 
     ASSERT_EQ(numClusters, 2);
 }
+
+TEST_F(TestFormingClusters, TestSmallInputCpu) {
+    int n = 12;
+    int minPts = 3;
+
+    int adjacencyList_h[18] = {
+            1,
+            0, 2, 3,
+            1,
+            1,
+            9, 6, 7,
+            5, 9,
+            9, 5,
+            5, 7, 6,
+            11,
+            10
+    };
+
+    int degArray_h[12] = {1, 3, 1, 1, 0, 3, 2, 2, 0, 3, 1, 1};
+    int startIdxArray_h[12] = {0, 1, 4, 5, 6, 6, 9, 11, 13, 13, 16, 17};
+
+    int *adjacencyList_d = GsDBSCAN::algo_utils::copyHostToDevice(adjacencyList_h, 16, true);
+    int *degArray_d = GsDBSCAN::algo_utils::copyHostToDevice(degArray_h, n, true);
+    int *startIdxArray_d = GsDBSCAN::algo_utils::copyHostToDevice(startIdxArray_h, n, true);
+
+    int clusterLabelsExpected_h[12] = {0, 0, 0, 0, -1, 1, 1, 1, -1, 1, -1, -1};
+
+    auto [neighbourhoodMatrix, corePoints] = GsDBSCAN::clustering::processAdjacencyListCpu(adjacencyList_d, degArray_d, startIdxArray_d, n, 18, minPts);
+
+    auto [clusterLabels_h_small_block, numClusters] = GsDBSCAN::clustering::formClustersCpu(neighbourhoodMatrix, corePoints, n);
+
+    for (int i = 0; i < n; i++) {
+        ASSERT_EQ(clusterLabelsExpected_h[i], clusterLabels_h_small_block[i]);
+    }
+
+    ASSERT_EQ(numClusters, 2);
+}
