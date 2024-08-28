@@ -39,6 +39,7 @@ namespace GsDBSCAN::run_utils {
         newArgs["distancesBatchSize"] = std::stoi((std::string) args["--distancesBatchSize"]);
 
         newArgs["clusterBlockSize"] = std::stoi((std::string) args["--clusterBlockSize"]);
+        newArgs["clusterOnCpu"] = args["--clusterOnCpu"] == "1";
 
         return newArgs;
     }
@@ -119,12 +120,15 @@ namespace GsDBSCAN::run_utils {
         } else {
             throw std::runtime_error("Error: Unable to open file: " + (std::string) args["outFile"]);
         }
+
+        delete[] clusterLabels;
+        delete[] typeLabels;
     }
 
 
     inline std::tuple<int *, int, json>
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
-                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize) {
+                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize, bool clusterOnCpu=false) {
         // TODO write docs
         auto X = loadBinFileToVector<float>(datasetFileName);
         auto X_h = X.data();
@@ -142,7 +146,8 @@ namespace GsDBSCAN::run_utils {
                 distancesBatchSize,
                 distanceMetric,
                 clusterBlockSize,
-                true
+                true,
+                clusterOnCpu
         );
 
 //        cudaFree(X_d);

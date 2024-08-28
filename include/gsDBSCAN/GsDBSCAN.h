@@ -41,6 +41,7 @@ namespace GsDBSCAN {
     * @param distancesBatchSize int for the batch size to use when calculating distances, set to -1 to calculate automatically
     * @param clusterBlockSize int for the block size to use when clustering
     * @param timeIt bool to indicate whether to time the algorithm or not
+    * @param clusterOnCpu bool to indicate whether to cluster on the CPU or not
     * @return a tuple containing:
     *  An integer array of size n containing the cluster labels for each point in the X dataset
     *  An integer array of size n containing the type labels for each point in the X dataset - e.g. Noise, Core, Border // TODO decide on how this will work?
@@ -49,7 +50,7 @@ namespace GsDBSCAN {
     inline std::tuple<int *, int, nlohmann::ordered_json>
     performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha = 1.2,
                     int distancesBatchSize = -1, const std::string &distanceMetric = "L2", int clusterBlockSize = 256,
-                    bool timeIt = false, bool clusterWithCpu = false) {
+                    bool timeIt = false, bool clusterOnCpu = false) {
 
         if (distanceMetric == "COSINE") {
             eps = 1 - eps; // We use cosine similarity, thus we need to convert the eps to a cosine distance.
@@ -126,7 +127,7 @@ namespace GsDBSCAN {
 
         // Clustering
 
-        auto [clusterLabels, numClusters] = clustering::performClustering(distances, A_t, B_t, eps, minPts, clusterBlockSize, distanceMetric, timeIt, times, clusterWithCpu);
+        auto [clusterLabels, numClusters] = clustering::performClustering(distances, A_t, B_t, eps, minPts, clusterBlockSize, distanceMetric, timeIt, times, clusterOnCpu);
 
         // Free memory
         A_af.unlock();
