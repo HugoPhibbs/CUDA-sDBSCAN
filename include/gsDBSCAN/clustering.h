@@ -199,7 +199,6 @@ namespace GsDBSCAN::clustering {
                 lastDegree + lastStartIdx; // This will cause a segfault if deg and/or start idx arrays not on the host
 
         int *adjacencyList_d = algo_utils::allocateCudaArray<int>(adjacencyList_size);
-        int *neighbourHoodIdx_d = algo_utils::allocateCudaArray<int>(n);
 
 
         int gridSize = (n + blockSize - 1) / blockSize;
@@ -217,8 +216,8 @@ namespace GsDBSCAN::clustering {
         return std::tie(adjacencyList_d, adjacencyList_size);
     }
 
-    inline std::tuple<std::vector<std::vector<int>>, boost::dynamic_bitset<>>
-    processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int adjacencyList_size,
+
+    inline auto processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int adjacencyList_size,
                             int minPts) {
         auto neighbourhoodMatrix = std::vector<std::vector<int>>(n, std::vector<int>());
         auto corePoints = boost::dynamic_bitset<>(n);
@@ -230,8 +229,8 @@ namespace GsDBSCAN::clustering {
         #pragma omp parallel for
         for (int i = 0; i < n; i++) {
             for (int j = startIdxArray_h[i]; j < startIdxArray_h[i] + degArray_h[i]; j++) {
-                #pragma omp critical
                 int candidateIdx = adjacencyList_h[j];
+                #pragma omp critical
                 {
                     neighbourhoodMatrix[i].push_back(candidateIdx);
                     neighbourhoodMatrix[candidateIdx].push_back(i);
@@ -244,7 +243,7 @@ namespace GsDBSCAN::clustering {
             std::unordered_set<int> neighbourhoodSet(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
             neighbourhoodMatrix[i].clear();
             if ((int) neighbourhoodSet.size() >= minPts - 1) {
-                corePoints[n] = true;
+                corePoints[i] = true;
                 neighbourhoodMatrix[i].insert(neighbourhoodMatrix[i].end(), neighbourhoodSet.begin(),
                                               neighbourhoodSet.end());
             }
@@ -254,7 +253,7 @@ namespace GsDBSCAN::clustering {
     }
 
     inline std::tuple<int *, int>
-    formClustersCpu(std::vector<std::vector<int>> neighbourhoodMatrix, boost::dynamic_bitset<> corePoints, int n) {
+    formClustersCpu(std::vector<std::vector<int>> &neighbourhoodMatrix, boost::dynamic_bitset<unsigned long, std::allocator<unsigned long>> &corePoints, int n) {
         auto clusterLabels = std::vector<int>(n, -1);
         auto numClusters = n;
 
@@ -409,7 +408,7 @@ namespace GsDBSCAN::clustering {
         return std::make_tuple(clusterLabels, typeLabels, currCluster);
     }
 
-    std::tuple<int *, int>
+    inline std::tuple<int *, int>
     performClustering(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t,
                       const float eps, const int minPts, const int clusterBlockSize,
                       const std::string &distanceMetric, bool timeIt, nlohmann::ordered_json &times,

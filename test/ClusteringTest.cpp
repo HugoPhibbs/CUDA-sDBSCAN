@@ -350,7 +350,7 @@ TEST_F(TestFormingClusters, TestSmallInput) {
     int degArray_h[12] = {1, 3, 1, 1, 0, 3, 2, 2, 0, 3, 1, 1};
     int startIdxArray_h[12] = {0, 1, 4, 5, 6, 6, 9, 11, 13, 13, 16, 17};
 
-    int *adjacencyList_d = GsDBSCAN::algo_utils::copyHostToDevice(adjacencyList_h, 16, true);
+    int *adjacencyList_d = GsDBSCAN::algo_utils::copyHostToDevice(adjacencyList_h, 18, true);
     int *degArray_d = GsDBSCAN::algo_utils::copyHostToDevice(degArray_h, n, true);
     int *startIdxArray_d = GsDBSCAN::algo_utils::copyHostToDevice(startIdxArray_h, n, true);
 
@@ -393,7 +393,7 @@ TEST_F(TestFormingClusters, TestSmallInputWithBatches) {
     int degArray_h[12] = {1, 3, 1, 1, 0, 3, 2, 2, 0, 3, 1, 1};
     int startIdxArray_h[12] = {0, 1, 4, 5, 6, 6, 9, 11, 13, 13, 16, 17};
 
-    int *adjacencyList_d = GsDBSCAN::algo_utils::copyHostToDevice(adjacencyList_h, 16, true);
+    int *adjacencyList_d = GsDBSCAN::algo_utils::copyHostToDevice(adjacencyList_h, 18, true);
     int *degArray_d = GsDBSCAN::algo_utils::copyHostToDevice(degArray_h, n, true);
     int *startIdxArray_d = GsDBSCAN::algo_utils::copyHostToDevice(startIdxArray_h, n, true);
 
@@ -430,7 +430,7 @@ TEST_F(TestFormingClusters, TestSmallInputCpu) {
     int degArray_h[12] = {1, 3, 1, 1, 0, 3, 2, 2, 0, 3, 1, 1};
     int startIdxArray_h[12] = {0, 1, 4, 5, 6, 6, 9, 11, 13, 13, 16, 17};
 
-    int *adjacencyList_d = GsDBSCAN::algo_utils::copyHostToDevice(adjacencyList_h, 16, true);
+    int *adjacencyList_d = GsDBSCAN::algo_utils::copyHostToDevice(adjacencyList_h, 18, true);
     int *degArray_d = GsDBSCAN::algo_utils::copyHostToDevice(degArray_h, n, true);
     int *startIdxArray_d = GsDBSCAN::algo_utils::copyHostToDevice(startIdxArray_h, n, true);
 
