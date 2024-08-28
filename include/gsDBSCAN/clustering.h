@@ -249,6 +249,10 @@ namespace GsDBSCAN::clustering {
             }
         }
 
+        delete[] adjacencyList_h;
+        delete[] startIdxArray_h;
+        delete[] degArray_h;
+
         return std::tie(neighbourhoodMatrix, corePoints);
     }
 
@@ -450,9 +454,13 @@ namespace GsDBSCAN::clustering {
         std::tuple<int *, int> result;
 
         if (clusterOnCpu) {
+            auto startProcessAdjacencyList = au::timeNow();
+
             auto [neighbourhoodMatrix, corePoints] = processAdjacencyListCpu(adjacencyList_d, degArray_d,
                                                                              startIdxArray_d, n,
                                                                              adjacencyList_size, minPts);
+
+            if (timeIt) times["processAdjacencyList"] = au::duration(startProcessAdjacencyList, au::timeNow());
 
             auto startFormClusters = au::timeNow();
 
