@@ -99,17 +99,15 @@ namespace GsDBSCAN::run_utils {
         return csvDoc.GetColumn<T>(columnIndex);
     }
 
-    inline void writeResults(json &args, json &times, int *clusterLabels, int *typeLabels, int numClusters) {
+    inline void writeResults(json &args, json &times, int *clusterLabels, int numClusters) {
         std::ofstream file(args["outFile"]);
         json combined;
         combined["args"] = args;
         combined["times"] = times;
 
         std::vector<int> clusterLabelsVec(clusterLabels, clusterLabels + (size_t) args["n"]);
-        std::vector<int> typeLabelsVec(typeLabels, typeLabels + (size_t) args["n"]);
         combined["numClusters"] = numClusters;
         combined["clusterLabels"] = clusterLabelsVec;
-        combined["typeLabels"] = typeLabelsVec;
 
         json result = json::array(); // Array of JSON objects, so Pandas can read it
         result.push_back(combined);
@@ -122,7 +120,6 @@ namespace GsDBSCAN::run_utils {
         }
 
         delete[] clusterLabels;
-        delete[] typeLabels;
     }
 
 
