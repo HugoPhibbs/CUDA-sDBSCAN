@@ -122,14 +122,14 @@ namespace GsDBSCAN::run_utils {
     }
 
 
-    inline std::tuple<int *, int *, int, json>
+    inline std::tuple<int *, int, json>
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
                 int distancesBatchSize, std::string distanceMetric, int clusterBlockSize) {
         // TODO write docs
         auto X = loadBinFileToVector<float>(datasetFileName);
         auto X_h = X.data();
 
-        auto [clusterLabels, typeLabels, numClusters, times] = performGsDbscan(
+        auto [clusterLabels, numClusters, times] = performGsDbscan(
                 X_h,
                 n,
                 d,
@@ -147,7 +147,7 @@ namespace GsDBSCAN::run_utils {
 
 //        cudaFree(X_d);
 
-        return std::make_tuple(clusterLabels, typeLabels, numClusters, times);
+        return std::make_tuple(clusterLabels, numClusters, times);
     }
 }
 

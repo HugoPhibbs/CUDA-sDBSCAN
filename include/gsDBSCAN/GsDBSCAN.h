@@ -21,24 +21,9 @@
 
 using json = nlohmann::json;
 
+namespace au = GsDBSCAN::algo_utils;
+
 namespace GsDBSCAN {
-
-    // Yes I shamelessly copied these from TestUtils
-
-    using Time = std::chrono::time_point<std::chrono::high_resolution_clock>;
-
-    inline Time timeNow() {
-        return std::chrono::high_resolution_clock::now();
-    }
-
-
-    inline int duration(Time start, Time stop) {
-        return std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
-    }
-
-    inline int durationSecs(Time start, Time stop) {
-        return std::chrono::duration_cast<std::chrono::seconds>(stop - start).count();
-    }
 
     /**
     * Performs the gs dbscan algorithm
@@ -61,10 +46,10 @@ namespace GsDBSCAN {
     *  An integer array of size n containing the type labels for each point in the X dataset - e.g. Noise, Core, Border // TODO decide on how this will work?
     *  A nlohmann json object containing the timing information
     */
-    inline std::tuple<int *, int *, int, json>
+    inline std::tuple<int *, int, nlohmann::ordered_json>
     performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha = 1.2,
                     int distancesBatchSize = -1, const std::string &distanceMetric = "L2", int clusterBlockSize = 256,
-                    bool timeIt = false) {
+                    bool timeIt = false, bool clusterWithCpu = false) {
 
         if (distanceMetric == "COSINE") {
             eps = 1 - eps; // We use cosine similarity, thus we need to convert the eps to a cosine distance.
@@ -72,11 +57,11 @@ namespace GsDBSCAN {
 
         nlohmann::ordered_json times;
 
-        Time startOverAll = timeNow();
+        au::Time startOverAll = au::timeNow();
 
         // Normalise and perform projections
 
-        Time startProjections = timeNow();
+        au::Time startProjections = au::timeNow();
 
         auto X_af = af::array(n, d, X);
         X_af.eval();
@@ -88,18 +73,18 @@ namespace GsDBSCAN {
 
         projections.eval();
 
-        std::cout<<"Mean and std of projections"<<std::endl;
+        std::cout << "Mean and std of projections" << std::endl;
         print("", af::sum(af::sum(X_af)) / (n * d));
         print("", af::stdev(projections));
 
-        std::cout<<"Mean and std of X"<<std::endl;
+        std::cout << "Mean and std of X" << std::endl;
 //        print("", af::sum(af::sum(X_af)) / (n * d));
 //        print("", af::stdev(X_af));
 
 //        af::print("Projections: ", ((1/std::sqrt(D)) * projections)(af::seq(0, 5), af::span));
 //        af::print("Projections: ", (projections)(af::seq(0, 5), af::span));
 
-        if (timeIt) times["projections"] = duration( startProjections, timeNow());
+        if (timeIt) times["projections"] = au::duration(startProjections, au::timeNow());
 
 
         // Get a tensor for X
@@ -109,7 +94,7 @@ namespace GsDBSCAN {
 
         // AB matrices
 
-        Time startABMatrices = timeNow();
+        auto startABMatrices = au::timeNow();
 
         auto [A_af, B_af] = projections::constructABMatricesAF(projections, k, m, distanceMetric);
 
@@ -118,75 +103,38 @@ namespace GsDBSCAN {
         auto B_t = algo_utils::afMatToMatXTensor<int, int>(B_af,
                                                            matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
 
-        if (timeIt) times["constructABMatrices"] = duration(startABMatrices, timeNow());
+        if (timeIt) times["constructABMatrices"] = au::duration(startABMatrices, au::timeNow());
 
 
         // Distances
 
-        Time startDistances = timeNow();
+        auto startDistances = au::timeNow();
 
         matx::tensor_t<float, 2> distances = distances::findDistancesMatX(X_t, A_t, B_t, alpha, distancesBatchSize,
                                                                           distanceMetric,
                                                                           matx::MATX_DEVICE_MEMORY);
 //        print(matx::slice(distances, {0, 0}, {10, matx::matxEnd}));
 
-        std::cout<<"Mean and std"<<std::endl;
+        std::cout << "Mean and std" << std::endl;
         print(matx::mean(distances));
         print(matx::stdd(distances));
 
         cudaDeviceSynchronize();
 
-        if (timeIt) times["distances"] = duration(startDistances, timeNow());
+        if (timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
 
 
         // Clustering
 
-        Time startClustering = timeNow();
-
-        Time startDegArray = timeNow();
-
-        auto degArray_t = clustering::constructQueryVectorDegreeArrayMatx(distances, eps, matx::MATX_DEVICE_MEMORY, distanceMetric);
-        auto degArray_d = degArray_t.Data(); // Can't embed this in the above function call, bc pointer gets downgraded to a host one
-
-        if (timeIt) times["degArray"] = duration(startDegArray, timeNow());
-
-        Time startStartIdxArray = timeNow();
-
-        int *startIdxArray_d = clustering::processQueryVectorDegreeArrayThrust(degArray_d, n);
-
-        if (timeIt) times["startIdxArray"] = duration(startStartIdxArray, timeNow());
-
-        Time startAdjacencyList = timeNow();
-
-        auto [adjacencyList_d, adjacencyList_size] = clustering::constructAdjacencyList(distances.Data(), degArray_d,
-                                                                                        startIdxArray_d, A_t.Data(),
-                                                                                        B_t.Data(), n, k, m, eps,
-                                                                                        clusterBlockSize,
-                                                                                        distanceMetric);
-
-        if (timeIt) times["adjacencyList"] = duration(startAdjacencyList, timeNow());
-
-        Time startFormClusters = timeNow();
-
-        auto [clusterLabels, typeLabels, numClusters] = clustering::formClusters(adjacencyList_d, degArray_d, startIdxArray_d, n,
-                                                                    minPts, clusterBlockSize);
-
-        if (timeIt) times["formClusters"] = duration(startFormClusters, timeNow());
-
-        if (timeIt) times["clusteringOverall"] = duration(startClustering, timeNow());
-
-        // Algorithm done
+        auto [clusterLabels, numClusters] = clustering::performClustering(distances, A_t, B_t, eps, minPts, clusterBlockSize, distanceMetric, timeIt, times, clusterWithCpu);
 
         // Free memory
         A_af.unlock();
         B_af.unlock();
-        cudaFree(adjacencyList_d);
-        cudaFree(degArray_d);
-        cudaFree(startIdxArray_d);
 
-        if (timeIt) times["overall"] = duration(startOverAll, timeNow());
+        if (timeIt) times["overall"] = au::duration(startOverAll, au::timeNow());
 
-        return std::make_tuple(clusterLabels, typeLabels, numClusters, times);
+        return std::make_tuple(clusterLabels, numClusters, times);
     }
 
 
