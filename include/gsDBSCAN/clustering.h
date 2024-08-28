@@ -216,7 +216,7 @@ namespace GsDBSCAN::clustering {
 
     __global__ void
     inline
-    breadthFirstSearchKernel(int *adjacencyList_d, int *startIdxArray_d, int *visited_d, int *border_d, const int n) {
+    breadthFirstSearchKernel(int *adjacencyList_d, int *startIdxArray_d, bool *visited_d, bool *border_d, const int n) {
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
         if (tid >= n) {
@@ -224,8 +224,8 @@ namespace GsDBSCAN::clustering {
         }
 
         if (border_d[tid]) {
-            border_d[tid] = 0;
-            visited_d[tid] = 1;
+            border_d[tid] = false;
+            visited_d[tid] = true;
 
             int startIdx = startIdxArray_d[tid];
 
@@ -233,26 +233,24 @@ namespace GsDBSCAN::clustering {
                 int neighbourIdx = adjacencyList_d[i];
 
                 if (!visited_d[neighbourIdx]) {
-                    border_d[neighbourIdx] = 1;
+                    border_d[neighbourIdx] = true;
                 }
             }
         }
     }
-//
-//    __global__ void inline setVisitedKernel(int* visitedThisBfs_d)
 
     inline void
-    breadthFirstSearch(int *adjacencyList_d, int *degArray_h, int *startIdxArray_d, int *visited, int *clusterLabels,
+    breadthFirstSearch(int *adjacencyList_d, int *degArray_h, int *degArray_d, int *startIdxArray_d, bool *visited, int *clusterLabels,
                        int *typeLabels, const size_t n, const int seedVertexIdx, const int thisClusterLabel, const int minPts, const int blockSize) {
         // NB: Fa is Border from GsDBSCAN paper, Xa is Visited,
-        int *borderThisBfs_d = algo_utils::allocateCudaArray<int>(n, true, true);
+        // Managed memory allows to set values from the CPU, and still be used in the GPU
+        bool *borderThisBfs_d = algo_utils::allocateCudaArray<bool>(n, true, true, false);
 
-        int *visitedThisBfs_d = algo_utils::allocateCudaArray<int>(n,
-                                                                   true, true); // Managed memory allows to set values from the CPU, and still be used in the GPU
+        bool *visitedThisBfs_d = algo_utils::allocateCudaArray<bool>(n, true, true, false);
 
 //        cudaMemset(borderThisBfs_d, 0, n * sizeof(int));
 //        cudaMemset(visitedThisBfs_d, 0, n * sizeof(int));
-        borderThisBfs_d[seedVertexIdx] = 1;
+        borderThisBfs_d[seedVertexIdx] = true;
 
         int countBordersThisBfs = 1;
 
@@ -263,15 +261,15 @@ namespace GsDBSCAN::clustering {
             breadthFirstSearchKernel<<<gridSize, blockSize>>>(adjacencyList_d, startIdxArray_d, visitedThisBfs_d,
                                                               borderThisBfs_d, n);
             cudaDeviceSynchronize();
-            thrust::device_ptr<int> borderThisBfs_thrust(borderThisBfs_d);
-            countBordersThisBfs = thrust::reduce(borderThisBfs_thrust, borderThisBfs_thrust + n, 0);
+            thrust::device_ptr<bool> borderThisBfs_thrust(borderThisBfs_d);
+            countBordersThisBfs = thrust::reduce(borderThisBfs_thrust, borderThisBfs_thrust + n, 0, thrust::plus<int>());
         }
 
         #pragma omp parallel for // TODO the below could be a kernel right?, simply allocate the cluster labels to managed memory
         for (int i = 0; i < n; i++) {
             if (visitedThisBfs_d[i]) {
                 clusterLabels[i] = thisClusterLabel;
-                visited[i] = 1;
+                visited[i] = true;
                 if (degArray_h[i] >= minPts) {
                     typeLabels[i] = 1; // Core pt
                 } else if (degArray_h[i] < minPts) {
@@ -280,9 +278,6 @@ namespace GsDBSCAN::clustering {
             }
         }
     }
-
-
-
 
     inline std::tuple<int *, int *, int>
     formClusters(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, const int n, const int minPts,
@@ -293,9 +288,9 @@ namespace GsDBSCAN::clustering {
         std::fill(clusterLabels, clusterLabels + n,
                   -1); // Less than 300us for n=70000, so practically negligible in grander scheme
         std::fill(typeLabels, typeLabels + n, -1);
-        int *visited = new int[n];
+        bool *visited = new bool[n];
 
-        std::fill(visited, visited + n, 0);
+        std::fill(visited, visited + n, false);
 
         auto degArray_h = algo_utils::copyDeviceToHost(degArray_d, n); // TODO may be faster to keep this in managed memory - not sure
 
@@ -303,15 +298,15 @@ namespace GsDBSCAN::clustering {
 
         for (int i = 0; i < n; i++) {
             if ((!visited[i]) && (degArray_h[i] >= minPts)) {
-                visited[i] = 1;
+                visited[i] = true;
                 clusterLabels[i] = currCluster;
-                breadthFirstSearch(adjacencyList_d, degArray_h, startIdxArray_d, visited, clusterLabels, typeLabels,
+                breadthFirstSearch(adjacencyList_d, degArray_h, degArray_d, startIdxArray_d, visited, clusterLabels, typeLabels,
                                    n, i, currCluster, minPts, blockSize);
                 currCluster += 1;
             }
         }
 
-        return std::make_tuple(clusterLabels, typeLabels, currCluster + 1);
+        return std::make_tuple(clusterLabels, typeLabels, currCluster);
     }
 }
 
