@@ -268,7 +268,7 @@ namespace GsDBSCAN::clustering {
             seedSet.insert(i);
 
             boost::dynamic_bitset<> connectedPoints(n);
-            connectedPoints[n] = true;
+            connectedPoints[i] = true;
 
             while (seedSet.size() > 0) {
                 int currSeed = *seedSet.begin();
