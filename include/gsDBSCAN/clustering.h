@@ -217,7 +217,7 @@ namespace GsDBSCAN::clustering {
     }
 
 
-    inline auto processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int adjacencyList_size,
+    inline std::tuple<std::vector<std::vector<int>>, boost::dynamic_bitset<>> processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int adjacencyList_size,
                             int minPts) {
         auto neighbourhoodMatrix = std::vector<std::vector<int>>(n, std::vector<int>());
         auto corePoints = boost::dynamic_bitset<>(n);
@@ -231,10 +231,10 @@ namespace GsDBSCAN::clustering {
             for (int j = startIdxArray_h[i]; j < startIdxArray_h[i] + degArray_h[i]; j++) {
                 int candidateIdx = adjacencyList_h[j];
                 #pragma omp critical
-                {
-                    neighbourhoodMatrix[i].push_back(candidateIdx);
-                    neighbourhoodMatrix[candidateIdx].push_back(i);
-                }
+                    {
+                        neighbourhoodMatrix[i].push_back(candidateIdx);
+                        neighbourhoodMatrix[candidateIdx].push_back(i);
+                    }
             }
         }
 
@@ -242,10 +242,10 @@ namespace GsDBSCAN::clustering {
         for (int i = 0; i < n; i++) {
             std::unordered_set<int> neighbourhoodSet(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
             neighbourhoodMatrix[i].clear();
-            if ((int) neighbourhoodSet.size() >= minPts - 1) {
+            if ((int) neighbourhoodSet.size() >= minPts) { // TODO why did Ninh's code have minPts - 1?
                 corePoints[i] = true;
                 neighbourhoodMatrix[i].insert(neighbourhoodMatrix[i].end(), neighbourhoodSet.begin(),
-                                              neighbourhoodSet.end());
+                                              neighbourhoodSet.end()); // TODO is this line wrong?, why use .end() of neighbourhoodMatrix
             }
         }
 
@@ -253,9 +253,10 @@ namespace GsDBSCAN::clustering {
     }
 
     inline std::tuple<int *, int>
-    formClustersCpu(std::vector<std::vector<int>> &neighbourhoodMatrix, boost::dynamic_bitset<unsigned long, std::allocator<unsigned long>> &corePoints, int n) {
-        auto clusterLabels = std::vector<int>(n, -1);
-        auto numClusters = n;
+    formClustersCPU(std::vector<std::vector<int>> &neighbourhoodMatrix, boost::dynamic_bitset<> &corePoints, int n) {
+        int* clusterLabels = new int[n];
+        std::fill(clusterLabels, clusterLabels + n, -1);
+        auto numClusters = 0;
 
         int currClusterID = 0;
 
@@ -263,6 +264,8 @@ namespace GsDBSCAN::clustering {
             if ((!corePoints[i]) || (clusterLabels[i] != -1)) {
                 continue; // Skip if not a core point or already assigned to a cluster
             }
+
+            // TODO somehow the corePoints bitset is being ignored here for points that are non-core?
 
             std::unordered_set<int> seedSet;
             seedSet.insert(i);
@@ -289,22 +292,22 @@ namespace GsDBSCAN::clustering {
                         connectedPoints[neighbourIdx] = true;
                     }
                 }
+            }
 
-                size_t neighbourIdx = connectedPoints.find_first();
-                while (neighbourIdx != connectedPoints.npos) {
-                    if (clusterLabels[neighbourIdx] == -1) {
-                        clusterLabels[neighbourIdx] = currClusterID;
-                    }
-
-                    neighbourIdx = connectedPoints.find_next(neighbourIdx);
+            size_t neighbourIdx = connectedPoints.find_first();
+            while (neighbourIdx != boost::dynamic_bitset<>::npos) {
+                if (clusterLabels[neighbourIdx] == -1) {
+                    clusterLabels[neighbourIdx] = currClusterID;
                 }
 
-                currClusterID++;
-                numClusters++;
+                neighbourIdx = connectedPoints.find_next(neighbourIdx);
             }
+
+            currClusterID++;
+            numClusters++;
         }
 
-        return std::make_tuple(clusterLabels.data(), numClusters);
+        return std::make_tuple(clusterLabels, numClusters);
     }
 
     __global__ void
@@ -453,7 +456,7 @@ namespace GsDBSCAN::clustering {
 
             auto startFormClusters = au::timeNow();
 
-            result = formClustersCpu(neighbourhoodMatrix, corePoints, n);
+            result = formClustersCPU(neighbourhoodMatrix, corePoints, n);
 
             if (timeIt) times["formClusters"] = au::duration(startFormClusters, au::timeNow());
         } else {

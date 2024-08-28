@@ -438,10 +438,11 @@ TEST_F(TestFormingClusters, TestSmallInputCpu) {
 
     auto [neighbourhoodMatrix, corePoints] = GsDBSCAN::clustering::processAdjacencyListCpu(adjacencyList_d, degArray_d, startIdxArray_d, n, 18, minPts);
 
-    auto [clusterLabels_h_small_block, numClusters] = GsDBSCAN::clustering::formClustersCpu(neighbourhoodMatrix, corePoints, n);
+    auto [clusterLabels_h, numClusters] = GsDBSCAN::clustering::formClustersCPU(neighbourhoodMatrix,
+                                                                                corePoints, n);
 
     for (int i = 0; i < n; i++) {
-        ASSERT_EQ(clusterLabelsExpected_h[i], clusterLabels_h_small_block[i]);
+        ASSERT_EQ(clusterLabelsExpected_h[i], clusterLabels_h[i]);
     }
 
     ASSERT_EQ(numClusters, 2);
