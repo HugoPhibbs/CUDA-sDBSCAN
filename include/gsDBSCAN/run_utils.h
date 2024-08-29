@@ -99,7 +99,7 @@ namespace GsDBSCAN::run_utils {
         return csvDoc.GetColumn<T>(columnIndex);
     }
 
-    inline void writeResults(json &args, json &times, int *clusterLabels, int numClusters) {
+    inline void writeResults(json &args, nlohmann::ordered_json &times, int *clusterLabels, int numClusters) {
         std::ofstream file(args["outFile"]);
         json combined;
         combined["args"] = args;
@@ -123,7 +123,7 @@ namespace GsDBSCAN::run_utils {
     }
 
 
-    inline std::tuple<int *, int, json>
+    inline std::tuple<int *, int, nlohmann::ordered_json>
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
                 int distancesBatchSize, std::string distanceMetric, int clusterBlockSize, bool clusterOnCpu=false) {
         // TODO write docs
