@@ -96,9 +96,11 @@ namespace GsDBSCAN {
 
         auto distances_torch = distances::findDistancesTorch(X_t, A_t, B_t, alpha, distancesBatchSize, distanceMetric);
 
-        auto distances = matx::make_tensor<float>(distances_torch.data_ptr<float>(), {n, D}, matx::MATX_DEVICE_MEMORY);
+        auto distances = matx::make_tensor<float>(distances_torch.data_ptr<float>(), {n, 2*k*m}, matx::MATX_DEVICE_MEMORY);
 
         cudaDeviceSynchronize();
+
+//        matx::print(distances);
 
         if (timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
 

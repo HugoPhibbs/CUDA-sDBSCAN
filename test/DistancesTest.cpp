@@ -56,70 +56,67 @@ class TestFindingDistances : public TestDistances {
 
 };
 
-TEST_F(TestFindingDistances, TestSmallInputAF)     {
-    GTEST_SKIP(); // Legacy test, I should remove it!
-    // n = 5, d = 3
-    float X_data[] = {
-            0, 1, 2, 3, 0,
-            1, 2, 0, 0, 0,
-            3, 0, 3, 1, 1
-    };
-    af::array X(5, 3, X_data);
-
-    // k = 1
-    int A_data[] = {
-            0, 2, 4, 0, 2,
-            3, 5, 1, 7, 1
-    };
-    af::array A(5, 2, A_data);
-
-    // m = 3
-    int B_data[] = {
-            1, 0, 3, 1, 0, 1, 0, 3, 1, 0,
-            2, 4, 1, 0, 2, 2, 4, 1, 0, 2,
-            3, 1, 0, 2, 3, 0, 1, 2, 4, 1
-    };
-    af::array B(10, 3, B_data);
-
-    float expectedData[] = {
-            11, 9, 5, 9, 9,
-            5, 0, 0, 5, 6,
-            14, 11, 5, 0, 5,
-            11, 0, 5, 0, 5,
-            0, 14, 8, 9, 0,
-            5, 11, 14, 5, 6
+TEST_F(TestFindingDistances,TestSmallInputTorch) {
+    float X[15] = {
+            0, 1, 3,
+            1, 2, 0,
+            2, 0, 3,
+            3, 0, 1,
+            0, 0, 1
     };
 
-    af::array expected = af::sqrt(af::array(5, 6, expectedData));
+    auto *X_d = GsDBSCAN::algo_utils::copyHostToDevice<float>(X, 15);
 
+    int A[10] = {
+            0, 3,
+            2, 5,
+            4, 1,
+            0, 7,
+            2, 1
+    };
 
-//    af::print("expected", expected);
+    auto *A_d = GsDBSCAN::algo_utils::copyHostToDevice<int>(A, 10);
 
-    ASSERT_TRUE(expected.dims(0) == 5 && expected.dims(1) == 6); // Checking gtest is sane
+    int B[30] = {
+            1, 2, 3,
+            0, 4, 1,
+            3, 1, 0,
+            1, 0, 2,
+            0, 2, 3,
+            1, 2, 0,
+            0, 4, 1,
+            3, 1, 2,
+            1, 0, 4,
+            0, 2, 1
+    };
 
-    af::array distances = GsDBSCAN::distances::findDistancesL2AF(X, A, B);
+    auto *B_d = GsDBSCAN::algo_utils::copyHostToDevice<int>(B, 30);
 
-    af::print("distances", af::pow(distances, 2));
+    auto X_t = matx::make_tensor<float>(X_d, {5, 3});
+    auto A_t = matx::make_tensor<int>(A_d, {5, 2});
+    auto B_t = matx::make_tensor<int>(B_d, {10, 3});
 
-    // Check shape is (n, 2*k*m)
-    ASSERT_TRUE(distances.dims(0) == X.dims(0) && distances.dims(1) == A.dims(1) * B.dims(1));
+    auto distances = GsDBSCAN::distances::findDistancesTorch(X_t, A_t, B_t);
 
-    // May have something going on with column ordering
-    af::print("distances", distances);
-    af::print("expected", expected);
-    af::array distancesSorted = af::sort(distances, 1);
+    cudaDeviceSynchronize();
 
-    af::print("distancesSorted", distancesSorted);
+    std::cout<<distances<<std::endl;
 
-    af::array expectedSortedData = af::sort(expected, 1);
+    auto distances_d = distances.mutable_data_ptr<float>();
 
-    af::print("expectedSortedData", expectedSortedData);
+    auto distances_h = GsDBSCAN::algo_utils::copyDeviceToHost(distances_d, 30);
 
-//    af::print("distancesSorted", distancesSorted);
-//    af::print("expectedSorted", expectedSortedData);
+    float expected_squared[30] = {
+            11, 5, 14, 11, 0, 5,
+            9, 0, 11, 0, 14, 11,
+            5, 0, 5, 5, 8, 14,
+            9, 5, 0, 0, 9, 5,
+            9, 6, 5, 5, 0, 6
+    };
 
-    ASSERT_TRUE(af::allTrue<bool>(af::abs(distancesSorted - expectedSortedData) < 1e-6));
-
+    for (int i = 0; i < 5*6; i++) {
+        ASSERT_NEAR(std::sqrt(expected_squared[i]), distances_h[i], 1e-3);
+    }
 }
 
 TEST_F(TestFindingDistances, TestSmallInputMatx) {
