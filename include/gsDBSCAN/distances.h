@@ -9,6 +9,7 @@
 #include <cmath>
 #include <chrono>
 #include <iostream>
+#include <torch/torch.h>
 #include <cstdio>
 #include <arrayfire.h>
 #include "../../include/gsDBSCAN/algo_utils.h"
@@ -99,6 +100,63 @@ namespace GsDBSCAN::distances {
             af::sqrt(af::sum(YBatch * YBatch, 1));
 
             printf("%d\n", i);
+        }
+
+        return distances;
+    }
+
+    inline torch::Tensor findDistancesTorch(matx::tensor_t<float, 2> &X_t, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t, const float alpha = 1.2, int batchSize = -1, const std::string &distanceMetric = "L2",
+                              matx::matxMemorySpace_t memorySpace = matx::MATX_DEVICE_MEMORY) {
+
+        auto XOptions = torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA);
+        auto AOptions = torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA);
+        auto BOptions = torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA);
+
+        torch::Tensor X = torch::from_blob(X_t.Data(), {X_t.Shape()[0], X_t.Shape()[1]}, XOptions);
+        torch::Tensor A = torch::from_blob(A_t.Data(), {A_t.Shape()[0], A_t.Shape()[1]}, AOptions);
+        torch::Tensor B = torch::from_blob(B_t.Data(), {B_t.Shape()[0], B_t.Shape()[1]}, BOptions);
+
+        int k = A.size(1) / 2;
+        int m = B.size(1);
+
+        int n = X.size(0);
+        int d = X.size(1);
+
+        batchSize = (batchSize != -1) ? batchSize : findDistanceBatchSize(alpha, n, d, k, m);
+
+        torch::Tensor distances = torch::zeros({n, 2 * k * m});
+
+        auto processBatches = [&](auto computeOperation) {
+            torch::Tensor AFlat_t = A.flatten();
+
+            for (int i = 0; i < n; i += batchSize) {
+                int maxBatchIdx = std::min(i + batchSize, n);
+
+                torch::Tensor XSubset_t_op = X.slice(0, i, maxBatchIdx);
+                torch::Tensor ABatchFlat_t_op = AFlat_t.slice(0, i * 2 * k, maxBatchIdx * 2 * k);
+                torch::Tensor BBatch_t_op = torch::index_select(B, 0, ABatchFlat_t_op);
+                torch::Tensor XBatch_t_op = torch::index_select(X, 0, BBatch_t_op.flatten());
+                torch::Tensor XBatchReshaped_t_op = XBatch_t_op.view({maxBatchIdx - i, 2 * k * m, d});
+                torch::Tensor XSubsetReshaped_t_op = XSubset_t_op.view({maxBatchIdx - i, 1, d});
+
+                computeOperation(XBatchReshaped_t_op, XSubsetReshaped_t_op, distances, i, maxBatchIdx);
+            }
+        };
+
+        if (distanceMetric == "L1" || distanceMetric == "L2") {
+            processBatches([&](torch::Tensor& XBatchReshaped_t_op, torch::Tensor& XSubsetReshaped_t_op, torch::Tensor& distances, int i, int maxBatchIdx) {
+                torch::Tensor YBatch_t_op = XBatchReshaped_t_op - XSubsetReshaped_t_op;
+                torch::Tensor YBatch_t_norm_op = torch::norm(YBatch_t_op, (distanceMetric == "L1") ? 1 : 2, /*dim=*/2);
+                distances.slice(0, i, maxBatchIdx).copy_(YBatch_t_norm_op);
+            });
+        } else if (distanceMetric == "COSINE") {
+            processBatches([&](torch::Tensor& XBatchReshaped_t_op, torch::Tensor& XSubsetReshaped_t_op, torch::Tensor& distances, int i, int maxBatchIdx) {
+                torch::Tensor product_op = XBatchReshaped_t_op * XSubsetReshaped_t_op;
+                torch::Tensor product_sum_op = torch::sum(product_op, /*dim=*/2);
+                distances.slice(0, i, maxBatchIdx).copy_(product_sum_op);
+            });
+        } else {
+            throw std::runtime_error("Invalid distance metric: " + distanceMetric);
         }
 
         return distances;
