@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include <arrayfire.h>
+#include "algo_utils.h"
 
 namespace GsDBSCAN::projections {
     /**
@@ -73,25 +74,55 @@ namespace GsDBSCAN::projections {
         return X / af::tile(rowNorms, 1, X.dims(1));
     }
 
-//        template <typename Op>
-//        inline auto performProjectionsMatX(Op X, int D) {
-//            int d = matx::Shape(X)[1];
-//            auto Y = matx::random<float>({d, D}, matx::UNIFORM);
-//            auto res = matx::make_tensor<float>({matx::Shape(X)[0], D});
-//            (res = matx::matmul(X, Y)).run();
-//            return res;
-//        }
+    template <typename Op>
+    inline auto performProjectionsMatX(Op X, int D) {
+        int d = matx::Shape(X)[1];
+        auto Y = matx::random<float>({d, D}, matx::NORMAL);
+        auto res = matx::make_tensor<float>({matx::Shape(X)[0], D});
+        (res = matx::matmul(X, Y)).run();
+        return res;
+    }
+
+//    template <typename T>
+//    inline matx::tensor_t<T, 2> normaliseDatasetMatX(matx::tensor_t<T, 2> X) {
+//        auto rowNorms_op = matx::vector_norm(X, {1}, matx::NormOrder::L2);
+//        auto rowNorms_op_2 = matx::clone<2>(rowNorms_op, {X.Shape()[0], X.Shape()[1]});
+//        auto res = matx::make_tensor<float>({X.Shape()[0], X.Shape()[1]});
 //
-//        template <typename T>
-//        inline matx::tensor_t<T, 2> normaliseDatasetMatX(matx::tensor_t<T, 2> X) {
-//            auto rowNorms_op = matx::vector_norm(X, {1}, matx::NormOrder::L2);
-//            auto rowNorms_op_2 = matx::clone(rowNorms_op, {1, matx::matxKeepDim});
-//            auto res = matx::make_tensor<float>({X.Shape()[0], X.Shape()[1]});
-//
-//            (res = X / matx::repmat(rowNorms_op_2, {1, X.Shape()[1]})).run();
-//
-//            return res;
-//        }
+//        (res = X / rowNorms_op_2).run();
+//    }
+
+    template <typename T>
+    inline std::tuple<af::array, matx::tensor_t<T, 2>> normaliseAndProject(T* X, int n, int d, int D, const std::string &projectionsMethod="AF", bool needToNormalize=true) {
+        // Assume X is a col-major array, can assume it's on the host - arrayfire accounts for this.
+
+        auto X_af = af::array(n, d, X);
+
+        std::cout<< "NN " << needToNormalize << std::endl;
+
+        if (needToNormalize) {
+            X_af = normaliseDatasetAF(X_af); // MatX normalise is broken, so we'll do it in AF
+        }
+        X_af.eval();
+
+        auto X_t = algo_utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
+
+        af::array projections;
+
+        if (projectionsMethod == "AF") {
+            projections = performProjectionsAF(X_af, D);
+            projections.eval();
+            auto projections_t = algo_utils::afMatToMatXTensor<T, T>(projections, matx::MATX_DEVICE_MEMORY);
+        } else if (projectionsMethod == "MATX") {
+            auto projections_t = performProjectionsMatX(X_t, D);
+            projections = algo_utils::matXTensorToAfMat<T, T>(projections_t);
+        } else {
+            // TODO can add FHT as a method
+            throw std::runtime_error("Unknown projectionsMethod: '" + projectionsMethod + "'");
+        }
+
+        return std::tie(projections, X_t);
+    }
 }
 
 

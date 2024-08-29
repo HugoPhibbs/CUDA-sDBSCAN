@@ -50,7 +50,7 @@ namespace GsDBSCAN {
     inline std::tuple<int *, int, nlohmann::ordered_json>
     performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha = 1.2,
                     int distancesBatchSize = -1, const std::string &distanceMetric = "L2", int clusterBlockSize = 256,
-                    bool timeIt = false, bool clusterOnCpu = false) {
+                    bool timeIt = false, bool clusterOnCpu = false, const std::string &projectionsMethod="AF", bool needToNormalize = true) {
 
         if (distanceMetric == "COSINE") {
             eps = 1 - eps; // We use cosine similarity, thus we need to convert the eps to a cosine distance.
@@ -64,23 +64,13 @@ namespace GsDBSCAN {
 
         au::Time startProjections = au::timeNow();
 
-        auto X_af = af::array(n, d, X);
-        X_af.eval();
+        auto [projections, X_t] = projections::normaliseAndProject(X, n, d, D, projectionsMethod, needToNormalize);
 
-        X_af = projections::normaliseDatasetAF(X_af);
-        X_af.eval();
-
-        auto projections = projections::performProjectionsAF(X_af, D);
-
-        projections.eval();
+//        print("", projections(af::seq(0, 10), af::seq(0, 10)));
+//
+//        print(matx::slice(X_t, {0, 10}, {370, 380}));
 
         if (timeIt) times["projections"] = au::duration(startProjections, au::timeNow());
-
-
-        // Get a tensor for X
-
-        auto X_t = algo_utils::afMatToMatXTensor<float, float>(X_af, matx::MATX_DEVICE_MEMORY);
-
 
         // AB matrices
 

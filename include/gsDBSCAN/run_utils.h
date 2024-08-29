@@ -40,6 +40,8 @@ namespace GsDBSCAN::run_utils {
 
         newArgs["clusterBlockSize"] = std::stoi((std::string) args["--clusterBlockSize"]);
         newArgs["clusterOnCpu"] = args["--clusterOnCpu"] == "1";
+        newArgs["projectionsMethod"] = args["--projectionsMethod"];
+        newArgs["needToNormalize"] = args["--needToNormalize"] == "1"; // note 'z' in normalize
 
         return newArgs;
     }
@@ -84,7 +86,7 @@ namespace GsDBSCAN::run_utils {
         return data;
     }
 
-    template <typename T>
+    template<typename T>
     inline T *loadBinDatasetToDevice(std::string filename, int n, int d) {
         auto X_vec = GsDBSCAN::run_utils::loadBinFileToVector<T>(filename);
         T *X_h = X_vec.data();
@@ -125,7 +127,8 @@ namespace GsDBSCAN::run_utils {
 
     inline std::tuple<int *, int, nlohmann::ordered_json>
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
-                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize, bool clusterOnCpu=false) {
+                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize, bool clusterOnCpu = false,
+                const std::string &projectionsMethod = "AF", bool needToNormalize = true) {
         // TODO write docs
         auto X = loadBinFileToVector<float>(datasetFileName);
         auto X_h = X.data();
@@ -144,7 +147,9 @@ namespace GsDBSCAN::run_utils {
                 distanceMetric,
                 clusterBlockSize,
                 true,
-                clusterOnCpu
+                clusterOnCpu,
+                projectionsMethod,
+                needToNormalize
         );
 
 //        cudaFree(X_d);
