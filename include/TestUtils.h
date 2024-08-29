@@ -10,7 +10,7 @@
 #include <iostream>
 #include <cuda_runtime.h>
 #include <matx.h>
-#include "../include/rapidcsv.h"
+#include "lib_include/rapidcsv.h"
 
 namespace testUtils {
     using Time = std::chrono::time_point<std::chrono::high_resolution_clock>;

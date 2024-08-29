@@ -11,7 +11,7 @@
 #include <cuda_runtime.h>
 #include <tuple>
 #include <execinfo.h>
-#include "../../include/rapidcsv.h"
+#include "../lib_include/rapidcsv.h"
 
 /*
  * This file contains util functions that don't belong in a single file

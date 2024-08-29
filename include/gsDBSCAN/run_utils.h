@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "../json.hpp"
+#include "../lib_include/json.hpp"
 #include "algo_utils.h"
 #include "GsDBSCAN.h"
 
@@ -149,7 +149,7 @@ namespace GsDBSCAN::run_utils {
 
 //        cudaFree(X_d);
 
-        return std::tie(clusterLabels, typeLabels, numClusters, times);
+        return std::tie(clusterLabels, numClusters, times);
     }
 }
 

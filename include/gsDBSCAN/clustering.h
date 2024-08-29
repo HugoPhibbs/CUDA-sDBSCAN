@@ -26,7 +26,7 @@
 #include <cub/cub.cuh>
 #include <cuda/std/atomic>
 #include "algo_utils.h"
-#include "../json.hpp"
+#include "../lib_include/json.hpp"
 
 namespace au = GsDBSCAN::algo_utils;
 
@@ -443,7 +443,7 @@ namespace GsDBSCAN::clustering {
 
         auto degArray_t = clustering::constructQueryVectorDegreeArrayMatx(distances, eps, matx::MATX_DEVICE_MEMORY,
                                                                           distanceMetric);
-        auto degArray_d = degArray_t.Data()
+        auto degArray_d = degArray_t.Data();
 
         if (timeIt) times["degArray"] = au::duration(startDegArray, au::timeNow());
 

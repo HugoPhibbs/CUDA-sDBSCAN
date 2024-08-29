@@ -10,7 +10,7 @@
 #include <string>
 #include <cmath>
 
-#include "../include/rapidcsv.h"
+#include "../include/lib_include/rapidcsv.h"
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
 

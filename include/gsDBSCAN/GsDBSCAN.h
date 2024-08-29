@@ -13,7 +13,7 @@
 #include <chrono>
 #include <tuple>
 
-#include "../json.hpp"
+#include "../lib_include/json.hpp"
 #include "projections.h"
 #include "distances.h"
 #include "algo_utils.h"
@@ -115,9 +115,6 @@ namespace GsDBSCAN {
         // Free memory
         A_af.unlock();
         B_af.unlock();
-        cudaFree(adjacencyList_d);
-        cudaFree(degArray_d);
-        cudaFree(startIdxArray_d);
 
         if (timeIt) times["overall"] = au::duration(startOverAll, au::timeNow());
 
