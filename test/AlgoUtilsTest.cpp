@@ -4,6 +4,7 @@
 
 #include <omp.h>
 #include "../include/pch.h"
+#include <thrust/random.h>
 
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
