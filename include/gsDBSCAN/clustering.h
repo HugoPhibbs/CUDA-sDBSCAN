@@ -234,7 +234,8 @@ namespace GsDBSCAN::clustering {
      * @param times
      * @return
      */
-    inline std::tuple<std::vector<std::vector<int>>, boost::dynamic_bitset<>> processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int adjacencyList_size,
+    inline std::tuple<std::vector<std::vector<int>>, boost::dynamic_bitset<>, int*, int*>
+    processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int adjacencyList_size,
                             int minPts, nlohmann::ordered_json *times = nullptr) {
         auto timeCopyClusteringArraysStart = au::timeNow();
 
@@ -256,18 +257,27 @@ namespace GsDBSCAN::clustering {
             for (int j = startIdxArray_h[i]; j < startIdxArray_h[i] + degArray_h[i]; j++) {
                 int candidateIdx = adjacencyList_h[j];
                 #pragma omp critical
-                    {
-                        neighbourhoodMatrix[i].push_back(candidateIdx);
-                        neighbourhoodMatrix[candidateIdx].push_back(i);
-                    }
+                {
+                    neighbourhoodMatrix[i].push_back(candidateIdx);
+                    neighbourhoodMatrix[candidateIdx].push_back(i);
+                }
             }
         }
+
+        int newAdjacencyListSize = 0;
+        int *newDegArray_h = new int[n];
 
         #pragma omp parallel for
         for (int i = 0; i < n; i++) {
             std::unordered_set<int> neighbourhoodSet(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
             neighbourhoodMatrix[i].clear();
-            if ((int) neighbourhoodSet.size() >= minPts) { // TODO why did Ninh's code have minPts - 1?
+            degArray_h[i] = (int) neighbourhoodSet.size();
+            #pragma omp critical
+            {
+                newAdjacencyListSize += (int) neighbourhoodSet.size();
+            }
+
+            if ( (int) neighbourhoodSet.size() >= minPts) { // TODO why did Ninh's code have minPts - 1?
                 corePoints[i] = true;
                 neighbourhoodMatrix[i].insert(neighbourhoodMatrix[i].end(), neighbourhoodSet.begin(),
                                               neighbourhoodSet.end()); // TODO is this line wrong?, why use .end() of neighbourhoodMatrix
@@ -278,12 +288,15 @@ namespace GsDBSCAN::clustering {
         delete[] startIdxArray_h;
         delete[] degArray_h;
 
-        return std::tie(neighbourhoodMatrix, corePoints);
+        auto newStartIdxArray_d = processQueryVectorDegreeArrayThrust(algo_utils::copyHostToDevice(newDegArray_h, n, false), n);
+        auto newStartIdxArray_h = algo_utils::copyDeviceToHost(newStartIdxArray_d, n);
+
+        return std::tie(neighbourhoodMatrix, corePoints, newStartIdxArray_h, newDegArray_h);
     }
 
     inline std::tuple<int *, int>
     formClustersCPU(std::vector<std::vector<int>> &neighbourhoodMatrix, boost::dynamic_bitset<> &corePoints, int n) {
-        int* clusterLabels = new int[n];
+        int *clusterLabels = new int[n];
         std::fill(clusterLabels, clusterLabels + n, -1);
         auto numClusters = 0;
 
@@ -444,6 +457,23 @@ namespace GsDBSCAN::clustering {
         return std::tie(clusterLabels, typeLabels, currCluster);
     }
 
+    inline
+    int *copyNeighbourhoodMatrixToGPU(std::vector<std::vector<int>> neighbourhoodMatrix, int* startIdxArray) {
+        int n = neighbourhoodMatrix.size();
+
+        int adjacencyListSize = neighbourhoodMatrix[n-1].size() + startIdxArray[n-1];
+
+        int *adjacencyList_d = algo_utils::allocateCudaArray<int>(adjacencyListSize, false, true, -1);
+
+        #pragma omp parallel for
+        for (int i = 0; i < neighbourhoodMatrix.size(); i++) {
+            int startIdx = startIdxArray[i];
+            cudaMemcpy(adjacencyList_d + startIdx, neighbourhoodMatrix[i].data(), sizeof(int) * neighbourhoodMatrix[i].size(), cudaMemcpyHostToDevice);
+        }
+
+        return adjacencyList_d;
+    }
+
     inline std::tuple<int *, int>
     performClustering(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t,
                       const float eps, const int minPts, const int clusterBlockSize,
@@ -482,12 +512,12 @@ namespace GsDBSCAN::clustering {
 
         std::tuple<int *, int> result;
 
+        auto [neighbourhoodMatrix, corePoints, newStartIdxArray_h, newDegArray_h] = processAdjacencyListCpu(adjacencyList_d, degArray_d,
+                                                                         startIdxArray_d, n,
+                                                                         adjacencyList_size, minPts, &times);
+
         if (clusterOnCpu) {
             auto startProcessAdjacencyList = au::timeNow();
-
-            auto [neighbourhoodMatrix, corePoints] = processAdjacencyListCpu(adjacencyList_d, degArray_d,
-                                                                             startIdxArray_d, n,
-                                                                             adjacencyList_size, minPts, &times);
 
             if (timeIt) times["processAdjacencyList"] = au::duration(startProcessAdjacencyList, au::timeNow());
 
@@ -499,8 +529,17 @@ namespace GsDBSCAN::clustering {
         } else {
             auto startFormClusters = au::timeNow();
 
-            auto tup = clustering::formClusters(adjacencyList_d, degArray_d,
-                                                startIdxArray_d, n,
+            auto startCopyNeighbourhoodMatrixToGPU = au::timeNow();
+
+            auto newAdjacencyList_d = copyNeighbourhoodMatrixToGPU(neighbourhoodMatrix, newStartIdxArray_h);
+
+            if (timeIt) times["copyNeighbourhoodMatrixToGPU"] = au::duration(startCopyNeighbourhoodMatrixToGPU, au::timeNow());
+
+            auto newDegArray_d = algo_utils::copyHostToDevice(newDegArray_h, n, false);
+            auto newStartIdxArray_d = clustering::processQueryVectorDegreeArrayThrust(newDegArray_d, n);
+
+            auto tup = clustering::formClusters(newAdjacencyList_d, newDegArray_d,
+                                                newStartIdxArray_d, n,
                                                 minPts, clusterBlockSize);
 
 
