@@ -15,7 +15,6 @@
 #include <tuple>
 #include <unordered_set>
 #include <boost/dynamic_bitset.hpp>
-#include <cuco/static_set.cuh>
 //#include <execution>
 #include "algo_utils.h"
 #include <thrust/device_vector.h>
@@ -216,41 +215,6 @@ namespace GsDBSCAN::clustering {
         cudaDeviceSynchronize();
         return std::tie(adjacencyList_d, adjacencyList_size);
     }
-
-    inline std::tuple<int*, bool*> processAdjacencyListGPU(int * adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int adjacencyList_size,
-                            int minPts, int k, int m, nlohmann::ordered_json *times = nullptr) {
-        auto neighbourhoodMatrix = std::vector<thrust::device_vector<int>>(n, thrust::device_vector<int>(2*k*m, -1));
-        auto thrustAddIndices = std::vector<int>(n, 0);
-
-        auto corePoints = thrust::device_vector<bool>(n, false);
-
-        auto adjacencyList_h = algo_utils::copyDeviceToHost(adjacencyList_d, adjacencyList_size);
-        auto startIdxArray_h = algo_utils::copyDeviceToHost(startIdxArray_d, n);
-        auto degArray_h = algo_utils::copyDeviceToHost(degArray_d, n);
-
-        auto timeCopyClusteringArraysStart = au::timeNow();
-
-        #pragma omp parallel for
-        for (int i = 0; i < n; i++) {
-            for (int j = startIdxArray_h[i]; j < startIdxArray_h[i] + degArray_h[i]; j++) {
-                int candidateIdx = adjacencyList_h[j];
-                #pragma omp critical
-                {
-                    neighbourhoodMatrix[i][thrustAddIndices[i]] = candidateIdx;
-                    neighbourhoodMatrix[candidateIdx][thrustAddIndices[candidateIdx]] = i;
-
-                    thrustAddIndices[i]++;
-                    thrustAddIndices[candidateIdx]++;
-                };
-            }
-        }
-
-        #pragma omp parallel for
-        for (int i = 0; i < n; i++) {
-            cuco::static_set<int> neighbourhoodSet(2*k*m, cucu::empty_key(-1));
-
-        }
-    };
 
     /**
      * Processes the adjacency list on the CPU so it can be used in the clustering step

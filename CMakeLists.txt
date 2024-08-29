@@ -34,17 +34,6 @@ find_package(CUDAToolkit 12.6 REQUIRED)
 # ArrayFire
 find_package(ArrayFire REQUIRED)
 
-# CuCollections
-CPMAddPackage(
-        NAME cuco
-        GITHUB_REPOSITORY NVIDIA/cuCollections
-        GIT_TAG dev
-        OPTIONS
-        "BUILD_TESTS OFF"
-        "BUILD_BENCHMARKS OFF"
-        "BUILD_EXAMPLES OFF"
-)
-
 # MatX https://github.com/NVIDIA/MatX
 find_package(matx CONFIG REQUIRED)
 
@@ -98,5 +87,5 @@ add_executable(run_gs_dbscan_tests
         test/RunUtilsTest.cpp
 )
 
-target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main OpenMP::OpenMP_CXX cuco)
-target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx OpenMP::OpenMP_CXX cuco)
+target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main OpenMP::OpenMP_CXX)
+target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx OpenMP::OpenMP_CXX)
