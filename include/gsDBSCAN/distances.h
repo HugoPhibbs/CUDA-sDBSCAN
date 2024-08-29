@@ -123,17 +123,8 @@ namespace GsDBSCAN::distances {
         return distances;
     }
 
-    inline torch::Tensor findDistancesTorch(matx::tensor_t<float, 2> &X_t, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t, const float alpha = 1.2, int batchSize = -1, const std::string &distanceMetric = "L2",
+    inline torch::Tensor findDistancesTorch(torch::Tensor X, torch::Tensor A, torch::Tensor B, const float alpha = 1.2, int batchSize = -1, const std::string &distanceMetric = "L2",
                               matx::matxMemorySpace_t memorySpace = matx::MATX_DEVICE_MEMORY) {
-
-        auto XOptions = torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA);
-        auto AOptions = torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA);
-        auto BOptions = torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA);
-
-        torch::Tensor X = torch::from_blob(X_t.Data(), {X_t.Shape()[0], X_t.Shape()[1]}, XOptions);
-        torch::Tensor A = torch::from_blob(A_t.Data(), {A_t.Shape()[0], A_t.Shape()[1]}, AOptions);
-        torch::Tensor B = torch::from_blob(B_t.Data(), {B_t.Shape()[0], B_t.Shape()[1]}, BOptions);
-
         int k = A.size(1) / 2;
         int m = B.size(1);
         int n = X.size(0);

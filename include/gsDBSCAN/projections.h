@@ -95,20 +95,22 @@ namespace GsDBSCAN::projections {
         return std::tie(A, B);
     }
 
-    inline torch::Tensor normaliseDatasetTorch(torch::Tensor X) {
+    inline torch::Tensor normaliseDatasetTorch(torch::Tensor &X) {
         auto rowNorms = torch::sqrt(torch::sum(X * X, 1));
         return X / rowNorms.unsqueeze(1);
     }
 
-    inline torch::Tensor performProjectionsTorch(torch::Tensor X, int D) {
+    inline torch::Tensor performProjectionsTorch(torch::Tensor &X, int D) {
         int d = X.size(1);
-        auto Y = torch::randn({d, D});
+        auto Y = torch::randn({d, D}, torch::TensorOptions().device(X.device()));
         return torch::matmul(X, Y);
     }
 
-    inline torch::Tensor normaliseAndProjectTorch(torch::Tensor X, int D) {
-        auto X_norm = normaliseDatasetTorch(X);
-        return performProjectionsTorch(X_norm, D);
+    inline std::tuple<torch::Tensor, torch::Tensor> normaliseAndProjectTorch(torch::Tensor &X, int D, bool needToNormalize=true) {
+        if (needToNormalize) {
+            X = normaliseDatasetTorch(X);
+        }
+        return std::make_tuple(performProjectionsTorch(X, D), std::ref(X));
     }
 
     inline af::array performProjectionsAF(af::array X, int D) {

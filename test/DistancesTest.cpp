@@ -2,7 +2,7 @@
 // Created by hphi344 on 9/08/24.
 //
 
-#include <gtest/gtest.h>
+#include "../include/pch.h"
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
 #include "../include/gsDBSCAN/run_utils.h"
@@ -92,11 +92,11 @@ TEST_F(TestFindingDistances,TestSmallInputTorch) {
 
     auto *B_d = GsDBSCAN::algo_utils::copyHostToDevice<int>(B, 30);
 
-    auto X_t = matx::make_tensor<float>(X_d, {5, 3});
-    auto A_t = matx::make_tensor<int>(A_d, {5, 2});
-    auto B_t = matx::make_tensor<int>(B_d, {10, 3});
+    auto X_torch = GsDBSCAN::algo_utils::torchTensorFromDeviceArray<float, torch::kFloat32>(X_d, 5, 3);
+    auto A_torch = GsDBSCAN::algo_utils::torchTensorFromDeviceArray<int, torch::kInt32>(A_d, 5, 2);
+    auto B_torch = GsDBSCAN::algo_utils::torchTensorFromDeviceArray<int, torch::kInt32>(B_d, 10, 3);
 
-    auto distances = GsDBSCAN::distances::findDistancesTorch(X_t, A_t, B_t);
+    auto distances = GsDBSCAN::distances::findDistancesTorch(X_torch, A_torch, B_torch);
 
     cudaDeviceSynchronize();
 
