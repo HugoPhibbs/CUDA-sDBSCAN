@@ -26,7 +26,7 @@
 #include <cub/cub.cuh>
 #include <cuda/std/atomic>
 #include "algo_utils.h"
-#include "../lib_include/json.hpp"
+#include "../pch.h"
 
 namespace au = GsDBSCAN::algo_utils;
 

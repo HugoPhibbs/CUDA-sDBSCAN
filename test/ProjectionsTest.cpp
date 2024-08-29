@@ -1,7 +1,7 @@
 //
 // Created by hphi344 on 9/08/24.
 //
-#include <gtest/gtest.h>
+#include "../include/pch.h"
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
 #include "../include/gsDBSCAN/run_utils.h"

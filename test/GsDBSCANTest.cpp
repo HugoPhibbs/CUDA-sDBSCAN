@@ -1,7 +1,7 @@
 //
 // Created by hphi344 on 10/05/24.
 //
-#include <gtest/gtest.h>
+#include "../include/pch.h"
 #include <matx.h>
 #include <chrono>
 #include <arrayfire.h>
@@ -10,7 +10,7 @@
 #include <string>
 #include <cmath>
 
-#include "../include/lib_include/rapidcsv.h"
+#include "../include/pch.h"
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
 

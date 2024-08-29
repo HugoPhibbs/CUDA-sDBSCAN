@@ -1,7 +1,7 @@
 //
 // Created by hphi344 on 9/08/24.
 //
-#include <gtest/gtest.h>
+#include "../include/pch.h"
 #include <matx.h>
 #include <arrayfire.h>
 #include <cuda_runtime.h>
