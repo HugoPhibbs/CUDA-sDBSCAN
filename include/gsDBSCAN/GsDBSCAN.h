@@ -74,17 +74,6 @@ namespace GsDBSCAN {
 
         projections.eval();
 
-        std::cout << "Mean and std of projections" << std::endl;
-        print("", af::sum(af::sum(X_af)) / (n * d));
-        print("", af::stdev(projections));
-
-        std::cout << "Mean and std of X" << std::endl;
-//        print("", af::sum(af::sum(X_af)) / (n * d));
-//        print("", af::stdev(X_af));
-
-//        af::print("Projections: ", ((1/std::sqrt(D)) * projections)(af::seq(0, 5), af::span));
-//        af::print("Projections: ", (projections)(af::seq(0, 5), af::span));
-
         if (timeIt) times["projections"] = au::duration(startProjections, au::timeNow());
 
 
@@ -114,12 +103,6 @@ namespace GsDBSCAN {
         matx::tensor_t<float, 2> distances = distances::findDistancesMatX(X_t, A_t, B_t, alpha, distancesBatchSize,
                                                                           distanceMetric,
                                                                           matx::MATX_DEVICE_MEMORY);
-//        print(matx::slice(distances, {0, 0}, {10, matx::matxEnd}));
-
-        std::cout << "Mean and std" << std::endl;
-        print(matx::mean(distances));
-        print(matx::stdd(distances));
-
         cudaDeviceSynchronize();
 
         if (timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
