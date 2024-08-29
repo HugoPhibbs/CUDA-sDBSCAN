@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "../lib_include/json.hpp"
+#include "../pch.h"
 #include "algo_utils.h"
 #include "GsDBSCAN.h"
 

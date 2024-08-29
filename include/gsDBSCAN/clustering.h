@@ -5,11 +5,8 @@
 #ifndef SDBSCAN_CLUSTERING_H
 #define SDBSCAN_CLUSTERING_H
 
-#include <arrayfire.h>
 #include <unordered_set>
 #include <boost/dynamic_bitset.hpp>
-#include <cuda_runtime.h>
-#include <matx.h>
 #include <vector>
 #include <omp.h>
 #include <tuple>
@@ -26,7 +23,7 @@
 #include <cub/cub.cuh>
 #include <cuda/std/atomic>
 #include "algo_utils.h"
-#include "../lib_include/json.hpp"
+#include "../pch.h"
 
 namespace au = GsDBSCAN::algo_utils;
 
@@ -86,19 +83,6 @@ namespace GsDBSCAN::clustering {
         thrust::exclusive_scan(degArray_thrust, degArray_thrust + n,
                                startIdxArray_thrust); // Somehow this still runs anyhow?
         return startIdxArray_d;
-    }
-
-    /**
-     * Processes the vector degree array to create an exclusive scan of this vector
-     *
-     * Put into it's own method to ensure testability
-     *
-     * @param E vector degree array
-     * @return arrayfire processed array
-     */
-    inline af::array processQueryVectorDegreeArray(af::array &E) {
-        return af::scan(E, 1, AF_BINARY_ADD,
-                        false); // Do an exclusive scan// TODO, need to return the V array, this is here to satisfy the compiler.
     }
 
     /**

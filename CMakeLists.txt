@@ -8,6 +8,16 @@ set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.6/bin/nvcc") # Somehow CLion needs t
 #SET(CMAKE_C_COMPILER "/usr/bin/g++")
 #add_definitions(-DINDEX_64_BIT)
 
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
+# Torch
+set(Torch_DIR "/home/hphi344/Documents/torch/libtorch/share/cmake/Torch")
+
+FIND_PACKAGE(Torch REQUIRED)
+
 # OpenMP
 find_package(OpenMP REQUIRED)
 
@@ -29,10 +39,6 @@ if (OPENMP_FOUND)
 endif()
 set(CUDA_TOOLKIT_ROOT_DIR $ENV{CUDA_HOME})
 find_package(CUDAToolkit 12.6 REQUIRED)
-#find_package(CUDAToolkit 11.8 REQUIRED)
-
-# ArrayFire
-find_package(ArrayFire REQUIRED)
 
 # MatX https://github.com/NVIDIA/MatX
 find_package(matx CONFIG REQUIRED)
@@ -87,5 +93,8 @@ add_executable(run_gs_dbscan_tests
         test/RunUtilsTest.cpp
 )
 
-target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main OpenMP::OpenMP_CXX)
-target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx OpenMP::OpenMP_CXX)
+target_precompile_headers(${PROJECT_NAME} PRIVATE include/pch.h)
+target_precompile_headers(run_gs_dbscan_tests PRIVATE include/pch.h)
+
+target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart matx::matx gtest gtest_main OpenMP::OpenMP_CXX ${TORCH_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart matx::matx OpenMP::OpenMP_CXX ${TORCH_LIBRARIES})

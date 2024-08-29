@@ -5,13 +5,9 @@
 #ifndef SDBSCAN_ALGO_UTILS_H
 #define SDBSCAN_ALGO_UTILS_H
 
-#include <matx.h>
-#include <arrayfire.h>
-#include <af/cuda.h>
-#include <cuda_runtime.h>
 #include <tuple>
 #include <execinfo.h>
-#include "../lib_include/rapidcsv.h"
+#include "../pch.h"
 
 /*
  * This file contains util functions that don't belong in a single file
@@ -28,28 +24,8 @@ namespace GsDBSCAN::algo_utils {
         return std::chrono::high_resolution_clock::now();
     }
 
-
     inline int duration(Time start, Time stop) {
         return std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
-    }
-
-    inline int durationSecs(Time start, Time stop) {
-        return std::chrono::duration_cast<std::chrono::seconds>(stop - start).count();
-    }
-
-    /**
-     * Gets the CUDA stream from ArrayFire
-     *
-     * For easy testing of other functions
-     *
-     * See https://arrayfire.org/docs/interop_cuda.htm for info on this
-     *
-     * @return the CUDA stream
-     */
-    inline cudaStream_t getAfCudaStream() {
-        int afId = af::getDevice();
-        int cudaId = afcu::getNativeId(afId);
-        return afcu::getStream(cudaId);
     }
 
     inline void printStackTrace() {
@@ -123,28 +99,6 @@ namespace GsDBSCAN::algo_utils {
         return hostArray;  // Return true if successful
     }
 
-    inline void printCudaMemoryUsage() {
-        size_t free_mem, total_mem;
-        cudaError_t error;
-
-        cudaDeviceSynchronize();
-
-        // Get memory information
-        error = cudaMemGetInfo(&free_mem, &total_mem);
-        if (error != cudaSuccess) {
-            throw std::runtime_error("cudaMemGetInfo failed: " + std::string(cudaGetErrorString(error)));
-        }
-
-        // Convert bytes to gigabytes
-        double free_mem_gb = static_cast<double>(free_mem) / (1024.0 * 1024.0 * 1024.0);
-        double total_mem_gb = static_cast<double>(total_mem) / (1024.0 * 1024.0 * 1024.0);
-        double used_mem_gb = total_mem_gb - free_mem_gb;
-
-        std::cout << std::fixed << std::setprecision(2);
-        std::cout << "Memory Usage: " << used_mem_gb << " GB used, "
-                  << free_mem_gb << " GB free, " << total_mem_gb << " GB total" << std::endl;
-    }
-
     template<typename T>
     inline T *allocateCudaArray(size_t length, bool managedMemory = false, bool fill = true, T fillValue = 0) {
         T *array;
@@ -205,24 +159,6 @@ namespace GsDBSCAN::algo_utils {
         return rowMajorMat;
     }
 
-    template<typename afType, typename matXType>
-    inline matx::tensor_t<matXType, (int) 2>
-    afMatToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
-        afType *afColMajorArray = afArray.device<afType>(); // In col major
-
-        int rows = afArray.dims()[0];
-        int cols = afArray.dims()[1];
-
-//        auto *afRowMajorArray = colMajorToRowMajorMat(afColMajorArray, rows, cols, getAfCudaStream());
-        matXType *afRowMajorArray = colMajorToRowMajorMat<afType>(afColMajorArray, rows, cols);
-
-        afArray.unlock();
-
-        auto matxTensor = matx::make_tensor<matXType>(afRowMajorArray, {rows, cols}, matXMemorySpace);
-
-        return matxTensor;
-    }
-
     template<typename T>
     __global__ void rowMajorToColArrayKernel(T *colMajorArray, T *rowMajorArray) {
         /*
@@ -252,24 +188,18 @@ namespace GsDBSCAN::algo_utils {
         return colMajorMat;
     }
 
-    template<typename matXType, typename afType>
-    inline af::array matXTensorToAfMat(matx::tensor_t<matXType, 2> &matXTensor) {
-        int rows = matXTensor.Shape()[0];
-        int cols = matXTensor.Shape()[1];
-
-        matXType* matXRowMajorArray = matXTensor.Data();
-
-        afType *afColMajorArray = rowMajorToColMajorMat<afType>(matXRowMajorArray, rows, cols);
-
-        auto afArray = af::array(rows, cols, afColMajorArray);
-        return afArray;
-    }
-
     template <typename T>
     inline T valueAtIdxDeviceToHost(const T* deviceArray, const int idx) {
         T value;
         cudaMemcpy(&value, deviceArray + idx, sizeof(T), cudaMemcpyDeviceToHost);
         return value;
+    }
+
+    template <typename ArrayType, typename torch::Dtype TorchType>
+    inline torch::Tensor torchTensorFromDeviceArray(ArrayType *array, int rows, int cols) {
+        auto options = torch::TensorOptions().dtype(TorchType).device(torch::kCUDA);
+        torch::Tensor tensor = torch::from_blob(array, {rows, cols}, options);
+        return tensor;
     }
 }
 

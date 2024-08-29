@@ -5,15 +5,10 @@
 #ifndef DBSCANCEOS_GSDBSCAN_H
 #define DBSCANCEOS_GSDBSCAN_H
 
-#include <arrayfire.h>
-#include "cuda_runtime.h"
-#include <af/cuda.h>
-#include <arrayfire.h>
-#include <matx.h>
 #include <chrono>
 #include <tuple>
 
-#include "../lib_include/json.hpp"
+#include "../pch.h"
 #include "projections.h"
 #include "distances.h"
 #include "algo_utils.h"
@@ -62,13 +57,14 @@ namespace GsDBSCAN {
 
         // Normalise and perform projections
 
+        auto X_d_col_major = au::copyHostToDevice(X, n*d);
+        auto X_d_row_major = au::colMajorToRowMajorMat(X_d_col_major, n, d);
+
         au::Time startProjections = au::timeNow();
 
-        auto [projections, X_t] = projections::normaliseAndProject(X, n, d, D, projectionsMethod, needToNormalize);
+        auto X_torch = au::torchTensorFromDeviceArray<float, torch::kFloat32>(X_d_row_major, n, d);
 
-//        print("", projections(af::seq(0, 10), af::seq(0, 10)));
-//
-//        print(matx::slice(X_t, {0, 10}, {370, 380}));
+        auto [projections_torch, X_torch_norm] = projections::normaliseAndProjectTorch(X_torch, D, needToNormalize);
 
         if (timeIt) times["projections"] = au::duration(startProjections, au::timeNow());
 
@@ -76,35 +72,25 @@ namespace GsDBSCAN {
 
         auto startABMatrices = au::timeNow();
 
-        auto [A_af, B_af] = projections::constructABMatricesAF(projections, k, m, distanceMetric);
-
-        auto A_t = algo_utils::afMatToMatXTensor<int, int>(A_af,
-                                                           matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
-        auto B_t = algo_utils::afMatToMatXTensor<int, int>(B_af,
-                                                           matx::MATX_DEVICE_MEMORY); // TODO use MANAGED or DEVICE memory?
+        auto [A_torch, B_torch] = projections::constructABMatricesTorch(projections_torch, k, m, distanceMetric);
 
         if (timeIt) times["constructABMatrices"] = au::duration(startABMatrices, au::timeNow());
-
 
         // Distances
 
         auto startDistances = au::timeNow();
 
-        matx::tensor_t<float, 2> distances = distances::findDistancesMatX(X_t, A_t, B_t, alpha, distancesBatchSize,
-                                                                          distanceMetric,
-                                                                          matx::MATX_DEVICE_MEMORY);
+        auto distances_torch = distances::findDistancesTorch(X_torch, A_torch, B_torch, alpha, distancesBatchSize, distanceMetric);
+
         cudaDeviceSynchronize();
 
         if (timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
 
+        auto distances_matx = matx::make_tensor<float>(distances_torch.data_ptr<float>(), {n, 2*k*m}, matx::MATX_DEVICE_MEMORY);
+        auto A_t = matx::make_tensor<int>(A_torch.data_ptr<int>(), {n, 2*k}, matx::MATX_DEVICE_MEMORY);
+        auto B_t = matx::make_tensor<int>(B_torch.data_ptr<int>(), {2*D, m}, matx::MATX_DEVICE_MEMORY);
 
-        // Clustering
-
-        auto [clusterLabels, numClusters] = clustering::performClustering(distances, A_t, B_t, eps, minPts, clusterBlockSize, distanceMetric, timeIt, times, clusterOnCpu);
-
-        // Free memory
-        A_af.unlock();
-        B_af.unlock();
+        auto [clusterLabels, numClusters] = clustering::performClustering(distances_matx, A_t, B_t, eps, minPts, clusterBlockSize, distanceMetric, timeIt, times, clusterOnCpu);
 
         if (timeIt) times["overall"] = au::duration(startOverAll, au::timeNow());
 

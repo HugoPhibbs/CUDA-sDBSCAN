@@ -1,17 +1,14 @@
 //
 // Created by hphi344 on 9/08/24.
 //
-#include <gtest/gtest.h>
-#include <matx.h>
-#include <arrayfire.h>
-#include <cuda_runtime.h>
-#include <thrust/random.h>
+
+#include <omp.h>
+#include "../include/pch.h"
 
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
 #include "../include/gsDBSCAN/algo_utils.h"
 #include "../include/gsDBSCAN/run_utils.h"
-#include <omp.h>
 
 namespace tu = testUtils;
 
@@ -58,41 +55,6 @@ TEST_F(TestColToRowMajorArrayConversion, TestSmallInput) {
     delete[] h_rowMajorArray;
 }
 
-TEST_F(TestColToRowMajorArrayConversion, TestLargeInput) {
-    const int n = 70000;
-    const int d = 1024;
-
-    auto afArray = af::randu(n, d, f32);
-    afArray.eval();
-
-    auto afCudaStream = GsDBSCAN::algo_utils::getAfCudaStream();
-
-    float *colMajorMat_d = afArray.device<float>();
-
-    // Running the test
-
-    auto start = tu::timeNow();
-
-    float *rowMajorMat_d = GsDBSCAN::algo_utils::colMajorToRowMajorMat(colMajorMat_d, n, d, afCudaStream);
-
-    tu::printDurationSinceStart(start);
-
-    // Now copy back to the host and compare the two arrays
-
-    auto rowMajorMat_h = GsDBSCAN::algo_utils::copyDeviceToHost(rowMajorMat_d, n * d, afCudaStream);
-
-    auto colMajorMat_h = GsDBSCAN::algo_utils::copyDeviceToHost(colMajorMat_d, n * d, afCudaStream);
-
-    assertColRowMajorMatsEqual(colMajorMat_h, rowMajorMat_h, n, d);
-
-    afArray.unlock();
-
-    cudaFree(rowMajorMat_d);
-    free(colMajorMat_h);
-    free(rowMajorMat_h);
-}
-
-
 class TestRowToColMajorArrayConversion : public AlgoUtilsTest {
 };
 
@@ -117,153 +79,6 @@ TEST_F(TestRowToColMajorArrayConversion, TestSmallInput) {
     cudaFree(d_colMajorArray);
     cudaFree(d_rowMajorArray);
     delete[] h_colMajorArray;
-}
-
-TEST_F(TestRowToColMajorArrayConversion, TestLargeInput) {
-    const int n = 70000;
-    const int d = 1024;
-
-    auto afArray = af::randu(n, d, f32);
-    afArray.eval();
-
-    auto afCudaStream = GsDBSCAN::algo_utils::getAfCudaStream();
-
-    float *colMajorMat_d = afArray.device<float>();
-
-    // Running the test
-
-    auto start = tu::timeNow();
-
-    float *rowMajorMat_d = GsDBSCAN::algo_utils::colMajorToRowMajorMat(colMajorMat_d, n, d, afCudaStream);
-
-    tu::printDurationSinceStart(start);
-
-    // Now copy back to the host and compare the two arrays
-
-    auto rowMajorMat_h = GsDBSCAN::algo_utils::copyDeviceToHost(rowMajorMat_d, n * d, afCudaStream);
-
-    auto colMajorMat_h = GsDBSCAN::algo_utils::copyDeviceToHost(colMajorMat_d, n * d, afCudaStream);
-
-    assertColRowMajorMatsEqual(colMajorMat_h, rowMajorMat_h, n, d);
-
-    afArray.unlock();
-
-    cudaFree(rowMajorMat_d);
-    free(colMajorMat_h);
-    free(rowMajorMat_h);
-}
-
-class TestArrayFireToMatXConversion : public AlgoUtilsTest {
-
-};
-
-TEST_F(TestArrayFireToMatXConversion, TestSmallInput) {
-    const size_t numRows = 3;
-    const size_t numCols = 4;
-
-    float h_colMajorArray[numRows * numCols] = {
-            1.0f, 4.0f, 7.0f, 10.0f,
-            2.0f, 5.0f, 8.0f, 11.0f,
-            3.0f, 6.0f, 9.0f, 12.0f
-    };
-
-    af::array afArray(numRows, numCols, h_colMajorArray);
-
-    auto matXTensor = GsDBSCAN::algo_utils::afMatToMatXTensor<float, float>(afArray);
-
-    float *matxTensor_d = matXTensor.Data();
-    float *afArray_d = afArray.device<float>();
-
-    auto *matxTensor_h = GsDBSCAN::algo_utils::copyDeviceToHost(matxTensor_d, numRows * numCols, GsDBSCAN::algo_utils::getAfCudaStream());
-    float *afArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(afArray_d, numRows * numCols, GsDBSCAN::algo_utils::getAfCudaStream());
-
-    assertColRowMajorMatsEqual(afArray_h, matxTensor_h, numRows, numCols);
-
-    free(matxTensor_h);
-    free(afArray_h);
-    afArray.unlock();
-}
-
-
-
-TEST_F(TestArrayFireToMatXConversion, TestMnistInput) {
-    const int n = 70000;
-    const int d = 784;
-
-    auto afArray = af::randu(n, d, f32);
-
-    auto start = tu::timeNow();
-
-    auto matXTensor = GsDBSCAN::algo_utils::afMatToMatXTensor<float, float>(afArray);
-
-    tu::printDurationSinceStart(start);
-
-    float *matxTensor_d = matXTensor.Data();
-    float *afArray_d = afArray.device<float>();
-
-    auto *matxTensor_h = GsDBSCAN::algo_utils::copyDeviceToHost(matxTensor_d, n * d, GsDBSCAN::algo_utils::getAfCudaStream());
-    float *afArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(afArray_d, n * d, GsDBSCAN::algo_utils::getAfCudaStream());
-
-    assertColRowMajorMatsEqual(afArray_h, matxTensor_h, n, d);
-
-    free(matxTensor_h);
-    free(afArray_h);
-    afArray.unlock();
-}
-
-
-TEST_F(TestArrayFireToMatXConversion, TestMnistPointerInput) {
-    int n = 70000;
-    int d = 784;
-
-    auto X_d = GsDBSCAN::run_utils::loadBinDatasetToDevice<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", n, d);
-
-    auto afArray = af::array(n, d, X_d, afDevice);
-
-    auto start = tu::timeNow();
-
-    auto matXTensor = GsDBSCAN::algo_utils::afMatToMatXTensor<float, float>(afArray, matx::MATX_DEVICE_MEMORY);
-
-    tu::printDurationSinceStart(start);
-
-    float *matxTensor_d = matXTensor.Data();
-    float *afArray_d = afArray.device<float>();
-
-    auto *matxTensor_h = GsDBSCAN::algo_utils::copyDeviceToHost(matxTensor_d, n * d, GsDBSCAN::algo_utils::getAfCudaStream());
-    float *afArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(afArray_d, n * d, GsDBSCAN::algo_utils::getAfCudaStream());
-
-    assertColRowMajorMatsEqual(afArray_h, matxTensor_h, n, d);
-
-    free(matxTensor_h);
-    free(afArray_h);
-    afArray.unlock();
-}
-
-class TestMatXToArrayFireConversion : public AlgoUtilsTest {
-
-};
-
-TEST_F(TestMatXToArrayFireConversion, TestNormally) {
-    const size_t numRows = 3;
-    const size_t numCols = 4;
-
-    float h_rowMajorArray[numRows * numCols] = {
-            1.0f, 4.0f, 7.0f, 10.0f,
-            2.0f, 5.0f, 8.0f, 11.0f,
-            3.0f, 6.0f, 9.0f, 12.0f
-    };
-
-    float *d_rowMajorArray = GsDBSCAN::algo_utils::copyHostToDevice(h_rowMajorArray, numRows * numCols);
-
-    auto matXTensor = matx::make_tensor<float>(d_rowMajorArray, {numRows, numCols}, matx::MATX_DEVICE_MEMORY);
-
-    auto afArray = GsDBSCAN::algo_utils::matXTensorToAfMat<float, float>(matXTensor);
-
-    float *afArray_d = afArray.device<float>();
-
-    auto *afArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(afArray_d, numRows * numCols, GsDBSCAN::algo_utils::getAfCudaStream());
-
-    assertColRowMajorMatsEqual(afArray_h, h_rowMajorArray, numRows, numCols);
 }
 
 class TestCopying : public AlgoUtilsTest {

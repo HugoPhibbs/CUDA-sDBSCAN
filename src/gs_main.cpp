@@ -3,7 +3,7 @@
 //
 
 #include <string>
-#include "../include/lib_include/json.hpp"
+#include "../include/pch.h"
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/gsDBSCAN/run_utils.h"
 

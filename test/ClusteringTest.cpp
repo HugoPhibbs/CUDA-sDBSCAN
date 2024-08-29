@@ -2,13 +2,11 @@
 // Created by hphi344 on 9/08/24.
 //
 
-#include <gtest/gtest.h>
-#include <arrayfire.h>
+#include "../include/pch.h"
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
 #include "../include/gsDBSCAN/algo_utils.h"
 #include "../include/gsDBSCAN/run_utils.h"
-#include <cuda_runtime.h>
 #include <cmath>
 
 namespace tu = testUtils;
