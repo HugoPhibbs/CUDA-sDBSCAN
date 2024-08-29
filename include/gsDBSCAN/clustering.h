@@ -277,6 +277,9 @@ namespace GsDBSCAN::clustering {
                 }
             }
         }
+
+        cudaFree(borderThisBfs_d);
+        cudaFree(visitedThisBfs_d);
     }
 
     inline std::tuple<int *, int *, int>
@@ -306,7 +309,10 @@ namespace GsDBSCAN::clustering {
             }
         }
 
-        return std::make_tuple(clusterLabels, typeLabels, currCluster);
+        delete[] degArray_h;
+        delete[] visited;
+
+        return std::tie(clusterLabels, typeLabels, currCluster);
     }
 }
 

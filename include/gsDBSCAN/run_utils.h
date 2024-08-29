@@ -147,7 +147,7 @@ namespace GsDBSCAN::run_utils {
 
 //        cudaFree(X_d);
 
-        return std::make_tuple(clusterLabels, typeLabels, numClusters, times);
+        return std::tie(clusterLabels, typeLabels, numClusters, times);
     }
 }
 

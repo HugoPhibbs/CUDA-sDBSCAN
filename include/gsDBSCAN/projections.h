@@ -57,7 +57,7 @@ namespace GsDBSCAN::projections {
             throw std::runtime_error("Unknown distanceMetric: '" + distanceMetric + "'");
         }
 
-        return std::make_tuple(A, B);
+        return std::tie(A, B);
     }
 
     inline af::array performProjectionsAF(af::array X, int D) {

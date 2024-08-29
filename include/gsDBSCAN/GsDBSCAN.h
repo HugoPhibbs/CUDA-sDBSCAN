@@ -186,7 +186,7 @@ namespace GsDBSCAN {
 
         if (timeIt) times["overall"] = duration(startOverAll, timeNow());
 
-        return std::make_tuple(clusterLabels, typeLabels, numClusters, times);
+        return std::tie(clusterLabels, typeLabels, numClusters, times);
     }
 
 
