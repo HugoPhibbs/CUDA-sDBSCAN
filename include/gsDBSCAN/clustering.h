@@ -437,7 +437,7 @@ namespace GsDBSCAN::clustering {
 
         auto degArray_t = clustering::constructQueryVectorDegreeArrayMatx(distances, eps, matx::MATX_DEVICE_MEMORY,
                                                                           distanceMetric);
-        auto degArray_d = degArray_t.Data(); // Can't embed this in the above function call, bc pointer gets downgraded to a host one
+        auto degArray_d = degArray_t.Data()
 
         if (timeIt) times["degArray"] = au::duration(startDegArray, au::timeNow());
 
