@@ -10,6 +10,9 @@ set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.6/bin/nvcc") # Somehow CLion needs t
 
 SET(CMAKE_BUILD_TYPE Debug)
 
+# OpenMP
+find_package(OpenMP REQUIRED)
+
 # CCCL
 include(cmake/CPM.cmake)
 
@@ -94,8 +97,8 @@ add_executable(repro2
 set_target_properties(repro2 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 
-target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main)
-target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx)
+target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main OpenMP::OpenMP_CXX)
+target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx OpenMP::OpenMP_CXX)
 #
 #target_precompile_headers(run_gs_dbscan_tests PRIVATE include/json.hpp include/rapidcsv.h)
 #target_precompile_headers(${PROJECT_NAME} PRIVATE include/json.hpp include/rapidcsv.h)

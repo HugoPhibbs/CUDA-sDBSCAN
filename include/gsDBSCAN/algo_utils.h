@@ -20,6 +20,23 @@
 
 namespace GsDBSCAN::algo_utils {
 
+    // Yes I shamelessly copied these from TestUtils
+
+    using Time = std::chrono::time_point<std::chrono::high_resolution_clock>;
+
+    inline Time timeNow() {
+        return std::chrono::high_resolution_clock::now();
+    }
+
+
+    inline int duration(Time start, Time stop) {
+        return std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+    }
+
+    inline int durationSecs(Time start, Time stop) {
+        return std::chrono::duration_cast<std::chrono::seconds>(stop - start).count();
+    }
+
     /**
      * Gets the CUDA stream from ArrayFire
      *
@@ -223,6 +240,13 @@ namespace GsDBSCAN::algo_utils {
         }
 
         return array;
+    }
+
+    template <typename T>
+    inline T valueAtIdxDeviceToHost(const T* deviceArray, const int idx) {
+        T value;
+        cudaMemcpy(&value, deviceArray + idx, sizeof(T), cudaMemcpyDeviceToHost);
+        return value;
     }
 }
 
