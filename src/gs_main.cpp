@@ -33,7 +33,9 @@ int main(int argc, char *argv[]) {
             args["distancesBatchSize"],
             args["distanceMetric"],
             args["clusterBlockSize"],
-            args["clusterOnCpu"]
+            args["clusterOnCpu"],
+            args["projectionsMethod"],
+            args["needToNormalize"]
     );
 
     GsDBSCAN::run_utils::writeResults(args, times, clusterLabels, numClusters);

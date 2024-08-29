@@ -70,6 +70,13 @@ TEST_F(TestMainHelper, TestCpuClusteringk50m40) {
     std::cout<< "Num Clusters: "<< numClusters<<std::endl;
 }
 
+TEST_F(TestMainHelper, TestCpuClusteringMatx) {
+    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
+            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 5, 50,
+            0.11, 1.2, -1, "COSINE", 256, true, "MATX", true);
+
+    std::cout<< "Num Clusters: "<< numClusters<<std::endl;
+}
 
 class TestReadMnist : public RunUtilsTest {
 
