@@ -146,72 +146,6 @@ namespace GsDBSCAN::algo_utils {
     }
 
     template<typename T>
-    __global__ void colMajorToRowArrayKernel(T *colMajorArray, T *rowMajorArray) {
-        /*
-         * Launch kernel with one block per row of the matrix
-         * Each block has one thread per entry along the rows of the matrix
-         *
-         * Therefore, the number of blocks is numRows and the number of threads per block is numCols
-         */
-        int rowMajorIdx = blockDim.x * blockIdx.x + threadIdx.x;
-        int colMajorIdx = gridDim.x * (rowMajorIdx % blockDim.x) + rowMajorIdx / blockDim.x;
-        rowMajorArray[rowMajorIdx] = colMajorArray[colMajorIdx];
-    }
-
-    template<typename T>
-    inline T *colMajorToRowMajorMat(T *colMajorMat, size_t numRows, size_t numCols, cudaStream_t stream = nullptr) {
-        // We assume that colMajorMat is on the GPU
-        T *rowMajorMat;
-        size_t size = numRows * numCols * sizeof(T);
-
-        cudaError_t err;
-        if (stream != nullptr) {
-            err = cudaMallocAsync(&rowMajorMat, size, stream);
-        } else {
-            err = cudaMalloc(&rowMajorMat, size);
-        }
-
-        if (err != cudaSuccess) {
-            throwCudaError("Error allocating memory", err);
-        }
-
-        if (stream != nullptr) {
-            colMajorToRowArrayKernel<<<numRows, numCols, 0, stream>>>(colMajorMat, rowMajorMat);
-            cudaStreamSynchronize(stream);
-        } else {
-            colMajorToRowArrayKernel<<<numRows, numCols>>>(colMajorMat, rowMajorMat);
-            cudaDeviceSynchronize();
-        }
-
-        return rowMajorMat;
-    }
-
-    template<typename afType, typename matXType>
-    inline static matx::tensor_t<matXType, (int) 2>
-    afMatToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
-        afType *afColMajorArray = afArray.device<afType>(); // In col major
-
-        int rows = afArray.dims()[0];
-        int cols = afArray.dims()[1];
-
-//        auto *afRowMajorArray = colMajorToRowMajorMat(afColMajorArray, rows, cols, getAfCudaStream());
-        matXType *afRowMajorArray = colMajorToRowMajorMat<afType>(afColMajorArray, rows, cols);
-
-        afArray.unlock();
-
-        auto matxTensor = matx::make_tensor<matXType>(afRowMajorArray, {rows, cols}, matXMemorySpace);
-
-        return matxTensor;
-    }
-
-    template<typename T, int nDims>
-    inline T *matxTensorToHost(matx::tensor_t<T, nDims> tensor, int numElements, cudaStream_t stream = nullptr) {
-        // Honestly can't figure out how to use this function. It complains about the type of nDims.
-        T *matxTensor_d = tensor.Data();
-        return copyDeviceToHost(matxTensor_d, numElements, stream);
-    }
-
-    template<typename T>
     inline T *allocateCudaArray(size_t length, bool managedMemory = false, bool fill = true, T fillValue = 0) {
         T *array;
         size_t size = sizeof(T) * length;
@@ -240,6 +174,95 @@ namespace GsDBSCAN::algo_utils {
         }
 
         return array;
+    }
+
+    template<typename T>
+    __global__ void colMajorToRowArrayKernel(T *colMajorArray, T *rowMajorArray) {
+        /*
+         * Launch kernel with one block per row of the matrix
+         * Each block has one thread per entry along the rows of the matrix
+         *
+         * Therefore, the number of blocks is numRows and the number of threads per block is numCols
+         */
+        int rowMajorIdx = blockDim.x * blockIdx.x + threadIdx.x;
+        int colMajorIdx = gridDim.x * (rowMajorIdx % blockDim.x) + rowMajorIdx / blockDim.x;
+        rowMajorArray[rowMajorIdx] = colMajorArray[colMajorIdx];
+    }
+
+    template<typename T>
+    inline T *colMajorToRowMajorMat(T *colMajorMat, size_t numRows, size_t numCols, cudaStream_t stream = nullptr) {
+        // We assume that colMajorMat is on the GPU, and that numCols<<numRows. I.e. dataset is stored in column major format
+        T *rowMajorMat = allocateCudaArray<T>(numRows * numCols, false, false);
+
+        if (stream != nullptr) {
+            colMajorToRowArrayKernel<<<numRows, numCols, 0, stream>>>(colMajorMat, rowMajorMat);
+            cudaStreamSynchronize(stream);
+        } else {
+            colMajorToRowArrayKernel<<<numRows, numCols>>>(colMajorMat, rowMajorMat);
+            cudaDeviceSynchronize();
+        }
+
+        return rowMajorMat;
+    }
+
+    template<typename afType, typename matXType>
+    inline matx::tensor_t<matXType, (int) 2>
+    afMatToMatXTensor(af::array &afArray, matx::matxMemorySpace_t matXMemorySpace = matx::MATX_MANAGED_MEMORY) {
+        afType *afColMajorArray = afArray.device<afType>(); // In col major
+
+        int rows = afArray.dims()[0];
+        int cols = afArray.dims()[1];
+
+//        auto *afRowMajorArray = colMajorToRowMajorMat(afColMajorArray, rows, cols, getAfCudaStream());
+        matXType *afRowMajorArray = colMajorToRowMajorMat<afType>(afColMajorArray, rows, cols);
+
+        afArray.unlock();
+
+        auto matxTensor = matx::make_tensor<matXType>(afRowMajorArray, {rows, cols}, matXMemorySpace);
+
+        return matxTensor;
+    }
+
+    template<typename T>
+    __global__ void rowMajorToColArrayKernel(T *colMajorArray, T *rowMajorArray) {
+        /*
+         * Launch kernel with one block per row of the matrix
+         * Each block has one thread per entry along the rows of the matrix
+         *
+         * Therefore, the number of blocks is numRows and the number of threads per block is numCols
+         */
+        int rowMajorIdx = blockDim.x * blockIdx.x + threadIdx.x;
+        int colMajorIdx = gridDim.x * (rowMajorIdx % blockDim.x) + rowMajorIdx / blockDim.x;
+        colMajorArray[colMajorIdx] = rowMajorArray[rowMajorIdx];
+    }
+
+    template<typename T>
+    inline T *rowMajorToColMajorMat(T *rowMajorMat, size_t numRows, size_t numCols, cudaStream_t stream = nullptr) {
+        // We assume that colMajorMat is on the GPU, and that numCols<<numRows. I.e. dataset is stored in column major format
+        T *colMajorMat = allocateCudaArray<T>(numRows * numCols, false, false);
+
+        if (stream != nullptr) {
+            rowMajorToColArrayKernel<<<numRows, numCols, 0, stream>>>(colMajorMat, rowMajorMat);
+            cudaStreamSynchronize(stream);
+        } else {
+            rowMajorToColArrayKernel<<<numRows, numCols>>>(colMajorMat, rowMajorMat);
+            cudaDeviceSynchronize();
+        }
+
+        return colMajorMat;
+    }
+
+    template<typename matXType, typename afType>
+    inline af::array matXTensorToAfMat(matx::tensor_t<matXType, 2> &matXTensor) {
+        int rows = matXTensor.Shape()[0];
+        int cols = matXTensor.Shape()[1];
+
+        matXType* matXRowMajorArray = matXTensor.Data();
+
+        afType *afColMajorArray = rowMajorToColMajorMat<afType>(matXRowMajorArray, rows, cols);
+
+        auto afArray = af::array(rows, cols, afColMajorArray);
+        return afArray;
     }
 
     template <typename T>
