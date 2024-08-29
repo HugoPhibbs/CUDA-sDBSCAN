@@ -11,7 +11,7 @@
 #include <cuda_runtime.h>
 #include <tuple>
 #include <execinfo.h>
-#include "../lib_include/rapidcsv.h"
+#include "../pch.h"
 
 /*
  * This file contains util functions that don't belong in a single file
@@ -270,6 +270,13 @@ namespace GsDBSCAN::algo_utils {
         T value;
         cudaMemcpy(&value, deviceArray + idx, sizeof(T), cudaMemcpyDeviceToHost);
         return value;
+    }
+
+    template <typename ArrayType, typename torch::Dtype TorchType>
+    inline torch::Tensor torchTensorFromDeviceArray(ArrayType *array, int rows, int cols) {
+        auto options = torch::TensorOptions().dtype(TorchType).device(torch::kCUDA);
+        torch::Tensor tensor = torch::from_blob(array, {rows, cols}, options);
+        return tensor;
     }
 }
 
