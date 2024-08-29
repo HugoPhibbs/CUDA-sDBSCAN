@@ -39,6 +39,7 @@ namespace GsDBSCAN::run_utils {
         newArgs["distancesBatchSize"] = std::stoi((std::string) args["--distancesBatchSize"]);
 
         newArgs["clusterBlockSize"] = std::stoi((std::string) args["--clusterBlockSize"]);
+        newArgs["clusterOnCpu"] = args["--clusterOnCpu"] == "1";
 
         return newArgs;
     }
@@ -98,17 +99,15 @@ namespace GsDBSCAN::run_utils {
         return csvDoc.GetColumn<T>(columnIndex);
     }
 
-    inline void writeResults(json &args, json &times, int *clusterLabels, int *typeLabels, int numClusters) {
+    inline void writeResults(json &args, nlohmann::ordered_json &times, int *clusterLabels, int numClusters) {
         std::ofstream file(args["outFile"]);
         json combined;
         combined["args"] = args;
         combined["times"] = times;
 
         std::vector<int> clusterLabelsVec(clusterLabels, clusterLabels + (size_t) args["n"]);
-        std::vector<int> typeLabelsVec(typeLabels, typeLabels + (size_t) args["n"]);
         combined["numClusters"] = numClusters;
         combined["clusterLabels"] = clusterLabelsVec;
-        combined["typeLabels"] = typeLabelsVec;
 
         json result = json::array(); // Array of JSON objects, so Pandas can read it
         result.push_back(combined);
@@ -119,17 +118,19 @@ namespace GsDBSCAN::run_utils {
         } else {
             throw std::runtime_error("Error: Unable to open file: " + (std::string) args["outFile"]);
         }
+
+        delete[] clusterLabels;
     }
 
 
-    inline std::tuple<int *, int *, int, json>
+    inline std::tuple<int *, int, nlohmann::ordered_json>
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
-                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize) {
+                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize, bool clusterOnCpu=false) {
         // TODO write docs
         auto X = loadBinFileToVector<float>(datasetFileName);
         auto X_h = X.data();
 
-        auto [clusterLabels, typeLabels, numClusters, times] = performGsDbscan(
+        auto [clusterLabels, numClusters, times] = performGsDbscan(
                 X_h,
                 n,
                 d,
@@ -142,12 +143,13 @@ namespace GsDBSCAN::run_utils {
                 distancesBatchSize,
                 distanceMetric,
                 clusterBlockSize,
-                true
+                true,
+                clusterOnCpu
         );
 
 //        cudaFree(X_d);
 
-        return std::make_tuple(clusterLabels, typeLabels, numClusters, times);
+        return std::make_tuple(clusterLabels, numClusters, times);
     }
 }
 

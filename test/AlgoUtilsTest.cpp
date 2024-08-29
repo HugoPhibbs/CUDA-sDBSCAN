@@ -5,6 +5,7 @@
 #include <matx.h>
 #include <arrayfire.h>
 #include <cuda_runtime.h>
+#include <thrust/random.h>
 
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
@@ -191,6 +192,38 @@ TEST_F(TestArrayFireToMatXConversion, TestMnistPointerInput) {
 class TestCopying : public AlgoUtilsTest {
 
 };
+
+struct random_functor {
+    __host__ __device__
+    float operator()(unsigned int thread_id) {
+        thrust::default_random_engine rng(thread_id);
+        thrust::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        return dist(rng);
+    }
+};
+
+TEST_F(TestCopying, TestLargeInputDeviceToHost) {
+    const int N = 100000*1000;
+
+    // Create a thrust device vector with 100000 elements
+    thrust::device_vector<float> d_vec(N);
+
+    // Fill the vector with random numbers
+    thrust::transform(thrust::counting_iterator<unsigned int>(0),
+                      thrust::counting_iterator<unsigned int>(N),
+                      d_vec.begin(),
+                      random_functor());
+
+    auto d_array = thrust::raw_pointer_cast(d_vec.data());
+
+    auto start = tu::timeNow();
+
+    auto h_array = GsDBSCAN::algo_utils::copyDeviceToHost(d_array, N);
+
+    cudaDeviceSynchronize();
+
+    tu::printDurationSinceStart(start);
+}
 
 TEST_F(TestCopying, TestSmallInput) {
     float h_array[5] = {1, 2, 3, 4, 5};

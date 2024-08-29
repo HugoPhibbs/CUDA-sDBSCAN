@@ -37,16 +37,39 @@ class TestMainHelper : public RunUtilsTest {
 };
 
 TEST_F(TestMainHelper, TestNormally) {
-    auto [clusterLabels, typeLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
-            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 5, 50,
+    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
+            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 100, 5, 50,
             0.11, 1.2, -1, "COSINE", 256);
 }
 
 TEST_F(TestMainHelper, TestExactDBSCAN) {
-    auto [clusterLabels, typeLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
+    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
             "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 1, 70000,
             0.11, 1.2, -1, "COSINE", 256);
 }
+
+TEST_F(TestMainHelper, TestWithCpuClustering) {
+    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
+            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 5, 50,
+            0.11, 1.2, -1, "COSINE", 256, true);
+}
+
+TEST_F(TestMainHelper, TestCpuClusteringk1m2000) {
+    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
+            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 1, 2000,
+            0.11, 1.2, -1, "COSINE", 256, true);
+
+    std::cout<< "Num Clusters: "<< numClusters<<std::endl;
+}
+
+TEST_F(TestMainHelper, TestCpuClusteringk50m40) {
+    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
+            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 50, 40,
+            0.11, 1.2, -1, "COSINE", 256, true);
+
+    std::cout<< "Num Clusters: "<< numClusters<<std::endl;
+}
+
 
 class TestReadMnist : public RunUtilsTest {
 
