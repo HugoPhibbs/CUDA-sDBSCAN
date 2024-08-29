@@ -58,47 +58,46 @@ namespace GsDBSCAN::distances {
         return -1; // Should never reach here
     }
 
-    inline torch::Tensor findDistancesTorch(torch::Tensor X, torch::Tensor A, torch::Tensor B, const float alpha = 1.2, int batchSize = -1, const std::string &distanceMetric = "L2",
-                              matx::matxMemorySpace_t memorySpace = matx::MATX_DEVICE_MEMORY) {
+    inline torch::Tensor findDistancesTorch(torch::Tensor X, torch::Tensor A, torch::Tensor B, const float alpha = 1.2, int batchSize = -1, const std::string &distanceMetric = "L2") {
         int k = A.size(1) / 2;
         int m = B.size(1);
         int n = X.size(0);
         int d = X.size(1);
-        int D = B.size(0) / 2;
 
         batchSize = (batchSize != -1) ? batchSize : findDistanceBatchSize(alpha, n, d, k, m);
 
-        // Prepare the distances tensor
         torch::Tensor distances = torch::empty({n, 2 * k * m}, torch::device(torch::kCUDA).dtype(torch::kFloat32));
 
-        auto start_time = std::chrono::high_resolution_clock::now();
+        std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&)> calculate_distance;
+
+        if (distanceMetric == "L2") {
+            calculate_distance = [](const torch::Tensor& Z_batch_adj, const torch::Tensor& X_batch) {
+                return torch::norm(Z_batch_adj - X_batch, 2, /*dim=*/2);
+            };
+        } else if (distanceMetric == "L1") {
+            calculate_distance = [](const torch::Tensor& X_subset_adj, const torch::Tensor& X_batch) {
+                return torch::norm(X_subset_adj - X_batch, 1, /*dim=*/2);
+            };
+        } else if (distanceMetric == "COSINE") {
+            calculate_distance = [](const torch::Tensor& Z_batch_adj, const torch::Tensor& X_batch) {
+                torch::Tensor product = Z_batch_adj * X_batch;
+                return torch::sum(product, /*dim=*/2);
+            };
+        } else {
+            throw std::invalid_argument("Unsupported distance metric");
+        }
 
         for (int i = 0; i < n; i += batchSize) {
             int max_batch_idx = std::min(i + batchSize, n);
 
             // Equivalent to X[B[A[i:max_batch_idx]]] in Python
-            torch::Tensor Z_batch = X.index_select(0, B.index_select(0, A.slice(0, i, max_batch_idx).flatten()).flatten());
-            torch::Tensor Z_batch_adj = Z_batch.view({max_batch_idx - i, 2 * k * m, d});
+            torch::Tensor X_subset = X.index_select(0, B.index_select(0, A.slice(0, i, max_batch_idx).flatten()).flatten());
+            torch::Tensor X_subset_adj = X_subset.view({max_batch_idx - i, 2 * k * m, d});
 
-            if (distanceMetric == "L2") {
-                distances.slice(0, i, max_batch_idx) = torch::norm(
-                        Z_batch_adj - X.slice(0, i, max_batch_idx).unsqueeze(1),
-                        2, /*dim=*/2
-                );
-            } else if (distanceMetric == "L1") {
-                distances.slice(0, i, max_batch_idx) = torch::norm(
-                        Z_batch_adj - X.slice(0, i, max_batch_idx).unsqueeze(1),
-                        1, /*dim=*/2
-                );
-            } else if (distanceMetric == "COSINE") {
-                torch::Tensor product = Z_batch_adj * X.slice(0, i, max_batch_idx).unsqueeze(1);
-                distances.slice(0, i, max_batch_idx) = torch::sum(product, /*dim=*/2);
-            }
+            torch::Tensor X_batch = X.slice(0, i, max_batch_idx).unsqueeze(1);
+
+            distances.slice(0, i, max_batch_idx) = calculate_distance(X_subset_adj, X_batch);
         }
-
-        auto loop_time = std::chrono::high_resolution_clock::now() - start_time;
-        std::chrono::duration<double> loop_time_seconds = loop_time;
-        std::cout << "Time for the loop: " << loop_time_seconds.count() << " seconds" << std::endl;
 
         return distances;
     }

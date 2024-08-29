@@ -34,7 +34,6 @@ int main(int argc, char *argv[]) {
             args["distanceMetric"],
             args["clusterBlockSize"],
             args["clusterOnCpu"],
-            args["projectionsMethod"],
             args["needToNormalize"]
     );
 

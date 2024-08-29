@@ -40,7 +40,6 @@ namespace GsDBSCAN::run_utils {
 
         newArgs["clusterBlockSize"] = std::stoi((std::string) args["--clusterBlockSize"]);
         newArgs["clusterOnCpu"] = args["--clusterOnCpu"] == "1";
-        newArgs["projectionsMethod"] = args["--projectionsMethod"];
         newArgs["needToNormalize"] = args["--needToNormalize"] == "1"; // note 'z' in normalize
 
         return newArgs;
@@ -87,15 +86,6 @@ namespace GsDBSCAN::run_utils {
     }
 
     template<typename T>
-    inline T *loadBinDatasetToDevice(std::string filename, int n, int d) {
-        auto X_vec = GsDBSCAN::run_utils::loadBinFileToVector<T>(filename);
-        T *X_h = X_vec.data();
-        T *X_d = GsDBSCAN::algo_utils::copyHostToDevice(X_h, n * d);
-        return X_d;
-    }
-
-
-    template<typename T>
     inline std::vector<T> loadCsvColumnToVector(const std::string &filePath, size_t columnIndex = 1) {
         rapidcsv::Document csvDoc(filePath);
         return csvDoc.GetColumn<T>(columnIndex);
@@ -127,8 +117,7 @@ namespace GsDBSCAN::run_utils {
 
     inline std::tuple<int *, int, nlohmann::ordered_json>
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
-                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize, bool clusterOnCpu = false,
-                const std::string &projectionsMethod = "AF", bool needToNormalize = true) {
+                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize, bool clusterOnCpu = false, bool needToNormalize = true) {
         // TODO write docs
         auto X = loadBinFileToVector<float>(datasetFileName);
         auto X_h = X.data();
@@ -148,7 +137,6 @@ namespace GsDBSCAN::run_utils {
                 clusterBlockSize,
                 true,
                 clusterOnCpu,
-                projectionsMethod,
                 needToNormalize
         );
 

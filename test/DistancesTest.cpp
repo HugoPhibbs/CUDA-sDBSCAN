@@ -100,8 +100,6 @@ TEST_F(TestFindingDistances,TestSmallInputTorch) {
 
     cudaDeviceSynchronize();
 
-    std::cout<<distances<<std::endl;
-
     auto distances_d = distances.mutable_data_ptr<float>();
 
     auto distances_h = GsDBSCAN::algo_utils::copyDeviceToHost(distances_d, 30);

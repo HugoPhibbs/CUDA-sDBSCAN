@@ -45,7 +45,7 @@ namespace GsDBSCAN {
     inline std::tuple<int *, int, nlohmann::ordered_json>
     performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha = 1.2,
                     int distancesBatchSize = -1, const std::string &distanceMetric = "L2", int clusterBlockSize = 256,
-                    bool timeIt = false, bool clusterOnCpu = false, const std::string &projectionsMethod="AF", bool needToNormalize = true) {
+                    bool timeIt = false, bool clusterOnCpu = false, bool needToNormalize = true) {
 
         if (distanceMetric == "COSINE") {
             eps = 1 - eps; // We use cosine similarity, thus we need to convert the eps to a cosine distance.
