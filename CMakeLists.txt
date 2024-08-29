@@ -8,8 +8,6 @@ set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.6/bin/nvcc") # Somehow CLion needs t
 #SET(CMAKE_C_COMPILER "/usr/bin/g++")
 #add_definitions(-DINDEX_64_BIT)
 
-SET(CMAKE_BUILD_TYPE Debug)
-
 # OpenMP
 find_package(OpenMP REQUIRED)
 
@@ -66,7 +64,6 @@ set_source_files_properties(
         include/gsDBSCAN/algo_utils.h
         include/gsDBSCAN/run_utils.h
         src/gs_main.cpp
-        test/repro2.cu
         PROPERTIES LANGUAGE CUDA
 )
 
@@ -90,17 +87,5 @@ add_executable(run_gs_dbscan_tests
         test/RunUtilsTest.cpp
 )
 
-add_executable(repro2
-        test/repro2.cu
-)
-
-set_target_properties(repro2 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-
-
 target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main OpenMP::OpenMP_CXX)
 target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx OpenMP::OpenMP_CXX)
-#
-#target_precompile_headers(run_gs_dbscan_tests PRIVATE include/json.hpp include/rapidcsv.h)
-#target_precompile_headers(${PROJECT_NAME} PRIVATE include/json.hpp include/rapidcsv.h)
-
-target_link_libraries(repro2 PRIVATE CCCL::CCCL matx::matx)
