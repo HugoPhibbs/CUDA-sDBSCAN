@@ -5,11 +5,8 @@
 #ifndef DBSCANCEOS_TESTUTILS_H
 #define DBSCANCEOS_TESTUTILS_H
 
-#include <arrayfire.h>
 #include <chrono>
 #include <iostream>
-#include <cuda_runtime.h>
-#include <matx.h>
 #include "./pch.h"
 
 namespace testUtils {
@@ -19,30 +16,9 @@ namespace testUtils {
 
     int duration(Time start, Time stop);
 
-    void printDuration(Time start, Time stop);
-
     int durationSecs(Time start, Time stop);
 
     void printDurationSinceStart(Time start, const std::string& msg = "");
-
-    void printDurationSinceStartSecs(Time start, const std::string& msg = "");
-
-    af::array createMockMnistDataset(int n = 70000, int d = 784);
-
-    std::pair<af::array, af::array> createMockABMatrices(int n = 70000, int k = 2, int m = 2000, int D = 1024);
-
-    af::array createMockRandomVectorsSet(int D = 1024, int d = 784);
-
-    af::array createMockDistances(int n = 70000, int D = 1024);
-
-    template <typename T>
-    inline auto createMockDistancesMatX(int n = 70000, int D = 1024) {
-        auto distances = matx::random<T>({n, D}, matx::UNIFORM);
-
-        distances.run();
-
-        return distances;
-    }
 
     template <typename T>
     inline auto createMockMnistDatasetMatX(int n = 70000, int d = 784, matx::matxMemorySpace_t space = matx::MATX_DEVICE_MEMORY) {
@@ -97,13 +73,7 @@ namespace testUtils {
         return B_i;
     }
 
-    bool arraysEqual(const af::array &a, const af::array &b);
-
-    bool arraysApproxEqual(const af::array &a, const af::array &b, double eps=1e-6);
-
     std::vector<std::vector<float>> readCSV(const std::string &filename);
-
-    af::array csvToArray(const std::string& filename);
 
     void readFlatCSV(const std::string& filename, float* data, size_t size);
 }

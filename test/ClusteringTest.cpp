@@ -3,12 +3,10 @@
 //
 
 #include "../include/pch.h"
-#include <arrayfire.h>
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
 #include "../include/gsDBSCAN/algo_utils.h"
 #include "../include/gsDBSCAN/run_utils.h"
-#include <cuda_runtime.h>
 #include <cmath>
 
 namespace tu = testUtils;

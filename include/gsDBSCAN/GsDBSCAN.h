@@ -5,11 +5,6 @@
 #ifndef DBSCANCEOS_GSDBSCAN_H
 #define DBSCANCEOS_GSDBSCAN_H
 
-#include <arrayfire.h>
-#include "cuda_runtime.h"
-#include <af/cuda.h>
-#include <arrayfire.h>
-#include <matx.h>
 #include <chrono>
 #include <tuple>
 

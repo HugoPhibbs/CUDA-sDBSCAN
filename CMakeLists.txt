@@ -39,10 +39,6 @@ if (OPENMP_FOUND)
 endif()
 set(CUDA_TOOLKIT_ROOT_DIR $ENV{CUDA_HOME})
 find_package(CUDAToolkit 12.6 REQUIRED)
-#find_package(CUDAToolkit 11.8 REQUIRED)
-
-# ArrayFire
-find_package(ArrayFire REQUIRED)
 
 # MatX https://github.com/NVIDIA/MatX
 find_package(matx CONFIG REQUIRED)
@@ -100,5 +96,5 @@ add_executable(run_gs_dbscan_tests
 target_precompile_headers(${PROJECT_NAME} PRIVATE include/pch.h)
 target_precompile_headers(run_gs_dbscan_tests PRIVATE include/pch.h)
 
-target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx gtest gtest_main OpenMP::OpenMP_CXX ${TORCH_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart ArrayFire::afcuda matx::matx OpenMP::OpenMP_CXX ${TORCH_LIBRARIES})
+target_link_libraries(run_gs_dbscan_tests PRIVATE CCCL::CCCL CUDA::cudart matx::matx gtest gtest_main OpenMP::OpenMP_CXX ${TORCH_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL CUDA::cudart matx::matx OpenMP::OpenMP_CXX ${TORCH_LIBRARIES})
