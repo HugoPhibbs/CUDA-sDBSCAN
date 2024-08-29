@@ -436,7 +436,7 @@ TEST_F(TestFormingClusters, TestSmallInputCpu) {
 
     int clusterLabelsExpected_h[12] = {0, 0, 0, 0, -1, 1, 1, 1, -1, 1, -1, -1};
 
-    auto [neighbourhoodMatrix, corePoints] = GsDBSCAN::clustering::processAdjacencyListCpu(adjacencyList_d, degArray_d, startIdxArray_d, n, 18, minPts);
+    auto [neighbourhoodMatrix, corePoints, newStartIdxArray_h, newDegArray_h] = GsDBSCAN::clustering::processAdjacencyListCpu(adjacencyList_d, degArray_d, startIdxArray_d, n, 18, minPts);
 
     auto [clusterLabels_h, numClusters] = GsDBSCAN::clustering::formClustersCPU(neighbourhoodMatrix,
                                                                                 corePoints, n);
