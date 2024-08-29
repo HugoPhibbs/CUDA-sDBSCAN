@@ -285,8 +285,22 @@ class TestPerformProjections : public ProjectionsTest {
 
 
 
-TEST_F(TestPerformProjections, TestSmallInputAF) {
+TEST_F(TestPerformProjections, TestLargeFileInputMatX) {
+    auto X_data = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/complete_test/mnist_images_col_major.bin");
 
+    auto X_data_d = GsDBSCAN::algo_utils::copyHostToDevice(X_data.data(), 70000*784);
+
+    auto X_data_row_major_d = GsDBSCAN::algo_utils::colMajorToRowMajorMat(X_data_d, 70000, 784);
+
+    auto X = matx::make_tensor<float>(X_data_row_major_d, {70000, 784});
+
+    auto start = tu::timeNow();
+
+    auto projections = GsDBSCAN::projections::performProjectionsMatX(X, 1024);
+
+    cudaDeviceSynchronize();
+
+    tu::printDurationSinceStart(start);
 }
 
 TEST_F(TestPerformProjections, TestLargeFileInputAF) {
@@ -299,9 +313,13 @@ TEST_F(TestPerformProjections, TestLargeFileInputAF) {
     X_normalised.eval();
     cudaDeviceSynchronize();
 
+    auto start = tu::timeNow();
+
     auto projections = GsDBSCAN::projections::performProjectionsAF(X_normalised, 1024);
 
     projections.eval();
+
+    tu::printDurationSinceStart(start);
 
     ASSERT_EQ(projections.dims(0), 70000);
     ASSERT_EQ(projections.dims(1), 1024);
@@ -326,10 +344,14 @@ TEST_F(TestNormalisation, TestLargeInputFileAF) {
 
     auto X = af::array(70000, 784, X_data.data());
 
+    auto timeStart = tu::timeNow();
+
     auto X_normalised = GsDBSCAN::projections::normaliseDatasetAF(X);
 
     X_normalised.eval();
     cudaDeviceSynchronize();
+
+    tu::printDurationSinceStart(timeStart);
 
     auto X_d = X_normalised.device<float>();
     auto X_normalised_h = GsDBSCAN::algo_utils::copyDeviceToHost(X_d, 70000 * 784, GsDBSCAN::algo_utils::getAfCudaStream());
@@ -430,4 +452,34 @@ TEST_F(TestNormalisation, TestLargeInputAF) {
 
 TEST_F(TestNormalisation, TestLargeInputMatx) {
     // TODO
+}
+
+class TestNormaliseAndProject : public ProjectionsTest {
+
+};
+
+TEST_F(TestNormaliseAndProject, TestNormallyAF) {
+    auto X_vec = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/complete_test/mnist_images_col_major.bin");
+    auto X_data = X_vec.data();
+
+    auto start = tu::timeNow();
+
+    auto [projections, X_t] = GsDBSCAN::projections::normaliseAndProject(X_data, 70000, 784, 1024, "AF", true);
+
+    cudaDeviceSynchronize();
+
+    tu::printDurationSinceStart(start);
+}
+
+TEST_F(TestNormaliseAndProject, TestNormallyMatX) {
+    auto X_vec = GsDBSCAN::run_utils::loadBinFileToVector<float>("/home/hphi344/Documents/GS-DBSCAN-Analysis/data/complete_test/mnist_images_col_major.bin");
+    auto X_data = X_vec.data();
+
+    auto start = tu::timeNow();
+
+    auto [projections, X_t] = GsDBSCAN::projections::normaliseAndProject(X_data, 70000, 784, 1024, "MATX", true);
+
+    cudaDeviceSynchronize();
+
+    tu::printDurationSinceStart(start);
 }
