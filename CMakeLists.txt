@@ -8,7 +8,10 @@ set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.6/bin/nvcc") # Somehow CLion needs t
 #SET(CMAKE_C_COMPILER "/usr/bin/g++")
 #add_definitions(-DINDEX_64_BIT)
 
-set(CMAKE_BUILD_TYPE Debug)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 # Torch
 set(Torch_DIR "/home/hphi344/Documents/torch/libtorch/share/cmake/Torch")
