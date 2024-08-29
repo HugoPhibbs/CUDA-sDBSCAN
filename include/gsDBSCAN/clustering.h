@@ -218,13 +218,21 @@ namespace GsDBSCAN::clustering {
 
 
     inline std::tuple<std::vector<std::vector<int>>, boost::dynamic_bitset<>> processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int adjacencyList_size,
-                            int minPts) {
+                            int minPts, nlohmann::ordered_json *times = nullptr) {
         auto neighbourhoodMatrix = std::vector<std::vector<int>>(n, std::vector<int>());
         auto corePoints = boost::dynamic_bitset<>(n);
+
+        auto timeCopyClusteringArraysStart = au::timeNow();
 
         auto adjacencyList_h = algo_utils::copyDeviceToHost(adjacencyList_d, adjacencyList_size);
         auto startIdxArray_h = algo_utils::copyDeviceToHost(startIdxArray_d, n);
         auto degArray_h = algo_utils::copyDeviceToHost(degArray_d, n);
+
+        auto timeCopyClusteringArrays = au::duration(timeCopyClusteringArraysStart, au::timeNow());
+
+        if (times != nullptr) {
+            (*times)["copyClusteringArrays"] = timeCopyClusteringArrays;
+        }
 
         #pragma omp parallel for
         for (int i = 0; i < n; i++) {
@@ -353,8 +361,6 @@ namespace GsDBSCAN::clustering {
 
         bool *visitedThisBfs_d = algo_utils::allocateCudaArray<bool>(n, true, true, false);
 
-//        cudaMemset(borderThisBfs_d, 0, n * sizeof(int));
-//        cudaMemset(visitedThisBfs_d, 0, n * sizeof(int));
         borderThisBfs_d[seedVertexIdx] = true;
 
         int countBordersThisBfs = 1;
@@ -458,7 +464,7 @@ namespace GsDBSCAN::clustering {
 
             auto [neighbourhoodMatrix, corePoints] = processAdjacencyListCpu(adjacencyList_d, degArray_d,
                                                                              startIdxArray_d, n,
-                                                                             adjacencyList_size, minPts);
+                                                                             adjacencyList_size, minPts, &times);
 
             if (timeIt) times["processAdjacencyList"] = au::duration(startProcessAdjacencyList, au::timeNow());
 
