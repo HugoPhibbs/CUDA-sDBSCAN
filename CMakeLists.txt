@@ -74,7 +74,6 @@ set_source_files_properties(
 )
 
 add_executable(${PROJECT_NAME}
-#        src/main.cpp
         src/gs_main.cpp
         include/gsDBSCAN/projections.h
         include/gsDBSCAN/algo_utils.h
