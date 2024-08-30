@@ -81,6 +81,8 @@ add_executable(${PROJECT_NAME}
         include/gsDBSCAN/distances.h
         include/gsDBSCAN/clustering.h
         include/gsDBSCAN/run_utils.h
+        include/gsDBSCAN/GsDBSCAN.h
+        include/gsDBSCAN/enums.h
 )
 
 add_executable(run_gs_dbscan_tests

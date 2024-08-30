@@ -125,7 +125,7 @@ namespace GsDBSCAN::run_utils {
 
         auto distanceMetricEnum = stringToDistanceMetric(distanceMetric);
 
-        auto [clusterLabels, numClusters, times] = GsDBSCAN::performGsDbscan(
+        auto [clusterLabels, numClusters, times] = performGsDbscan(
                 X_h,
                 n,
                 d,
