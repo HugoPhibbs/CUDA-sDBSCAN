@@ -8,6 +8,7 @@
 #include "../include/gsDBSCAN/algo_utils.h"
 #include "../include/gsDBSCAN/run_utils.h"
 #include <cmath>
+#include "../include/gsDBSCAN/enums.h"
 
 namespace tu = testUtils;
 
@@ -81,7 +82,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestMnistAgainstPython) {
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {n, numCandidates}, matx::MATX_MANAGED_MEMORY);
 
-    auto degArray_t = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, eps, matx::MATX_MANAGED_MEMORY, "COSINE");
+    auto degArray_t = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, eps, matx::MATX_MANAGED_MEMORY, GsDBSCAN::stringToDistanceMetric("COSINE"));
 
     auto degArray_d = degArray_t.Data();
 

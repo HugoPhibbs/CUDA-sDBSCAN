@@ -13,6 +13,7 @@
 #include "../pch.h"
 #include "algo_utils.h"
 #include "GsDBSCAN.h"
+#include "enums.h"
 
 using json = nlohmann::json;
 
@@ -122,7 +123,9 @@ namespace GsDBSCAN::run_utils {
         auto X = loadBinFileToVector<float>(datasetFileName);
         auto X_h = X.data();
 
-        auto [clusterLabels, numClusters, times] = performGsDbscan(
+        auto distanceMetricEnum = stringToDistanceMetric(distanceMetric);
+
+        auto [clusterLabels, numClusters, times] = GsDBSCAN::performGsDbscan(
                 X_h,
                 n,
                 d,
@@ -133,7 +136,7 @@ namespace GsDBSCAN::run_utils {
                 eps,
                 alpha,
                 distancesBatchSize,
-                distanceMetric,
+                distanceMetricEnum,
                 clusterBlockSize,
                 true,
                 clusterOnCpu,

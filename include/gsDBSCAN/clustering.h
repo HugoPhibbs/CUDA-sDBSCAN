@@ -12,7 +12,6 @@
 #include <tuple>
 #include <unordered_set>
 #include <boost/dynamic_bitset.hpp>
-//#include <execution>
 #include "algo_utils.h"
 #include <thrust/device_vector.h>
 #include <thrust/device_ptr.h>
@@ -24,6 +23,8 @@
 #include <cuda/std/atomic>
 #include "algo_utils.h"
 #include "../pch.h"
+#include "run_utils.h"
+#include "enums.h"
 
 namespace au = GsDBSCAN::algo_utils;
 
@@ -50,7 +51,7 @@ namespace GsDBSCAN::clustering {
     template<typename T>
     inline matx::tensor_t<int, 1> constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, const T eps,
                                                                       matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY,
-                                                                      const std::string &distanceMetric = "L2") {
+                                                                      DistanceMetric distanceMetric = DistanceMetric::L2) {
         /**
          * Yes, I know the below isn't very clean, but MatX is a bit of a pain when it comes to types.
          *
@@ -59,18 +60,20 @@ namespace GsDBSCAN::clustering {
         int n = distances.Shape()[0];
         auto res = matx::make_tensor<int>({n}, memorySpace);
 
-        if (distanceMetric == "L1" || distanceMetric == "L2") {
+
+
+        if (distanceMetric == DistanceMetric::L1 || distanceMetric == DistanceMetric::L2) {
             auto closePoints = distances < eps;
             auto closePoints_int = matx::as_type<int>(closePoints);
             (res = matx::sum(closePoints_int, {1})).run();
             return res;
-        } else if (distanceMetric == "COSINE") {
+        } else if (distanceMetric == DistanceMetric::COSINE) {
             auto closePoints = distances > eps;
             auto closePoints_int = matx::as_type<int>(closePoints);
             (res = matx::sum(closePoints_int, {1})).run();
             return res;
         } else {
-            throw std::runtime_error("Invalid distance metric: " + distanceMetric);
+            throw std::runtime_error("Invalid distance metric: " + distanceMetricToString(distanceMetric));
         }
 
         // Somehow if i return .Data() it casts the pointer to an unregistered host pointer, so I'm returning the tensor itself
@@ -146,7 +149,7 @@ namespace GsDBSCAN::clustering {
         *pointInCluster = pointInClusterCosine;
     }
 
-    inline auto getPointInCluster_h(const std::string &distanceMetric) {
+    inline auto getPointInCluster_h(DistanceMetric distanceMetric) {
         /*
          * Basically the problem is that I can't reference a device function from the host,
          *
@@ -159,9 +162,9 @@ namespace GsDBSCAN::clustering {
         unsigned long long *pointInCluster_d, *pointInCluster_h;
         cudaMalloc(&pointInCluster_d, sizeof(unsigned long long));
 
-        if (distanceMetric == "L1" || distanceMetric == "L2") {
+        if (distanceMetric == DistanceMetric::L1 || distanceMetric == DistanceMetric::L2) {
             setPointInClusterL1L2<<<1, 1>>>((bool (**)(const float, const float)) pointInCluster_d);
-        } else if (distanceMetric == "COSINE") {
+        } else if (distanceMetric == DistanceMetric::COSINE) {
             setPointInClusterCosine<<<1, 1>>>((bool (**)(const float, const float)) pointInCluster_d);
         }
 
@@ -174,7 +177,7 @@ namespace GsDBSCAN::clustering {
     constructAdjacencyList(const float *distances_d, const int *degArray_d, const int *startIdxArray_d, int *A_d,
                            int *B_d, const int n, const int k,
                            const int m, const float eps, int blockSize = 256,
-                           const std::string &distanceMetric = "L2") {
+                           DistanceMetric distanceMetric = DistanceMetric::L2) {
         // Assume the arrays aren't stored in managed memory
         int lastDegree = algo_utils::valueAtIdxDeviceToHost(degArray_d, n - 1);
         int lastStartIdx = algo_utils::valueAtIdxDeviceToHost(startIdxArray_d, n - 1);
@@ -414,7 +417,7 @@ namespace GsDBSCAN::clustering {
     inline std::tuple<int *, int>
     performClustering(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t,
                       const float eps, const int minPts, const int clusterBlockSize,
-                      const std::string &distanceMetric, bool timeIt, nlohmann::ordered_json &times,
+                      DistanceMetric distanceMetric, bool timeIt, nlohmann::ordered_json &times,
                       bool clusterOnCpu = false) {
 
         int n = distances.Shape()[0];

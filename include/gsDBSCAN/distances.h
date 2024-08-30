@@ -12,6 +12,8 @@
 
 #include <cstdio>
 #include "../../include/gsDBSCAN/algo_utils.h"
+#include "run_utils.h"
+#include "enums.h"
 
 //Macro for checking cuda errors following a cuda launch or api call
 #define cudaCheckError() {                                           \
@@ -24,12 +26,6 @@
             printf("CUDA call successful: %s:%d\n", __FILE__, __LINE__); \
         }                                                                \
     }
-
-enum class DistanceMetric {
-    L1,
-    L2,
-    COSINE
-};
 
 namespace GsDBSCAN::distances {
     /**
@@ -58,7 +54,7 @@ namespace GsDBSCAN::distances {
         return -1; // Should never reach here
     }
 
-    inline torch::Tensor findDistancesTorch(torch::Tensor X, torch::Tensor A, torch::Tensor B, const float alpha = 1.2, int batchSize = -1, const std::string &distanceMetric = "L2") {
+    inline torch::Tensor findDistancesTorch(torch::Tensor X, torch::Tensor A, torch::Tensor B, const float alpha = 1.2, int batchSize = -1, DistanceMetric distanceMetric = DistanceMetric::L2) {
         int k = A.size(1) / 2;
         int m = B.size(1);
         int n = X.size(0);
@@ -70,21 +66,21 @@ namespace GsDBSCAN::distances {
 
         std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&)> calculate_distance;
 
-        if (distanceMetric == "L2") {
+        if (distanceMetric == DistanceMetric::L2) {
             calculate_distance = [](const torch::Tensor& Z_batch_adj, const torch::Tensor& X_batch) {
                 return torch::norm(Z_batch_adj - X_batch, 2, /*dim=*/2);
             };
-        } else if (distanceMetric == "L1") {
+        } else if (distanceMetric == DistanceMetric::L1) {
             calculate_distance = [](const torch::Tensor& X_subset_adj, const torch::Tensor& X_batch) {
                 return torch::norm(X_subset_adj - X_batch, 1, /*dim=*/2);
             };
-        } else if (distanceMetric == "COSINE") {
+        } else if (distanceMetric == DistanceMetric::COSINE) {
             calculate_distance = [](const torch::Tensor& Z_batch_adj, const torch::Tensor& X_batch) {
                 torch::Tensor product = Z_batch_adj * X_batch;
                 return torch::sum(product, /*dim=*/2);
             };
         } else {
-            throw std::invalid_argument("Unsupported distance metric");
+            throw std::invalid_argument("Unsupported distance metric :" + distanceMetricToString(distanceMetric));
         }
 
         for (int i = 0; i < n; i += batchSize) {

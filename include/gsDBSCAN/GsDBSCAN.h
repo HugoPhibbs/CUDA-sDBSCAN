@@ -2,8 +2,8 @@
 // Created by hphi344 on 10/05/24.
 //
 
-#ifndef DBSCANCEOS_GSDBSCAN_H
-#define DBSCANCEOS_GSDBSCAN_H
+#ifndef SDBSCAN_GSDBSCAN_H
+#define SDBSCAN_GSDBSCAN_H
 
 #include <chrono>
 #include <tuple>
@@ -13,6 +13,8 @@
 #include "distances.h"
 #include "algo_utils.h"
 #include "clustering.h"
+#include "run_utils.h"
+#include "enums.h"
 
 using json = nlohmann::json;
 
@@ -44,10 +46,10 @@ namespace GsDBSCAN {
     */
     inline std::tuple<int *, int, nlohmann::ordered_json>
     performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha = 1.2,
-                    int distancesBatchSize = -1, const std::string &distanceMetric = "L2", int clusterBlockSize = 256,
+                    int distancesBatchSize = -1, DistanceMetric distanceMetric=DistanceMetric::L2, int clusterBlockSize = 256,
                     bool timeIt = false, bool clusterOnCpu = false, bool needToNormalize = true) {
 
-        if (distanceMetric == "COSINE") {
+        if (distanceMetric == DistanceMetric::COSINE) {
             eps = 1 - eps; // We use cosine similarity, thus we need to convert the eps to a cosine distance.
         }
 
@@ -96,8 +98,6 @@ namespace GsDBSCAN {
 
         return std::tie(clusterLabels, numClusters, times);
     }
-
-
 };
 
-#endif //DBSCANCEOS_GSDBSCAN_H
+#endif //SDBSCAN_GSDBSCAN_H

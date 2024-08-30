@@ -10,10 +10,12 @@
 #include "../pch.h"
 
 #include "algo_utils.h"
+#include "run_utils.h"
+#include "enums.h"
 
 namespace GsDBSCAN::projections {
 
-    inline std::tuple<torch::Tensor, torch::Tensor> constructABMatricesTorch(const torch::Tensor &projections, int k, int m, const std::string &distanceMetric="L2") {
+    inline std::tuple<torch::Tensor, torch::Tensor> constructABMatricesTorch(const torch::Tensor &projections, int k, int m, DistanceMetric distanceMetric=DistanceMetric::L2) {
         // Assume projections has shape (n, D)
         int n = projections.size(0);
         int D = projections.size(1);
@@ -23,12 +25,12 @@ namespace GsDBSCAN::projections {
 
         bool sortDescending;
 
-        if (distanceMetric == "L1" || distanceMetric == "L2") {
+        if (distanceMetric == DistanceMetric::L1 || distanceMetric == DistanceMetric::L2) {
             sortDescending = false;
-        } else if (distanceMetric == "COSINE") {
+        } else if (distanceMetric == DistanceMetric::COSINE) {
             sortDescending = true;
         } else {
-            throw std::runtime_error("Unknown distanceMetric: '" + distanceMetric + "'");
+            throw std::runtime_error("Unknown distanceMetric: " + distanceMetricToString(distanceMetric));
         }
 
         auto dataToRandomIdxSorted = projections.argsort(1, sortDescending).toType(torch::kInt32);

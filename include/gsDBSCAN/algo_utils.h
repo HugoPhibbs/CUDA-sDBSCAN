@@ -8,6 +8,7 @@
 #include <tuple>
 #include <execinfo.h>
 #include "../pch.h"
+#include "enums.h"
 
 /*
  * This file contains util functions that don't belong in a single file
