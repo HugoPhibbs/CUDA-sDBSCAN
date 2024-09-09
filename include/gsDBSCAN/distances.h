@@ -61,6 +61,8 @@ namespace GsDBSCAN::distances {
     inline torch::Tensor
     findDistancesTorch(torch::Tensor X, torch::Tensor A, torch::Tensor B, const float alpha = 1.2, int batchSize = -1,
                        const std::string &distanceMetric = "L2", int n = -1) {
+        // TODO add further support for the start index
+
         if (n == -1) {
             n = X.size(0);
         }

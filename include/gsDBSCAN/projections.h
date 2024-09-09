@@ -12,6 +12,9 @@
 
 #include "algo_utils.h"
 
+template<typename T>
+using opt = std::optional<T>;
+
 namespace GsDBSCAN::projections {
 
     inline bool getSortDescending(const std::string &distanceMetric) {
@@ -26,7 +29,7 @@ namespace GsDBSCAN::projections {
 
     inline torch::Tensor
     constructAMatrix(const torch::Tensor &projections, int k, bool sortDescending = false,
-                     std::optional<torch::Tensor> A = std::nullopt, int startIdx = 0) {
+                     opt <torch::Tensor> A = std::nullopt, int startIdx = 0) {
         // Assume projections has shape (n, D)
         int n = projections.size(0);
         int D = projections.size(1);
@@ -56,7 +59,7 @@ namespace GsDBSCAN::projections {
 
     inline torch::Tensor
     constructBMatrix(const torch::Tensor &projections, int m, bool sortDescending = false,
-                     std::optional<torch::Tensor> B = std::nullopt, int startIdx = 0) {
+                     opt <torch::Tensor> B = std::nullopt, int startIdx = 0) {
         // Assume projections has shape (n, D)
         int n = projections.size(0);
         int D = projections.size(1);
@@ -67,7 +70,7 @@ namespace GsDBSCAN::projections {
 
         auto randomToDataIdxSorted = projections.argsort(0, sortDescending).toType(torch::kInt32);
 
-        auto BRowEvenIdx = torch::arange(2 * startIdx + 0, 2 * (startIdx +  D), 2);
+        auto BRowEvenIdx = torch::arange(2 * startIdx + 0, 2 * (startIdx + D), 2);
         auto BRowOddIdx = BRowEvenIdx + 1;
 
         auto closeProjectionsIdx = randomToDataIdxSorted.slice(0, 0, m).transpose(0, 1);
@@ -147,6 +150,7 @@ namespace GsDBSCAN::projections {
 //            auto [thisProjections, _] = normaliseAndProjectTorch(thisX, D, needToNormalize, distanceMetric,
 //                                                                 fourierEmbedDim,
 //                                                                 sigmaEmbed);
+//
 //            auto thisX
 //
 //        }
