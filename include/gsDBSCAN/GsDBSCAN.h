@@ -68,7 +68,7 @@ namespace GsDBSCAN {
 
         auto X_torch = au::torchTensorFromDeviceArray<float, torch::kFloat32>(X_d_row_major, n, d);
 
-        auto [projections_torch, X_torch_norm] = projections::normaliseAndProjectTorch(X_torch, D, needToNormalize);
+        auto [projections_torch, X_torch_norm] = projections::normaliseAndProjectTorch(X_torch, D, needToNormalize, distanceMetric);
 
         if (timeIt) times["projectionsAndNormalize"] = au::duration(startProjections, au::timeNow());
 
