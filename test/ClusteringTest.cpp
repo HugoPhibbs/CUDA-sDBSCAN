@@ -56,11 +56,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 5}, matx::MATX_MANAGED_MEMORY);
 
-    auto degArray_t = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_MANAGED_MEMORY);
-
-    ASSERT_TRUE(degArray_t.Shape()[0] == 4);
-
-    auto degArray_d = degArray_t.Data();
+    auto degArray_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_MANAGED_MEMORY);
 
     int expectedData[] = {3, 5, 2, 2};
 
@@ -81,9 +77,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestMnistAgainstPython) {
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {n, numCandidates}, matx::MATX_MANAGED_MEMORY);
 
-    auto degArray_t = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, eps, matx::MATX_MANAGED_MEMORY, "COSINE");
-
-    auto degArray_d = degArray_t.Data();
+    auto degArray_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, eps, matx::MATX_MANAGED_MEMORY, "COSINE");
 
     auto degArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(degArray_d, n);
 
@@ -135,9 +129,7 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputIntegrationThrust) {
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4}, matx::MATX_DEVICE_MEMORY);
 
-    auto degArray_t = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_DEVICE_MEMORY);
-
-    auto degArray_d = degArray_t.Data();
+    auto degArray_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_DEVICE_MEMORY);
 
     int *startIdxArray_d = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(degArray_d, 4);
 

@@ -48,7 +48,7 @@ namespace GsDBSCAN::clustering {
      * @return Pointer to the degree array. Since this is intended to be how this is used for later steps
      */
     template<typename T>
-    inline matx::tensor_t<int, 1> constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, const T eps,
+    inline int* constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, const T eps,
                                                                       matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY,
                                                                       const std::string &distanceMetric = "L2") {
         /**
@@ -57,22 +57,21 @@ namespace GsDBSCAN::clustering {
          * Hence why I'm repeating code across two forloops
          */
         int n = distances.Shape()[0];
-        auto res = matx::make_tensor<int>({n}, memorySpace);
+        auto degArray = au::allocateCudaArray<int>(n);
+        auto res = matx::make_tensor<int>(degArray, {n}, false);
 
         if (distanceMetric == "L1" || distanceMetric == "L2") {
             auto closePoints = distances < eps;
             auto closePoints_int = matx::as_type<int>(closePoints);
             (res = matx::sum(closePoints_int, {1})).run();
-            return res;
         } else if (distanceMetric == "COSINE") {
             auto closePoints = distances > eps;
             auto closePoints_int = matx::as_type<int>(closePoints);
             (res = matx::sum(closePoints_int, {1})).run();
-            return res;
         } else {
             throw std::runtime_error("Invalid distance metric: " + distanceMetric);
         }
-
+        return degArray;
         // Somehow if i return .Data() it casts the pointer to an unregistered host pointer, so I'm returning the tensor itself
     }
 
@@ -469,17 +468,20 @@ namespace GsDBSCAN::clustering {
     createClusteringArrays(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t,
                            matx::tensor_t<int, 2> &B_t, float eps, int clusterBlockSize,
                            const std::string &distanceMetric, bool timeIt,
-                           nlohmann::ordered_json &times, int startIdx = 0, int endIdx = -1) {
+                           nlohmann::ordered_json &times, int startIdx = 0) {
 
         int n = distances.Shape()[0];
         int k = A_t.Shape()[1] / 2;
         int m = B_t.Shape()[1];
 
-        auto startDegArray = au::timeNow();
+        auto startDegArray = au::timeNow(); // TODO fix this timing code
 
-        auto degArray_t = clustering::constructQueryVectorDegreeArrayMatx(distances, eps, matx::MATX_DEVICE_MEMORY,
+        auto degArray_d = clustering::constructQueryVectorDegreeArrayMatx(distances, eps, matx::MATX_DEVICE_MEMORY,
                                                                           distanceMetric);
-        auto degArray_d = degArray_t.Data();
+
+        // Bug: The deg array goes out of scope, so the attached array is destroyed
+
+//        matx::print(matx::slice(degArray_t, {0}, {100}));
 
         if (timeIt) times["degArray"] = au::duration(startDegArray, au::timeNow());
 
@@ -495,7 +497,7 @@ namespace GsDBSCAN::clustering {
                                                                                        startIdxArray_d, A_t.Data(),
                                                                                        B_t.Data(), n, k, m, eps,
                                                                                        clusterBlockSize,
-                                                                                       distanceMetric);
+                                                                                       distanceMetric, startIdx);
 
         if (timeIt) times["adjacencyList"] = au::duration(startAdjacencyList, au::timeNow());
 
