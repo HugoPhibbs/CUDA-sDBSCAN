@@ -30,7 +30,7 @@ namespace GsDBSCAN {
         int k = A.size(1) / 2;
         int m = B.size(1);
 
-        thrustDVec<int> adjacencyListVec(1);
+        thrustDVec<int> adjacencyListVec(0);
         thrustDVec<int> degVec(n);
         thrustDVec<int> startIdxVec(n);
 
@@ -74,6 +74,8 @@ namespace GsDBSCAN {
             totalTimeDegArray += au::duration(degArrayBatchStart, au::timeNow());
 
             auto startIdxArrayBatchStart = au::timeNow();
+
+            // TODO fix me - does this start idx account for the previous batch?
 
             auto startIdxArrayBatch_d = clustering::constructStartIdxArray(degArrayBatch_d, thisN,
                                                                            startIdxArrayInitialValue);
@@ -229,7 +231,7 @@ namespace GsDBSCAN {
                                                                           params.clusterBlockSize, params.distanceMetric, params.timeIt,
                                                                           times, params.clusterOnCpu);
 
-//        auto [clusterLabels, numClusters] = performClusteringBatch(X_torch, A_torch, B_torch, 10000, times, params);
+//        auto [clusterLabels, numClusters] = performClusteringBatch(X_torch, A_torch, B_torch, times, params);
 
         if (params.timeIt)
             times["overall"] = au::duration(startOverAll, au::timeNow());
