@@ -42,9 +42,9 @@ namespace GsDBSCAN::algo_utils {
     }
 
     inline void throwCudaError(const std::string &msg, cudaError_t err) {
-        std::cout<<"An error occurred"<<std::endl;
+        std::cout << "An error occurred" << std::endl;
         printStackTrace();
-        std::cout<<"\n"<<std::endl;
+        std::cout << "\n" << std::endl;
         throw std::runtime_error(msg + ": " + std::string(cudaGetErrorString(err)));
     }
 
@@ -188,18 +188,28 @@ namespace GsDBSCAN::algo_utils {
         return colMajorMat;
     }
 
-    template <typename T>
-    inline T valueAtIdxDeviceToHost(const T* deviceArray, const int idx) {
+    template<typename T>
+    inline T valueAtIdxDeviceToHost(const T *deviceArray, const int idx) {
         T value;
         cudaMemcpy(&value, deviceArray + idx, sizeof(T), cudaMemcpyDeviceToHost);
         return value;
     }
 
-    template <typename ArrayType, typename torch::Dtype TorchType>
+    template<typename ArrayType, typename torch::Dtype TorchType>
     inline torch::Tensor torchTensorFromDeviceArray(ArrayType *array, int rows, int cols) {
         auto options = torch::TensorOptions().dtype(TorchType).device(torch::kCUDA);
         torch::Tensor tensor = torch::from_blob(array, {rows, cols}, options);
         return tensor;
+    }
+
+    template<typename T>
+    inline auto torchTensorToMatX(torch::Tensor tensor) {
+        int rows = tensor.size(0);
+        int cols = tensor.size(1);
+
+        // TODO not sure what to do here if i have a Torch tensor in f16 and want to convert it to a matx f16
+        return matx::make_tensor<T>(tensor.data_ptr<T>(), {rows, cols},
+                                    matx::MATX_DEVICE_MEMORY);
     }
 }
 
