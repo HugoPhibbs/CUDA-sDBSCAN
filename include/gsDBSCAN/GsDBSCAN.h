@@ -57,17 +57,14 @@ namespace GsDBSCAN {
 
             auto distancesBatchMatx = au::torchTensorToMatX<float>(distancesBatch);
 
-            auto distancesMatX = au::torchTensorToMatX<float>(distancesBatch);
-
-            auto degArrayBatch_t = clustering::constructQueryVectorDegreeArrayMatx(distancesBatchMatx, eps,
+            auto degArrayBatch_d  = clustering::constructQueryVectorDegreeArrayMatx(distancesBatchMatx, eps,
                                                                                    matx::MATX_DEVICE_MEMORY,
                                                                                    distanceMetric);
-            auto degArrayBatch_d = degArrayBatch_t.Data();
 
             auto startIdxArrayBatch_d = clustering::processQueryVectorDegreeArrayThrust(degArrayBatch_d, thisN);
 
             auto [adjacencyListBatch_d, adjacencyListBatchSize] = clustering::constructAdjacencyList(
-                    distancesMatX.Data(), degArrayBatch_d,
+                    distancesBatchMatx.Data(), degArrayBatch_d,
                     startIdxArrayBatch_d, A_matx.Data(),
                     B_matx.Data(), thisN, k, m, eps,
                     clusterBlockSize, distanceMetric, i);
@@ -186,26 +183,26 @@ namespace GsDBSCAN {
 
         auto startDistances = au::timeNow();
 
-    //        auto distances_torch = distances::findDistancesTorch(X_torch, A_torch, B_torch, alpha, distancesBatchSize,
-    //                                                             distanceMetric);
-    //
-    //        cudaDeviceSynchronize();
-    //
-    //        if (timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
-    //
-    //        auto timeMatXToTorch = au::timeNow();
-    //
-    //        auto distances_matx = au::torchTensorToMatX<float>(distances_torch);
-    //        auto A_matx = au::torchTensorToMatX<int>(A_torch);
-    //        auto B_matx = au::torchTensorToMatX<int>(B_torch);
-    //
-    //        if (timeIt) times["matXToTorch"] = au::duration(timeMatXToTorch, au::timeNow());
-    //
-    //        auto [clusterLabels, numClusters] = clustering::performClustering(distances_matx, A_matx, B_matx, eps, minPts,
-    //                                                                          clusterBlockSize, distanceMetric, timeIt,
-    //                                                                          times, clusterOnCpu);
+        auto distances_torch = distances::findDistancesTorch(X_torch, A_torch, B_torch, alpha, distancesBatchSize,
+                                                             distanceMetric);
 
-        auto [clusterLabels, numClusters] = performClusteringBatch(X_torch, A_torch, B_torch, 10000, eps, minPts, times, distanceMetric, alpha, distancesBatchSize, clusterBlockSize, timeIt);
+        cudaDeviceSynchronize();
+
+        if (timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
+
+        auto timeMatXToTorch = au::timeNow();
+
+        auto distances_matx = au::torchTensorToMatX<float>(distances_torch);
+        auto A_matx = au::torchTensorToMatX<int>(A_torch);
+        auto B_matx = au::torchTensorToMatX<int>(B_torch);
+
+        if (timeIt) times["matXToTorch"] = au::duration(timeMatXToTorch, au::timeNow());
+
+        auto [clusterLabels, numClusters] = clustering::performClustering(distances_matx, A_matx, B_matx, eps, minPts,
+                                                                          clusterBlockSize, distanceMetric, timeIt,
+                                                                          times, clusterOnCpu);
+
+//        auto [clusterLabels, numClusters] = performClusteringBatch(X_torch, A_torch, B_torch, 10000, eps, minPts, times, distanceMetric, alpha, distancesBatchSize, clusterBlockSize, timeIt);
 
         if (timeIt) times["overall"] = au::duration(startOverAll, au::timeNow());
 
