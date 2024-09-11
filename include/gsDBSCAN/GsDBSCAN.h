@@ -16,9 +16,106 @@
 
 using json = nlohmann::json;
 
+template<typename T>
+using thrustDVec = thrust::device_vector<T>;
+
 namespace au = GsDBSCAN::algo_utils;
 
 namespace GsDBSCAN {
+
+    inline float adjustEps(const std::string &distanceMetric, float eps) {
+        if (distanceMetric == "COSINE") {
+            return 1 - eps; // We use cosine similarity, thus we need to convert the eps to a cosine distance.
+        }
+        return eps;
+    }
+
+    inline std::tuple <thrustDVec<int>, thrustDVec<int>, thrustDVec<int>>
+    batchCreateClusteringVecs(torch::Tensor X, torch::Tensor A, torch::Tensor B, int miniBatchSize, float eps,
+    const std::string &distanceMetric = "L2", float alpha = 1.2,
+    int distancesBatchSize = -1, int clusterBlockSize = 256) {
+        int n = X.size(0);
+        int k = A.size(1) / 2;
+        int m = B.size(1);
+
+        thrustDVec<int> adjacencyListVec(1);
+        thrustDVec<int> degVec(n);
+        thrustDVec<int> startIdxVec(n);
+
+        auto A_matx = au::torchTensorToMatX<int>(A);
+        auto B_matx = au::torchTensorToMatX<int>(B);
+
+        int currAdjacencyListSize = 0;
+
+        for (int i = 0; i < n; i += miniBatchSize) {
+            int endIdx = std::min(i + miniBatchSize, n);
+
+            auto distancesBatch = distances::findDistancesTorch(X, A, B, alpha, distancesBatchSize, distanceMetric, i,
+                                                                endIdx);
+
+            auto thisN = distancesBatch.size(0);
+
+            auto distancesBatchMatx = au::torchTensorToMatX<float>(distancesBatch);
+
+            auto distancesMatX = au::torchTensorToMatX<float>(distancesBatch);
+
+            auto degArrayBatch_t = clustering::constructQueryVectorDegreeArrayMatx(distancesBatchMatx, eps,
+                                                                                   matx::MATX_DEVICE_MEMORY,
+                                                                                   distanceMetric);
+            auto degArrayBatch_d = degArrayBatch_t.Data();
+
+            auto startIdxArrayBatch_d = clustering::processQueryVectorDegreeArrayThrust(degArrayBatch_d, thisN);
+
+            auto [adjacencyListBatch_d, adjacencyListBatchSize] = clustering::constructAdjacencyList(
+                    distancesMatX.Data(), degArrayBatch_d,
+                    startIdxArrayBatch_d, A_matx.Data(),
+                    B_matx.Data(), thisN, k, m, eps,
+                    clusterBlockSize, distanceMetric, i);
+
+            // Copy Results
+            thrust::copy(degArrayBatch_d, degArrayBatch_d + thisN, degVec.begin() + i);
+            thrust::copy(startIdxArrayBatch_d, startIdxArrayBatch_d + thisN, startIdxVec.begin() + i);
+
+            adjacencyListVec.resize(currAdjacencyListSize + adjacencyListBatchSize);
+            thrust::copy(adjacencyListBatch_d, adjacencyListBatch_d + adjacencyListBatchSize,
+            adjacencyListVec.begin() + currAdjacencyListSize);
+            currAdjacencyListSize += adjacencyListBatchSize;
+        }
+
+        cudaDeviceSynchronize();
+
+        return std::make_tuple(adjacencyListVec, degVec, startIdxVec);
+    }
+
+
+    inline std::tuple<int *, int>
+    performClusteringBatch(torch::Tensor X, torch::Tensor A, torch::Tensor B, int miniBatchSize, float eps, int minPts,
+                           nlohmann::ordered_json times,
+                           const std::string &distanceMetric = "L2", float alpha = 1.2,
+                           int distancesBatchSize = -1, int clusterBlockSize = 256, bool timeIt = false) {
+        int n = X.size(0);
+
+        auto [adjacencyListVec, degVec, startIdxVec] = batchCreateClusteringVecs(X, A, B, miniBatchSize, eps,
+                                                                                 distanceMetric, alpha,
+                                                                                 distancesBatchSize, clusterBlockSize);
+
+        int *adjacencyList_d = thrust::raw_pointer_cast(adjacencyListVec.data());
+        int *degArray_d = thrust::raw_pointer_cast(degVec.data());
+        int *startIdxArray_d = thrust::raw_pointer_cast(startIdxVec.data());
+
+        auto adjacencyListSize = adjacencyListVec.size();
+
+
+        auto [neighbourhoodMatrix, corePoints] = clustering::processAdjacencyListCpu(adjacencyList_d, degArray_d,
+                                                                                     startIdxArray_d, n,
+                                                                                     adjacencyListSize, minPts, &times);
+
+        auto startFormClusters = au::timeNow();
+
+        auto result = clustering::formClustersCPU(neighbourhoodMatrix, corePoints, n);
+
+        return result;
+    }
 
     /**
     * Performs the gs dbscan algorithm
@@ -45,11 +142,10 @@ namespace GsDBSCAN {
     inline std::tuple<int *, int, nlohmann::ordered_json>
     performGsDbscan(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha = 1.2,
                     int distancesBatchSize = -1, const std::string &distanceMetric = "L2", int clusterBlockSize = 256,
-                    bool timeIt = false, bool clusterOnCpu = false, bool needToNormalize = true) {
+                    bool timeIt = false, bool clusterOnCpu = false, bool needToNormalize = true,
+                    int fourierEmbedDim = 1024, float sigmaEmbed = 1) {
 
-        if (distanceMetric == "COSINE") {
-            eps = 1 - eps; // We use cosine similarity, thus we need to convert the eps to a cosine distance.
-        }
+        eps = adjustEps(distanceMetric, eps);
 
         nlohmann::ordered_json times;
 
@@ -68,7 +164,9 @@ namespace GsDBSCAN {
 
         auto X_torch = au::torchTensorFromDeviceArray<float, torch::kFloat32>(X_d_row_major, n, d);
 
-        auto [projections_torch, X_torch_norm] = projections::normaliseAndProjectTorch(X_torch, D, needToNormalize, distanceMetric);
+        auto [projections_torch, X_torch_norm] = projections::normaliseAndProjectTorch(X_torch, D, needToNormalize,
+                                                                                       distanceMetric, fourierEmbedDim,
+                                                                                       sigmaEmbed);
 
         if (timeIt) times["projectionsAndNormalize"] = au::duration(startProjections, au::timeNow());
 
@@ -76,7 +174,11 @@ namespace GsDBSCAN {
 
         auto startABMatrices = au::timeNow();
 
-        auto [A_torch, B_torch] = projections::constructABMatricesTorch(projections_torch, k, m, distanceMetric);
+    //        auto [A_torch, B_torch] = projections::constructABMatricesTorch(projections_torch, k, m, distanceMetric);
+
+        auto [A_torch, B_torch] = projections::constructABMatricesBatch(X_torch, D, k, m, needToNormalize,
+                                                                        distanceMetric, fourierEmbedDim, sigmaEmbed,
+                                                                        10000, 128);
 
         if (timeIt) times["constructABMatrices"] = au::duration(startABMatrices, au::timeNow());
 
@@ -84,50 +186,32 @@ namespace GsDBSCAN {
 
         auto startDistances = au::timeNow();
 
-        auto distances_torch = distances::findDistancesTorch(X_torch, A_torch, B_torch, alpha, distancesBatchSize,
-                                                             distanceMetric);
+    //        auto distances_torch = distances::findDistancesTorch(X_torch, A_torch, B_torch, alpha, distancesBatchSize,
+    //                                                             distanceMetric);
+    //
+    //        cudaDeviceSynchronize();
+    //
+    //        if (timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
+    //
+    //        auto timeMatXToTorch = au::timeNow();
+    //
+    //        auto distances_matx = au::torchTensorToMatX<float>(distances_torch);
+    //        auto A_matx = au::torchTensorToMatX<int>(A_torch);
+    //        auto B_matx = au::torchTensorToMatX<int>(B_torch);
+    //
+    //        if (timeIt) times["matXToTorch"] = au::duration(timeMatXToTorch, au::timeNow());
+    //
+    //        auto [clusterLabels, numClusters] = clustering::performClustering(distances_matx, A_matx, B_matx, eps, minPts,
+    //                                                                          clusterBlockSize, distanceMetric, timeIt,
+    //                                                                          times, clusterOnCpu);
 
-        cudaDeviceSynchronize();
-
-        if (timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
-
-        auto timeMatXToTorch = au::timeNow();
-
-        auto distances_matx = matx::make_tensor<float>(distances_torch.data_ptr<float>(), {n, 2 * k * m},
-                                                       matx::MATX_DEVICE_MEMORY);
-        auto A_t = matx::make_tensor<int>(A_torch.data_ptr<int>(), {n, 2 * k}, matx::MATX_DEVICE_MEMORY);
-        auto B_t = matx::make_tensor<int>(B_torch.data_ptr<int>(), {2 * D, m}, matx::MATX_DEVICE_MEMORY);
-
-        if (timeIt) times["matXToTorch"] = au::duration(timeMatXToTorch, au::timeNow());
-
-        auto [clusterLabels, numClusters] = clustering::performClustering(distances_matx, A_t, B_t, eps, minPts,
-                                                                          clusterBlockSize, distanceMetric, timeIt,
-                                                                          times, clusterOnCpu);
+        auto [clusterLabels, numClusters] = performClusteringBatch(X_torch, A_torch, B_torch, 10000, eps, minPts, times, distanceMetric, alpha, distancesBatchSize, clusterBlockSize, timeIt);
 
         if (timeIt) times["overall"] = au::duration(startOverAll, au::timeNow());
 
         return std::tie(clusterLabels, numClusters, times);
     }
 
-
-    inline std::tuple<int *, int, nlohmann::ordered_json>
-    performGsDbscanBatching(float *X, int n, int d, int D, int minPts, int k, int m, float eps, float alpha = 1.2,
-                            int distancesBatchSize = -1, const std::string &distanceMetric = "L2",
-                            int clusterBlockSize = 256,
-                            int algoBatchSize = 500000, int ABatchSize = 500000, int BBatchSize = 128,
-                            bool timeIt = false, bool clusterOnCpu = false, bool needToNormalize = true) {
-
-    }
-
-//    int* batchProcessAdjacencyList(torch::Tensor X, torch::Tensor A, torch::Tensor B, int miniBatchSize) {
-//        thrust::device_vector<int> adjacencyList;
-//
-//        for (int i = 0; i < miniBatchSize; i++) {
-//            // TODO
-//
-//
-//        }
-//    }
 };
 
 #endif //DBSCANCEOS_GSDBSCAN_H
