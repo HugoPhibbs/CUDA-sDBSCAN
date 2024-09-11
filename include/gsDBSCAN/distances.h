@@ -62,7 +62,7 @@ namespace GsDBSCAN::distances {
     findDistancesTorch(torch::Tensor &X, torch::Tensor &A, torch::Tensor &B, const float alpha = 1.2,
                        int batchSize = -1,
                        const std::string &distanceMetric = "L2", int XStartIdx = 0, int XEndIdx = -1) {
-        // TODO add further support for the start index
+
 
         if (XEndIdx == -1) {
             XEndIdx = X.size(0);
@@ -75,7 +75,7 @@ namespace GsDBSCAN::distances {
         int effectiveN = XEndIdx - XStartIdx;
         int actualN = X.size(0);
 
-        batchSize = (batchSize != -1) ? batchSize : findDistanceBatchSize(alpha, effectiveN, d, k, m);
+        batchSize = (batchSize != -1) ? batchSize : findDistanceBatchSize(alpha, actualN, d, k, m);
 
         torch::Tensor distances = torch::empty({effectiveN, 2 * k * m},
                                                torch::device(torch::kCUDA).dtype(torch::kFloat32));
