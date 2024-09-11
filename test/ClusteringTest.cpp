@@ -106,7 +106,7 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputThrust) {
 
     int *degArray_d = GsDBSCAN::algo_utils::copyHostToDevice(degArray, 4, true);
 
-    int *startIdxArray_d = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(degArray_d, 4);
+    int *startIdxArray_d = GsDBSCAN::clustering::constructStartIdxArray(degArray_d, 4);
 
     int *startIdxArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(startIdxArray_d, 4);
 
@@ -131,7 +131,7 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputIntegrationThrust) {
 
     auto degArray_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_DEVICE_MEMORY);
 
-    int *startIdxArray_d = GsDBSCAN::clustering::processQueryVectorDegreeArrayThrust(degArray_d, 4);
+    int *startIdxArray_d = GsDBSCAN::clustering::constructStartIdxArray(degArray_d, 4);
 
     int *startIdxArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(startIdxArray_d, 4);
 

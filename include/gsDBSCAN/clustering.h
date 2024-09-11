@@ -75,12 +75,13 @@ namespace GsDBSCAN::clustering {
         // Somehow if i return .Data() it casts the pointer to an unregistered host pointer, so I'm returning the tensor itself
     }
 
-    inline int *processQueryVectorDegreeArrayThrust(int *degArray_d, int n) {
+    inline int *constructStartIdxArray(int *degArray_d, int n, int initialStartIdx = 0) {
         int *startIdxArray_d = algo_utils::allocateCudaArray<int>(n);
         thrust::device_ptr<int> startIdxArray_thrust(startIdxArray_d);
         thrust::device_ptr<int> degArray_thrust(degArray_d);
         thrust::exclusive_scan(degArray_thrust, degArray_thrust + n,
-                               startIdxArray_thrust); // Somehow this still runs anyhow?
+                               startIdxArray_thrust, initialStartIdx); // Somehow this still runs anyhow?
+
         return startIdxArray_d;
     }
 
@@ -436,7 +437,7 @@ namespace GsDBSCAN::clustering {
 
         auto startStartIdxArray = au::timeNow();
 
-        int *startIdxArray_d = clustering::processQueryVectorDegreeArrayThrust(degArray_d, n);
+        int *startIdxArray_d = clustering::constructStartIdxArray(degArray_d, n);
 
         if (timeIt) times["startIdxArray"] = au::duration(startStartIdxArray, au::timeNow());
 

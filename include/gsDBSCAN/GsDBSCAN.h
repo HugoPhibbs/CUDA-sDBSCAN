@@ -53,6 +53,8 @@ namespace GsDBSCAN {
         int totalTimeStartIdxArray = 0;
         int totalTimeCopyMerge = 0;
 
+        int startIdxArrayInitialValue = 0;
+
         for (int i = 0; i < n; i += miniBatchSize) {
             int endIdx = std::min(i + miniBatchSize, n);
 
@@ -81,7 +83,8 @@ namespace GsDBSCAN {
 
             auto startIdxArrayBatchStart = au::timeNow();
 
-            auto startIdxArrayBatch_d = clustering::processQueryVectorDegreeArrayThrust(degArrayBatch_d, thisN);
+            auto startIdxArrayBatch_d = clustering::constructStartIdxArray(degArrayBatch_d, thisN,
+                                                                           startIdxArrayInitialValue);
 
             cudaDeviceSynchronize();
 
@@ -100,6 +103,9 @@ namespace GsDBSCAN {
             totalTimeAdjList += au::duration(adjacencyListBatchStart, au::timeNow());
 
             auto copyMergeStart = au::timeNow();
+
+            // Set the last element in degArrayBatch_d to startIdxArrayInitialValue
+            startIdxArrayInitialValue = au::valueAtIdxDeviceToHost(degArrayBatch_d, thisN - 1) + au::valueAtIdxDeviceToHost(startIdxArrayBatch_d, thisN - 1);
 
             // Copy Results
             thrust::copy(degArrayBatch_d, degArrayBatch_d + thisN, degVec.begin() + i);
