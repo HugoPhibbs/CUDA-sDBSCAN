@@ -143,13 +143,21 @@ namespace GsDBSCAN {
 
         auto adjacencyListSize = adjacencyListVec.size();
 
+        auto processAdjacencyListStart = au::timeNow();
+
         auto [neighbourhoodMatrix, corePoints] = clustering::processAdjacencyListCpu(adjacencyList_d, degArray_d,
                                                                                      startIdxArray_d, n,
                                                                                      adjacencyListSize, minPts, &times);
 
+        if (timeIt)
+            times["processAdjacencyList"] = au::duration(processAdjacencyListStart, au::timeNow());
+
         auto startFormClusters = au::timeNow();
 
         auto result = clustering::formClustersCPU(neighbourhoodMatrix, corePoints, n);
+
+        if (timeIt)
+            times["formClusters"] = au::duration(startFormClusters, au::timeNow());
 
         return result;
     }

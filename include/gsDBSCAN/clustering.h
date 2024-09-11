@@ -48,9 +48,9 @@ namespace GsDBSCAN::clustering {
      * @return Pointer to the degree array. Since this is intended to be how this is used for later steps
      */
     template<typename T>
-    inline int* constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, const T eps,
-                                                                      matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY,
-                                                                      const std::string &distanceMetric = "L2") {
+    inline int *constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, const T eps,
+                                                    matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY,
+                                                    const std::string &distanceMetric = "L2") {
         /**
          * Yes, I know the below isn't very clean, but MatX is a bit of a pain when it comes to types.
          *
@@ -412,57 +412,6 @@ namespace GsDBSCAN::clustering {
 
         return std::tie(clusterLabels, typeLabels, currCluster);
     }
-
-//    inline std::tuple<thrust::device_vector<int>&, thrust::device_vector<int>&, thrust::device_vector<int>&>
-//    processDistances(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t,
-//                     const float eps, const int minPts, const int clusterBlockSize,
-//                     const std::string &distanceMetric, bool timeIt, nlohmann::ordered_json &times,
-//                     thrust::device_vector<int> *initialAdjacencyList = nullptr,
-//                     thrust::device_vector<int> *initialDegArray = nullptr,
-//                     thrust::device_vector<int> *initialStartIdxArray = nullptr,
-//                     int start_idx = 0) {
-//
-//        auto thisBatchSize = distances.Shape()[0];
-//        auto k = A_t.Shape()[1] / 2;
-//        auto m = B_t.Shape()[1];
-//
-//        auto thisDegArray_t = constructQueryVectorDegreeArrayMatx(distances, eps, matx::MATX_DEVICE_MEMORY,
-//                                                                  distanceMetric);
-//        auto thisDegArray_d = thisDegArray_t.Data();
-//
-//        int *thisStartIdxArray_d = clustering::processQueryVectorDegreeArrayThrust(thisDegArray_d, thisBatchSize);
-//
-//        auto [thisAdjacencyList_d, thisAdjacencyList_size] = clustering::constructAdjacencyList(distances.Data(),
-//                                                                                        thisDegArray_d,
-//                                                                                        thisStartIdxArray_d, A_t.Data(),
-//                                                                                        B_t.Data(), thisBatchSize, k, m,
-//                                                                                        eps,
-//                                                                                        clusterBlockSize,
-//                                                                                        distanceMetric, start_idx);
-//
-//        if (initialAdjacencyList != nullptr && initialDegArray != nullptr && initialStartIdxArray != nullptr) {
-//            auto mergedAdjacencyList = thrust::device_vector<int>(initialAdjacencyList->size() + thisAdjacencyList_size);
-//            thrust::copy(initialAdjacencyList->begin(), initialAdjacencyList->end(), mergedAdjacencyList.begin());
-//            thrust::copy(thisAdjacencyList_d, thisAdjacencyList_d + thisAdjacencyList_size,
-//                         mergedAdjacencyList.begin() + initialAdjacencyList->size());
-//
-//            auto mergedDegArray = thrust::device_vector<int>(initialDegArray->size() + thisBatchSize);
-//            thrust::copy(initialDegArray->begin(), initialDegArray->end(), mergedDegArray.begin());
-//            thrust::copy(thisDegArray_d, thisDegArray_d + thisBatchSize, mergedDegArray.begin() + initialDegArray->size());
-//
-//            auto mergedStartIdxArray = thrust::device_vector<int>(initialStartIdxArray->size() + thisBatchSize);
-//            thrust::copy(initialStartIdxArray->begin(), initialStartIdxArray->end(), mergedStartIdxArray.begin());
-//            thrust::copy(thisStartIdxArray_d, thisStartIdxArray_d + thisBatchSize, mergedStartIdxArray.begin() + initialStartIdxArray->size());
-//
-//            return std::tie(mergedAdjacencyList, mergedDegArray, mergedStartIdxArray);
-//        }
-//
-//        auto adjacencyList = thrust::device_vector<int>(thisAdjacencyList_d, thisAdjacencyList_d + thisAdjacencyList_size);
-//        auto degArray = thrust::device_vector<int>(thisDegArray_d, thisDegArray_d + thisBatchSize);
-//        auto startIdxArray = thrust::device_vector<int>(thisStartIdxArray_d, thisStartIdxArray_d + thisBatchSize);
-//
-//        return std::tie(adjacencyList, degArray, startIdxArray);
-//    }
 
     inline std::tuple<int *, int, int *, int *>
     createClusteringArrays(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t,
