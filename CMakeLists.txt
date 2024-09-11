@@ -65,6 +65,7 @@ set_source_files_properties(
         test/RunUtilsTest.cpp
         include/gsDBSCAN/projections.h
         include/gsDBSCAN/GsDBSCAN.h
+        include/gsDBSCAN/GsDBSCAN_Params.h
         include/gsDBSCAN/projections.h
         include/gsDBSCAN/clustering.h
         include/gsDBSCAN/algo_utils.h
@@ -81,6 +82,7 @@ add_executable(${PROJECT_NAME}
         include/gsDBSCAN/clustering.h
         include/gsDBSCAN/run_utils.h
         include/gsDBSCAN/GsDBSCAN.h
+        include/gsDBSCAN/GsDBSCAN_Params.h
 )
 
 add_executable(run_gs_dbscan_tests

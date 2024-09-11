@@ -13,6 +13,7 @@
 #include "../pch.h"
 #include "algo_utils.h"
 #include "GsDBSCAN.h"
+#include "GsDBSCAN_Params.h"
 
 using json = nlohmann::json;
 
@@ -117,28 +118,20 @@ namespace GsDBSCAN::run_utils {
 
     inline std::tuple<int *, int, nlohmann::ordered_json>
     main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
-                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize, bool clusterOnCpu = false, bool needToNormalize = true) {
+                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize, bool clusterOnCpu = false,
+                bool needToNormalize = true) {
         // TODO write docs
         auto X = loadBinFileToVector<float>(datasetFileName);
         auto X_h = X.data();
 
-        auto [clusterLabels, numClusters, times] = performGsDbscan(
-                X_h,
-                n,
-                d,
-                D,
-                minPts,
-                k,
-                m,
-                eps,
-                alpha,
-                distancesBatchSize,
-                distanceMetric,
-                clusterBlockSize,
-                true,
-                clusterOnCpu,
-                needToNormalize
-        );
+        int fourierEmbedDim = 1024;
+        int sigmaEmbed = 1;
+
+        auto params = GsDBSCAN::GsDBSCAN_Params(n, d, D, minPts, k, m, eps, alpha, distancesBatchSize, distanceMetric,
+                                                clusterBlockSize, true, clusterOnCpu, needToNormalize,
+                                                fourierEmbedDim, sigmaEmbed);
+
+        auto [clusterLabels, numClusters, times] = performGsDbscan(X_h, params);
 
 //        cudaFree(X_d);
 
