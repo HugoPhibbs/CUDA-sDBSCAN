@@ -101,7 +101,8 @@ namespace GsDBSCAN::clustering {
     constructAdjacencyListForQueryVector(const float *distances, int *adjacencyList, const int *startIdxArray,
                                          const int *A, const int *B, const float eps,
                                          const int n,
-                                         const int k, const int m, bool(*pointInCluster)(const float, const float)) {
+                                         const int k, const int m, bool(*pointInCluster)(const float, const float),
+                                         int AStartIdx) {
         // We assume one thread per query vector
 
         // TODO Make sure that the startIdx thing works
@@ -120,7 +121,7 @@ namespace GsDBSCAN::clustering {
             if (pointInCluster(distances[idx * distances_rows + j], eps)) {
                 ACol = j / m;
                 BCol = j % m;
-                BRow = A[idx * 2 * k + ACol];
+                BRow = A[(AStartIdx + idx) * 2 * k + ACol];
                 neighbourhoodVecIdx = B[BRow * m + BCol];
 
                 adjacencyList[curr_idx] = neighbourhoodVecIdx;
@@ -175,7 +176,7 @@ namespace GsDBSCAN::clustering {
     constructAdjacencyList(const float *distances_d, const int *degArray_d, const int *startIdxArray_d, int *A_d,
                            int *B_d, const int n, const int k,
                            const int m, const float eps, int blockSize = 256,
-                           const std::string &distanceMetric = "L2") {
+                           const std::string &distanceMetric = "L2", int AStartNIdx = 0) {
         // Assume the arrays aren't stored in managed memory
         int lastDegree = algo_utils::valueAtIdxDeviceToHost(degArray_d, n - 1);
         int lastStartIdx = algo_utils::valueAtIdxDeviceToHost(startIdxArray_d, n - 1);
@@ -195,7 +196,7 @@ namespace GsDBSCAN::clustering {
                                                                       adjacencyList_d,
                                                                       startIdxArray_d,
                                                                       A_d, B_d, eps, n, k, m,
-                                                                      pointInCluster_h
+                                                                      pointInCluster_h, AStartNIdx
         );
         cudaDeviceSynchronize();
         return std::tie(adjacencyList_d, adjacencyList_size);
@@ -464,13 +465,11 @@ namespace GsDBSCAN::clustering {
 //        return std::tie(adjacencyList, degArray, startIdxArray);
 //    }
 
-    inline std::tuple<int *, int>
-    performClustering(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t,
-                      const float eps, const int minPts, const int clusterBlockSize,
-                      const std::string &distanceMetric, bool timeIt, nlohmann::ordered_json &times,
-                      bool clusterOnCpu = false) {
-
-        auto startClustering = au::timeNow();
+    inline std::tuple<int *, int, int *, int *>
+    createClusteringArrays(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t,
+                           matx::tensor_t<int, 2> &B_t, float eps, int clusterBlockSize,
+                           const std::string &distanceMetric, bool timeIt,
+                           nlohmann::ordered_json &times, int startIdx = 0, int endIdx = -1) {
 
         int n = distances.Shape()[0];
         int k = A_t.Shape()[1] / 2;
@@ -492,13 +491,33 @@ namespace GsDBSCAN::clustering {
 
         auto startAdjacencyList = au::timeNow();
 
-        auto [adjacencyList_d, adjacencyList_size] = clustering::constructAdjacencyList(distances.Data(), degArray_d,
-                                                                                        startIdxArray_d, A_t.Data(),
-                                                                                        B_t.Data(), n, k, m, eps,
-                                                                                        clusterBlockSize,
-                                                                                        distanceMetric);
+        auto [adjacencyList_d, adjacencyListSize] = clustering::constructAdjacencyList(distances.Data(), degArray_d,
+                                                                                       startIdxArray_d, A_t.Data(),
+                                                                                       B_t.Data(), n, k, m, eps,
+                                                                                       clusterBlockSize,
+                                                                                       distanceMetric);
 
         if (timeIt) times["adjacencyList"] = au::duration(startAdjacencyList, au::timeNow());
+
+
+        return std::make_tuple(adjacencyList_d, adjacencyListSize, degArray_d, startIdxArray_d);
+    }
+
+    inline std::tuple<int *, int>
+    performClustering(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t,
+                      const float eps, const int minPts, const int clusterBlockSize,
+                      const std::string &distanceMetric, bool timeIt, nlohmann::ordered_json &times,
+                      bool clusterOnCpu = false) {
+
+        auto startClustering = au::timeNow();
+
+        int n = distances.Shape()[0];
+
+        auto [adjacencyList_d, adjacencyListSize, degArray_d, startIdxArray_d] = createClusteringArrays(distances, A_t,
+                                                                                                        B_t, eps,
+                                                                                                        clusterBlockSize,
+                                                                                                        distanceMetric,
+                                                                                                        timeIt, times);
 
         std::tuple<int *, int> result;
 
@@ -507,7 +526,7 @@ namespace GsDBSCAN::clustering {
 
             auto [neighbourhoodMatrix, corePoints] = processAdjacencyListCpu(adjacencyList_d, degArray_d,
                                                                              startIdxArray_d, n,
-                                                                             adjacencyList_size, minPts, &times);
+                                                                             adjacencyListSize, minPts, &times);
 
             if (timeIt) times["processAdjacencyList"] = au::duration(startProcessAdjacencyList, au::timeNow());
 
