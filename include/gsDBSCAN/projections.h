@@ -148,7 +148,7 @@ namespace GsDBSCAN::projections {
 
 
     inline std::tuple<torch::Tensor, torch::Tensor>
-    constructABMatricesBatch(torch::Tensor &X, GsDBSCAN::GsDBSCAN_Params params) {
+    constructABMatricesBatch(torch::Tensor &X, GsDBSCAN::GsDBSCAN_Params &params) {
 
         int n = X.size(0);
         auto Y = getRandomVectorsMatrix(X.size(1), params.D, params.distanceMetric, params.fourierEmbedDim,
