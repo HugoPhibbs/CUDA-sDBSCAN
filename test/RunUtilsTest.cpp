@@ -4,6 +4,9 @@
 #include "../include/pch.h"
 #include "../include/gsDBSCAN/run_utils.h"
 #include "../include/TestUtils.h"
+#include "../include/gsDBSCAN/GsDBSCAN_Params.h"
+
+#include <iostream>
 
 namespace tu = testUtils;
 
@@ -12,7 +15,7 @@ class RunUtilsTest : public ::testing::Test {
 
 };
 
-class TestReadingImages: public RunUtilsTest {
+class TestReadingImages : public RunUtilsTest {
 
 };
 
@@ -35,45 +38,29 @@ class TestMainHelper : public RunUtilsTest {
 };
 
 TEST_F(TestMainHelper, TestNormally) {
-    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
-            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 5, 50,
-            0.11, 1.2, -1, "COSINE", 256, true);
-}
+    GsDBSCAN::GsDBSCAN_Params params = GsDBSCAN::GsDBSCAN_Params(
+            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin",
+            "",
+            70000,
+            784,
+            1024,
+            50,
+            2,
+            2000,
+            0.11,
+            "COSINE",
+            true,
+            true
+        );
 
-TEST_F(TestMainHelper, TestExactDBSCAN) {
-    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
-            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 1, 70000,
-            0.11, 1.2, -1, "COSINE", 256);
-}
+    params.useBatchDBSCAN=true;
+    params.verbose=true;
 
-TEST_F(TestMainHelper, TestWithCpuClustering) {
-    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
-            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 5, 50,
-            0.11, 1.2, -1, "COSINE", 256, true);
-}
+    std::cout << params.toString() << std::endl;
 
-TEST_F(TestMainHelper, TestCpuClusteringk1m2000) {
-    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
-            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 1, 2000,
-            0.11, 1.2, -1, "COSINE", 256, true);
+    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(params);
 
-    std::cout<< "Num Clusters: "<< numClusters<<std::endl;
-}
-
-TEST_F(TestMainHelper, TestCpuClusteringk50m40) {
-    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
-            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 50, 40,
-            0.11, 1.2, -1, "COSINE", 256, true);
-
-    std::cout<< "Num Clusters: "<< numClusters<<std::endl;
-}
-
-TEST_F(TestMainHelper, TestCpuClusteringMatx) {
-    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
-            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist_images_col_major.bin", 70000, 784, 1024, 50, 5, 50,
-            0.11, 1.2, -1, "COSINE", 256, true, true);
-
-    std::cout<< "Num Clusters: "<< numClusters<<std::endl;
+    std::cout << "Number of clusters: " << numClusters << std::endl;
 }
 
 class TestReadMnist : public RunUtilsTest {

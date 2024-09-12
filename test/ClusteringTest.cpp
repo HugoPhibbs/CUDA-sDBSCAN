@@ -56,7 +56,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestSmallInputMatX) {
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 5}, matx::MATX_MANAGED_MEMORY);
 
-    auto degArray_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_MANAGED_MEMORY);
+    auto degArray_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, "L2", matx::MATX_MANAGED_MEMORY);
 
     int expectedData[] = {3, 5, 2, 2};
 
@@ -77,7 +77,7 @@ TEST_F(TestConstructQueryVectorDegreeArray, TestMnistAgainstPython) {
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {n, numCandidates}, matx::MATX_MANAGED_MEMORY);
 
-    auto degArray_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, eps, matx::MATX_MANAGED_MEMORY, "COSINE");
+    auto degArray_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, eps, "COSINE", matx::MATX_MANAGED_MEMORY);
 
     auto degArray_h = GsDBSCAN::algo_utils::copyDeviceToHost(degArray_d, n);
 
@@ -129,7 +129,7 @@ TEST_F(TestProcessQueryVectorDegreeArray, TestSmallInputIntegrationThrust) {
 
     matx::tensor_t<float, 2> distances_t = matx::make_tensor<float>(distancesData_d, {4, 4}, matx::MATX_DEVICE_MEMORY);
 
-    auto degArray_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, matx::MATX_DEVICE_MEMORY);
+    auto degArray_d = GsDBSCAN::clustering::constructQueryVectorDegreeArrayMatx<float>(distances_t, 2.1, "L2", matx::MATX_DEVICE_MEMORY);
 
     int *startIdxArray_d = GsDBSCAN::clustering::constructStartIdxArray(degArray_d, 4);
 
@@ -219,7 +219,7 @@ TEST_F(TestCreatingAdjacencyList, TestSmallInputCase2) {
     int m = 3;
     float eps = std::sqrt(5.1);
 
-    auto [adjacencyList_d, adjacencyList_size] = GsDBSCAN::clustering::constructAdjacencyList(distances_d, degArray_d, startIdxArray_d, A_d, B_d, n, k, m, eps);
+    auto [adjacencyList_d, adjacencyList_size] = GsDBSCAN::clustering::constructAdjacencyList(distances_d, degArray_d, startIdxArray_d, A_d, B_d, n, k, m, eps, 128, "L2");
 
     auto adjacencyList_h = GsDBSCAN::algo_utils::copyDeviceToHost(adjacencyList_d, adjacencyList_size);
 
@@ -293,7 +293,7 @@ TEST_F(TestCreatingAdjacencyList, TestSmallInputCase2WithBatching) {
     int m = 3;
     float eps = std::sqrt(5.1);
 
-    auto [adjacencyList_d, adjacencyList_size] = GsDBSCAN::clustering::constructAdjacencyList(distances_d, degArray_d, startIdxArray_d, A_d, B_d, n, k, m, eps);
+    auto [adjacencyList_d, adjacencyList_size] = GsDBSCAN::clustering::constructAdjacencyList(distances_d, degArray_d, startIdxArray_d, A_d, B_d, n, k, m, eps, 128, "L2");
 
     auto adjacencyList_h = GsDBSCAN::algo_utils::copyDeviceToHost(adjacencyList_d, adjacencyList_size);
 
@@ -346,7 +346,7 @@ TEST_F(TestFormingClusters, TestSmallInput) {
 
     auto start = tu::timeNow();
 
-    auto [clusterLabels_h, typeLabels_h, numClusters] = GsDBSCAN::clustering::formClusters(adjacencyList_d, degArray_d, startIdxArray_d, n, minPts);
+    auto [clusterLabels_h, typeLabels_h, numClusters] = GsDBSCAN::clustering::formClusters(adjacencyList_d, degArray_d, startIdxArray_d, n, minPts, 256);
 
     tu::printDurationSinceStart(start);
 

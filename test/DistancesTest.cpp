@@ -96,7 +96,7 @@ TEST_F(TestFindingDistances,TestSmallInputTorch) {
     auto A_torch = GsDBSCAN::algo_utils::torchTensorFromDeviceArray<int, torch::kInt32>(A_d, 5, 2);
     auto B_torch = GsDBSCAN::algo_utils::torchTensorFromDeviceArray<int, torch::kInt32>(B_d, 10, 3);
 
-    auto distances = GsDBSCAN::distances::findDistancesTorch(X_torch, A_torch, B_torch);
+    auto distances = GsDBSCAN::distances::findDistancesTorch(X_torch, A_torch, B_torch, 1.2, -1, "L2");
 
     cudaDeviceSynchronize();
 
