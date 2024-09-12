@@ -172,6 +172,10 @@ namespace GsDBSCAN {
         auto X_d_col_major = au::copyHostToDevice(X, params.n * params.d);
         auto X_d_row_major = au::colMajorToRowMajorMat(X_d_col_major, params.n, params.d);
 
+        cudaDeviceSynchronize();
+
+        cudaFree(X_d_col_major);
+
         if (params.timeIt)
             times["copyingAndConvertData"] = au::duration(startCopyingToDevice, au::timeNow());
 
@@ -206,6 +210,10 @@ namespace GsDBSCAN {
 
         if (params.timeIt)
             times["overall"] = au::duration(startOverAll, au::timeNow());
+
+        cudaDeviceSynchronize();
+
+        cudaFree(X_d_row_major);
 
         return std::tie(clusterLabels, numClusters, times);
     }
