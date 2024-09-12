@@ -16,28 +16,15 @@ int main(int argc, char *argv[]) {
         return 1; // No arguments
     }
 
-    auto args = GsDBSCAN::run_utils::parseArgs(argc, argv);
+    std::cout << "Running GsDBSCAN-CPP" << std::endl;
 
-    std::cout << "Args: " << args.dump(4) << std::endl;
+    auto params = GsDBSCAN::parseArgs(argc, argv);
 
-    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(
-            args["datasetFilename"],
-            args["n"],
-            args["d"],
-            args["D"],
-            args["minPts"],
-            args["k"],
-            args["m"],
-            args["eps"],
-            args["alpha"],
-            args["distancesBatchSize"],
-            args["distanceMetric"],
-            args["clusterBlockSize"],
-            args["clusterOnCpu"],
-            args["needToNormalize"]
-    );
+    std::cout << "Params: " << params.toString() << std::endl;
 
-    GsDBSCAN::run_utils::writeResults(args, times, clusterLabels, numClusters);
+    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(params);
+
+    GsDBSCAN::run_utils::writeResults(params, times, clusterLabels, numClusters);
 
     std::cout << "Times: " << times.dump(4) << std::endl;
     std::cout << "NumClusters: " << numClusters << std::endl;
