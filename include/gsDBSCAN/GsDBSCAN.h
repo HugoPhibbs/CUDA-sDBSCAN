@@ -55,11 +55,15 @@ namespace GsDBSCAN {
             auto distancesBatch = distances::findDistancesTorch(X, A, B, params.alpha, params.distancesBatchSize, params.distanceMetric, i,
                                                                 endIdx);
 
+//            std::cout << distancesBatch.index({torch::indexing::Slice(0, 20), torch::indexing::Slice(0, 20)}) << std::endl;
+
             cudaDeviceSynchronize();
 
             totalTimeDistances += au::duration(distanceBatchStart, au::timeNow());
 
             auto thisN = distancesBatch.size(0);
+
+            std::cout << "N: " << thisN << std::endl;
 
             auto distancesBatchMatx = au::torchTensorToMatX<float>(distancesBatch);
 
@@ -77,8 +81,7 @@ namespace GsDBSCAN {
 
             // TODO fix me - does this start idx account for the previous batch?
 
-            auto startIdxArrayBatch_d = clustering::constructStartIdxArray(degArrayBatch_d, thisN,
-                                                                           startIdxArrayInitialValue);
+            auto startIdxArrayBatch_d = clustering::constructStartIdxArray(degArrayBatch_d, thisN);
 
             cudaDeviceSynchronize();
 
@@ -92,19 +95,28 @@ namespace GsDBSCAN {
                     B_matx.Data(), thisN, k, m, params.eps,
                     params.clusterBlockSize, params.distanceMetric, i);
 
+            std::cout << "st: " << startIdxArrayInitialValue << std::endl;
+            std::cout << "this adj list batch size" << adjacencyListBatchSize << std::endl;
+            std::cout << "Current adj list size" << currAdjacencyListSize << std::endl;
+
             cudaDeviceSynchronize();
 
             totalTimeAdjList += au::duration(adjacencyListBatchStart, au::timeNow());
 
             auto copyMergeStart = au::timeNow();
 
-            // Set the last element in degArrayBatch_d to startIdxArrayInitialValue
-            startIdxArrayInitialValue = au::valueAtIdxDeviceToHost(degArrayBatch_d, thisN - 1) + au::valueAtIdxDeviceToHost(startIdxArrayBatch_d, thisN - 1);
-
             // Copy Results
+            // For degArray simply copy
             thrust::copy(degArrayBatch_d, degArrayBatch_d + thisN, degVec.begin() + i);
+
+            // For startIdx, need to account for the current start idx
+            thrust::device_ptr<int> startIdxArray_thrustPtr(startIdxArrayBatch_d);
+            thrust::transform(startIdxArray_thrustPtr, startIdxArray_thrustPtr+thisN, startIdxArray_thrustPtr,
+                              [startIdxArrayInitialValue] __device__ (float x) { return x + startIdxArrayInitialValue;}
+                              );
             thrust::copy(startIdxArrayBatch_d, startIdxArrayBatch_d + thisN, startIdxVec.begin() + i);
 
+            // For adj list, need to resize the vec, and add the results to the end
             adjacencyListVec.resize(currAdjacencyListSize + adjacencyListBatchSize);
             thrust::copy(adjacencyListBatch_d, adjacencyListBatch_d + adjacencyListBatchSize,
                          adjacencyListVec.begin() + currAdjacencyListSize);
@@ -112,7 +124,16 @@ namespace GsDBSCAN {
 
             cudaDeviceSynchronize();
 
+
+            // Set the last element in degArrayBatch_d to startIdxArrayInitialValue
+            startIdxArrayInitialValue = currAdjacencyListSize;
+
             totalTimeCopyMerge += au::duration(copyMergeStart, au::timeNow());
+
+            // Free memory
+            cudaFree(degArrayBatch_d);
+            cudaFree(startIdxArrayBatch_d);
+            cudaFree(adjacencyListBatch_d); // TODO do i also need to remove the distances array?
         }
 
         cudaDeviceSynchronize();
@@ -187,9 +208,9 @@ namespace GsDBSCAN {
 
         auto X_torch = au::torchTensorFromDeviceArray<float, torch::kFloat32>(X_d_row_major, params.n, params.d);
 
-        auto [projections_torch, X_torch_norm] = projections::normaliseAndProjectTorch(X_torch, params.D, params.needToNormalise,
-                                                                                       params.distanceMetric, params.fourierEmbedDim,
-                                                                                       params.sigmaEmbed);
+//        auto [projections_torch, X_torch_norm] = projections::normaliseAndProjectTorch(X_torch, params.D, params.needToNormalise,
+//                                                                                       params.distanceMetric, params.fourierEmbedDim,
+//                                                                                       params.sigmaEmbed);
 
         if (params.timeIt)
             times["projectionsAndNormalize"] = au::duration(startProjections, au::timeNow());
@@ -212,8 +233,8 @@ namespace GsDBSCAN {
 
         auto startDistances = au::timeNow();
 
-        auto distances_torch = distances::findDistancesTorch(X_torch, A_torch, B_torch, params.alpha, params.distancesBatchSize,
-                                                             params.distanceMetric);
+//        auto distances_torch = distances::findDistancesTorch(X_torch, A_torch, B_torch, params.alpha, params.distancesBatchSize,
+//                                                             params.distanceMetric);
 
         cudaDeviceSynchronize();
 
@@ -221,17 +242,17 @@ namespace GsDBSCAN {
 
         auto timeMatXToTorch = au::timeNow();
 
-        auto distances_matx = au::torchTensorToMatX<float>(distances_torch);
-        auto A_matx = au::torchTensorToMatX<int>(A_torch);
-        auto B_matx = au::torchTensorToMatX<int>(B_torch);
+//        auto distances_matx = au::torchTensorToMatX<float>(distances_torch);
+//        auto A_matx = au::torchTensorToMatX<int>(A_torch);
+//        auto B_matx = au::torchTensorToMatX<int>(B_torch);
 
         if (params.timeIt) times["matXToTorch"] = au::duration(timeMatXToTorch, au::timeNow());
 
-        auto [clusterLabels, numClusters] = clustering::performClustering(distances_matx, A_matx, B_matx, params.eps, params.minPts,
-                                                                          params.clusterBlockSize, params.distanceMetric, params.timeIt,
-                                                                          times, params.clusterOnCpu);
+//        auto [clusterLabels, numClusters] = clustering::performClustering(distances_matx, A_matx, B_matx, params.eps, params.minPts,
+//                                                                          params.clusterBlockSize, params.distanceMetric, params.timeIt,
+//                                                                          times, params.clusterOnCpu);
 
-//        auto [clusterLabels, numClusters] = performClusteringBatch(X_torch, A_torch, B_torch, times, params);
+        auto [clusterLabels, numClusters] = performClusteringBatch(X_torch, A_torch, B_torch, times, params);
 
         if (params.timeIt)
             times["overall"] = au::duration(startOverAll, au::timeNow());
