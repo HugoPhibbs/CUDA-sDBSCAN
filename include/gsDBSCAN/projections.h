@@ -111,9 +111,8 @@ namespace GsDBSCAN::projections {
     }
 
     inline std::tuple<torch::Tensor, torch::Tensor>
-    normaliseAndProjectTorch(torch::Tensor &X, int D, bool needToNormalize = true,
-                             const std::string &distanceMetric = "L2", int fourierEmbedDim = 1024,
-                             float sigmaEmbed = 1, opt <torch::Tensor> Y = std::nullopt) {
+    projectTorch(torch::Tensor &X, int D, const std::string &distanceMetric = "L2", int fourierEmbedDim = 1024,
+                 float sigmaEmbed = 1, opt <torch::Tensor> Y = std::nullopt) {
         int d = X.size(1);
         torch::Tensor projections;
 
@@ -138,10 +137,6 @@ namespace GsDBSCAN::projections {
             projections = torch::matmul(XEmbed.t(), Y.value());
 
         } else if (distanceMetric == "COSINE") {
-            if (needToNormalize) {
-                X = normaliseDatasetTorch(X);
-            }
-
             projections = torch::matmul(X, Y.value());
 
         } else {
@@ -153,32 +148,35 @@ namespace GsDBSCAN::projections {
 
 
     inline std::tuple<torch::Tensor, torch::Tensor>
-    constructABMatricesBatch(torch::Tensor X, GsDBSCAN::GsDBSCAN_Params params) {
+    constructABMatricesBatch(torch::Tensor &X, GsDBSCAN::GsDBSCAN_Params params) {
 
         int n = X.size(0);
-        auto Y = getRandomVectorsMatrix(X.size(1), params.D, params.distanceMetric, params.fourierEmbedDim, params.sigmaEmbed);
+        auto Y = getRandomVectorsMatrix(X.size(1), params.D, params.distanceMetric, params.fourierEmbedDim,
+                                        params.sigmaEmbed);
 
         // Construct A matrix
-        torch::Tensor A = torch::empty({n, 2 * params.k}, torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA));
+        torch::Tensor A = torch::empty({n, 2 * params.k},
+                                       torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA));
 
         for (int i = 0; i < n; i += params.ABatchSize) {
             auto thisX = X.slice(0, i, std::min(i + params.ABatchSize, n));
-            auto [thisProjections, _] = normaliseAndProjectTorch(thisX, params.D, params.needToNormalise, params.distanceMetric,
-                                                                 params.fourierEmbedDim,
-                                                                 params.sigmaEmbed, Y);
+            auto [thisProjections, _] = projectTorch(thisX, params.D, params.distanceMetric,
+                                                     params.fourierEmbedDim,
+                                                     params.sigmaEmbed, Y);
 
             constructAMatrix(thisProjections, params.k, getSortDescending(params.distanceMetric), A, i);
         }
 
         // Construct B matrix
-        torch::Tensor B = torch::empty({2 * params.D, params.m}, torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA));
+        torch::Tensor B = torch::empty({2 * params.D, params.m},
+                                       torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA));
 
         for (int j = 0; j < params.D; j += params.BBatchSize) {
             auto thisY = Y.slice(1, j, std::min(j + params.BBatchSize, params.D));
 
-            auto [thisProjections, _] = normaliseAndProjectTorch(X, params.D, params.needToNormalise, params.distanceMetric,
-                                                                 params.fourierEmbedDim,
-                                                                 params.sigmaEmbed, thisY);
+            auto [thisProjections, _] = projectTorch(X, params.D, params.distanceMetric,
+                                                     params.fourierEmbedDim,
+                                                     params.sigmaEmbed, thisY);
 
             constructBMatrix(thisProjections, params.m, getSortDescending(params.distanceMetric), B, j);
         }
