@@ -12,5 +12,7 @@
 #include <gtest/gtest.h>
 #include <matx.h>
 #include "cuda_runtime.h"
+#include <omp.h>
+#include <thrust/random.h>
 
 #endif //SDBSCAN_PCH_H
