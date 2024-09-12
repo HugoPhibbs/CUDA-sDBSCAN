@@ -26,13 +26,9 @@ namespace GsDBSCAN {
 
     inline std::tuple<thrustDVec<int>, thrustDVec<int>, thrustDVec<int>>
     batchCreateClusteringVecs(torch::Tensor X, torch::Tensor A, torch::Tensor B, nlohmann::ordered_json &times, GsDBSCAN_Params params)  {
-        int n = X.size(0);
-        int k = A.size(1) / 2;
-        int m = B.size(1);
-
         thrustDVec<int> adjacencyListVec(0);
-        thrustDVec<int> degVec(n);
-        thrustDVec<int> startIdxVec(n);
+        thrustDVec<int> degVec(params.n);
+        thrustDVec<int> startIdxVec(params.n);
 
         auto A_matx = au::torchTensorToMatX<int>(A);
         auto B_matx = au::torchTensorToMatX<int>(B);
@@ -47,15 +43,17 @@ namespace GsDBSCAN {
 
         int startIdxArrayInitialValue = 0;
 
-        for (int i = 0; i < n; i += params.miniBatchSize) {
-            int endIdx = std::min(i + params.miniBatchSize, n);
+        for (int i = 0; i < params.n; i += params.miniBatchSize) {
+            int endIdx = std::min(i + params.miniBatchSize, params.n);
+
+            /*
+             * Get the batch distances
+             */
 
             auto distanceBatchStart = au::timeNow();
 
             auto distancesBatch = distances::findDistancesTorch(X, A, B, params.alpha, params.distancesBatchSize, params.distanceMetric, i,
                                                                 endIdx);
-
-            std::cout << distancesBatch.index({torch::indexing::Slice(0, 20), torch::indexing::Slice(0, 20)}) << std::endl;
 
             cudaDeviceSynchronize();
 
@@ -63,49 +61,26 @@ namespace GsDBSCAN {
 
             auto thisN = distancesBatch.size(0);
 
-            std::cout << "N: " << thisN << std::endl;
-
             auto distancesBatchMatx = au::torchTensorToMatX<float>(distancesBatch);
 
-            auto degArrayBatchStart = au::timeNow();
+            /*
+             * Get the clustering arrays
+             */
 
-            auto degArrayBatch_d = clustering::constructQueryVectorDegreeArrayMatx(distancesBatchMatx, params.eps,
-                                                                                   matx::MATX_DEVICE_MEMORY,
-                                                                                   params.distanceMetric);
-
-            cudaDeviceSynchronize();
-
-            totalTimeDegArray += au::duration(degArrayBatchStart, au::timeNow());
-
-            auto startIdxArrayBatchStart = au::timeNow();
-
-            // TODO fix me - does this start idx account for the previous batch?
-
-            auto startIdxArrayBatch_d = clustering::constructStartIdxArray(degArrayBatch_d, thisN);
-
-            cudaDeviceSynchronize();
-
-            totalTimeStartIdxArray += au::duration(startIdxArrayBatchStart, au::timeNow());
-
-            auto adjacencyListBatchStart = au::timeNow();
-
-            auto [adjacencyListBatch_d, adjacencyListBatchSize] = clustering::constructAdjacencyList(
-                    distancesBatchMatx.Data(), degArrayBatch_d,
-                    startIdxArrayBatch_d, A_matx.Data(),
-                    B_matx.Data(), thisN, k, m, params.eps,
-                    params.clusterBlockSize, params.distanceMetric, i);
-
-            std::cout << "st: " << startIdxArrayInitialValue << std::endl;
-            std::cout << "this adj list batch size" << adjacencyListBatchSize << std::endl;
-            std::cout << "Current adj list size" << currAdjacencyListSize << std::endl;
-
-            cudaDeviceSynchronize();
-
-            totalTimeAdjList += au::duration(adjacencyListBatchStart, au::timeNow());
+            auto [adjacencyListBatch_d,
+                  adjacencyListBatchSize,
+                  degArrayBatch_d,
+                  startIdxArrayBatch_d
+              ] = clustering::createClusteringArrays(distancesBatchMatx, A_matx, B_matx,
+                                                     params.eps, params.clusterBlockSize, params.distanceMetric,
+                                                     times, i);
 
             auto copyMergeStart = au::timeNow();
 
-            // Copy Results
+            /*
+             * Copy Results
+             */
+
             // For degArray simply copy
             thrust::copy(degArrayBatch_d, degArrayBatch_d + thisN, degVec.begin() + i);
 
@@ -124,7 +99,6 @@ namespace GsDBSCAN {
 
             cudaDeviceSynchronize();
 
-
             // Set the last element in degArrayBatch_d to startIdxArrayInitialValue
             startIdxArrayInitialValue = currAdjacencyListSize;
 
@@ -139,9 +113,6 @@ namespace GsDBSCAN {
         cudaDeviceSynchronize();
 
         times["totalTimeDistances"] = totalTimeDistances;
-        times["totalTimeDegArray"] = totalTimeDegArray;
-        times["totalTimeStartIdxArray"] = totalTimeStartIdxArray;
-        times["totalTimeAdjList"] = totalTimeAdjList;
         times["totalTimeCopyMerge"] = totalTimeCopyMerge;
 
         return std::make_tuple(adjacencyListVec, degVec, startIdxVec);

@@ -417,40 +417,44 @@ namespace GsDBSCAN::clustering {
     inline std::tuple<int *, int, int *, int *>
     createClusteringArrays(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t,
                            matx::tensor_t<int, 2> &B_t, float eps, int clusterBlockSize,
-                           const std::string &distanceMetric, bool timeIt,
-                           nlohmann::ordered_json &times, int startIdx = 0) {
+                           const std::string &distanceMetric, nlohmann::ordered_json times, int startIdx = 0) {
 
-        int n = distances.Shape()[0];
+        int thisN = distances.Shape()[0]; // thisN as distances can be processed in batches - don't use A.shape(0)
         int k = A_t.Shape()[1] / 2;
         int m = B_t.Shape()[1];
 
-        auto startDegArray = au::timeNow(); // TODO fix this timing code
+        // Deg array
+        auto degArrayStart = au::timeNow();
 
-        auto degArray_d = clustering::constructQueryVectorDegreeArrayMatx(distances, eps, matx::MATX_DEVICE_MEMORY,
-                                                                          distanceMetric);
+        auto degArray_d = clustering::constructQueryVectorDegreeArrayMatx(distances, eps,
+                                                                               matx::MATX_DEVICE_MEMORY,
+                                                                               distanceMetric);
 
-        // Bug: The deg array goes out of scope, so the attached array is destroyed
+        auto degArrayDuration = au::durationSinceStart(degArrayStart);
 
-//        matx::print(matx::slice(degArray_t, {0}, {100}));
+        // Start Idx array
+        auto startIdxArrayStart = au::timeNow();
 
-        if (timeIt) times["degArray"] = au::duration(startDegArray, au::timeNow());
+        auto startIdxArray_d = clustering::constructStartIdxArray(degArray_d, thisN);
 
-        auto startStartIdxArray = au::timeNow();
+        auto startIdxArrayDuration = au::durationSinceStart(startIdxArrayStart);
 
-        int *startIdxArray_d = clustering::constructStartIdxArray(degArray_d, n);
+        // Adj list
 
-        if (timeIt) times["startIdxArray"] = au::duration(startStartIdxArray, au::timeNow());
+        auto adjListStart = au::timeNow();
 
-        auto startAdjacencyList = au::timeNow();
+        auto [adjacencyList_d, adjacencyListSize] = clustering::constructAdjacencyList(
+                distances.Data(), degArray_d,
+                startIdxArray_d, A_t.Data(),
+                B_t.Data(), thisN, k, m, eps,
+                clusterBlockSize, distanceMetric, startIdx);
 
-        auto [adjacencyList_d, adjacencyListSize] = clustering::constructAdjacencyList(distances.Data(), degArray_d,
-                                                                                       startIdxArray_d, A_t.Data(),
-                                                                                       B_t.Data(), n, k, m, eps,
-                                                                                       clusterBlockSize,
-                                                                                       distanceMetric, startIdx);
+        auto adjListDuration = au::durationSinceStart(adjListStart);
 
-        if (timeIt) times["adjacencyList"] = au::duration(startAdjacencyList, au::timeNow());
-
+        // Set times, allows for batching by accommodating for existing times
+        times.contains("degArray") ? times["degArray"] += degArrayDuration : times["degArray"] = degArrayDuration;
+        times.contains("startIdxArray") ? times["startIdxArray"] += startIdxArrayDuration : times["startIdxArray"] = startIdxArrayDuration;
+        times.contains("adjList") ? times["adjList"] += adjListDuration : times["adjList"] = adjListDuration;
 
         return std::make_tuple(adjacencyList_d, adjacencyListSize, degArray_d, startIdxArray_d);
     }

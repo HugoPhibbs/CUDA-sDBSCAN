@@ -28,6 +28,10 @@ namespace GsDBSCAN::algo_utils {
         return std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
     }
 
+    inline int durationSinceStart(Time start) {
+        return duration(start, timeNow());
+    }
+
     inline void printStackTrace() {
         void *array[10];
         size_t size;
