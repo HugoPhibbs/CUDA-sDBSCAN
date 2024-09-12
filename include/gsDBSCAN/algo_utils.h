@@ -52,6 +52,29 @@ namespace GsDBSCAN::algo_utils {
         throw std::runtime_error(msg + ": " + std::string(cudaGetErrorString(err)));
     }
 
+    inline void printCUDAMemoryUsage() {
+        // Variables to store free and total memory
+        size_t free_mem = 0;
+        size_t total_mem = 0;
+
+        // Get free and total memory on the current device
+        cudaError_t err = cudaMemGetInfo(&free_mem, &total_mem);
+
+        // Check for errors
+        if (err != cudaSuccess) {
+            std::cerr << "Error retrieving CUDA memory info: " << cudaGetErrorString(err) << std::endl;
+            return;
+        }
+
+        // Print memory usage details
+        std::cout << "CUDA Memory Usage: " << std::endl;
+        std::cout << "Total Memory: " << total_mem / (1024 * 1024) << " MB" << std::endl;
+        std::cout << "Free Memory: " << free_mem / (1024 * 1024) << " MB" << std::endl;
+        std::cout << "Used Memory: " << (total_mem - free_mem) / (1024 * 1024) << " MB" << std::endl;
+        std::cout << "\n" << std::endl;
+    }
+
+
     template<typename T>
     inline T *copyHostToDevice(T *hostData, const size_t numElements, bool managedMemory = false) {
         T *deviceArray;
