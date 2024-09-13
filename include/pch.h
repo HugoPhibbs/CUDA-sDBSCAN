@@ -14,5 +14,6 @@
 #include "cuda_runtime.h"
 #include <omp.h>
 #include <thrust/random.h>
+#include <boost/dynamic_bitset.hpp>
 
 #endif //SDBSCAN_PCH_H

@@ -6,13 +6,10 @@
 #define SDBSCAN_CLUSTERING_H
 
 #include <unordered_set>
-#include <boost/dynamic_bitset.hpp>
 #include <vector>
-#include <omp.h>
 #include <tuple>
 #include <unordered_set>
-#include <boost/dynamic_bitset.hpp>
-//#include <execution>
+#include "cuda_runtime.h"
 #include "algo_utils.h"
 #include <thrust/device_vector.h>
 #include <thrust/device_ptr.h>
@@ -480,7 +477,7 @@ namespace GsDBSCAN::clustering {
                                                                                                         B_t, eps,
                                                                                                         clusterBlockSize,
                                                                                                         distanceMetric,
-                                                                                                        times, times);
+                                                                                                        times, timeIt);
 
         std::tuple<int *, int> result;
 
