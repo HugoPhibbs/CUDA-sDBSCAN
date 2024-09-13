@@ -74,7 +74,7 @@ namespace GsDBSCAN {
                   startIdxArrayBatch_d
               ] = clustering::createClusteringArrays(distancesBatchMatx, A_matx, B_matx,
                                                      params.eps, params.clusterBlockSize, params.distanceMetric,
-                                                     times, i);
+                                                     times, params.timeIt, i);
 
             auto copyMergeStart = au::timeNow();
 
