@@ -126,7 +126,7 @@ namespace GsDBSCAN::projections {
 
             if (distanceMetric == "L1") {
                 auto uniform = torch::rand({fourierEmbedDim, d}, torch::TensorOptions().device(X.device()));
-                W = ((1 / 2) * (std * std)) * torch::tan(M_PI * (uniform - 0.5)); // Cauchy ~ Laplace
+                W = ((1 / 2) * (std * std)) * torch::tan(M_PI * (uniform - 0.5)); // Cauchy
             } else { // L2
                 W = std * torch::randn({fourierEmbedDim, d}, torch::TensorOptions().device(X.device())); // Gaussian
             }
