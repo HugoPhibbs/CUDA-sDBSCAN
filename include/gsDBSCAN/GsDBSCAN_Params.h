@@ -30,7 +30,8 @@ namespace GsDBSCAN {
     inline float SIGMA_EMBED_DEFAULT = 1;
 
     inline bool VERBOSE_DEFAULT = false;
-    inline bool USE_BATCH_DBSCAN_DEFAULT = false;
+    inline bool USE_BATCH_CLUSTERING_DEFAULT = false;
+    inline bool USE_BATCH_AB_MATRICES_DEFAULT = false;
 
     class GsDBSCAN_Params {
     private:
@@ -66,7 +67,8 @@ namespace GsDBSCAN {
         int BBatchSize;
         int miniBatchSize;
         bool verbose;
-        bool useBatchDBSCAN;
+        bool useBatchClustering;
+        bool useBatchABMatrices;
 
 
         GsDBSCAN_Params(std::string dataFilename, std::string outputFilename, int n, int d, int D, int minPts, int k,
@@ -81,7 +83,7 @@ namespace GsDBSCAN {
                         int ABatchSize = A_BATCH_SIZE_DEFAULT,
                         int BBatchSize = B_BATCH_SIZE_DEFAULT, int miniBatchSize = MINI_BATCH_SIZE_DEFAULT,
                         bool verbose = VERBOSE_DEFAULT,
-                        bool useBatchDBSCAN = USE_BATCH_DBSCAN_DEFAULT) {
+                        bool useBatchClustering = USE_BATCH_CLUSTERING_DEFAULT, bool useBatchABMatrices=USE_BATCH_AB_MATRICES_DEFAULT) {
 
             this->dataFilename = dataFilename;
             this->outputFilename = outputFilename;
@@ -105,7 +107,8 @@ namespace GsDBSCAN {
             this->BBatchSize = BBatchSize;
             this->miniBatchSize = miniBatchSize;
             this->verbose = verbose;
-            this->useBatchDBSCAN = useBatchDBSCAN;
+            this->useBatchClustering = useBatchClustering;
+            this->useBatchABMatrices = useBatchABMatrices;
         }
 
         inline std::string toString() const {
@@ -135,7 +138,8 @@ namespace GsDBSCAN {
             oss << "B Batch Size: " << BBatchSize << "\n";
             oss << "Mini Batch Size: " << miniBatchSize << "\n";
             oss << "Verbose: " << (verbose ? "true" : "false") << "\n";
-            oss << "Use Batch DBSCAN: " << (useBatchDBSCAN ? "true" : "false") << "\n";
+            oss << "Use Batch Clustering: " << (useBatchClustering ? "true" : "false") << "\n";
+            oss << "Use batch creation of A, B matrices" << (useBatchABMatrices ? "true" : "false") << "\n";
 
             return oss.str();
         }
@@ -222,8 +226,13 @@ namespace GsDBSCAN {
                 .default_value(VERBOSE_DEFAULT)
                 .implicit_value(true);
 
-        parser.add_argument("--useBatchDBSCAN", "-ubd")
-                .help("Whether to use the batch DBSCAN implementation")
+        parser.add_argument("--useBatchClustering", "-ubd")
+                .help("Whether to use the batch clustering DBSCAN implementation")
+                .default_value(false)
+                .implicit_value(true);
+
+        parser.add_argument("--useBatchABMatrices", "-ubd")
+                .help("Whether to use the batch creation of the AB matrices (unimplemented)")
                 .default_value(false)
                 .implicit_value(true);
 
@@ -265,7 +274,8 @@ namespace GsDBSCAN {
                     parser.get<int>("--BBatchSize"),
                     parser.get<int>("--miniBatchSize"),
                     parser.get<bool>("--verbose"),
-                    parser.get<bool>("--useBatchDBSCAN")
+                    parser.get<bool>("--useBatchClustering"),
+                    parser.get<bool>("--useBatchABMatrices")
             );
         } catch (const std::bad_cast &e) {
             std::cerr << "Error: Invalid type in argument conversion. " << e.what() << std::endl;

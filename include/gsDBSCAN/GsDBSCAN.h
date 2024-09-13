@@ -52,7 +52,9 @@ namespace GsDBSCAN {
             auto distancesBatch = distances::findDistancesTorch(X, A, B, params.alpha, params.distancesBatchSize, params.distanceMetric, i,
                                                                 endIdx);
 
-            std::cout<<"Distances Batch: "<< distancesBatch.index({torch::indexing::Slice(0, 10), torch::indexing::Slice(0, 10)})<<std::endl;
+            std::cout<< "Distances mean: " << torch::mean(distancesBatch, 1).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout<<"Distances Batch: "<< distancesBatch.index({torch::indexing::Slice(0, 50), torch::indexing::Slice(0, 50)})<<std::endl;
 
             cudaDeviceSynchronize();
 
@@ -199,7 +201,7 @@ namespace GsDBSCAN {
         int numClusters = -1;
 
         // AB matrices
-        if (params.useBatchDBSCAN) {
+        if (params.useBatchClustering) {
             auto startABMatrices = au::timeNow();
 
             auto [A_torch, B_torch] = projections::constructABMatricesBatch(X_torch, params);

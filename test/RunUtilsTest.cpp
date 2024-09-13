@@ -53,7 +53,7 @@ TEST_F(TestMainHelper, TestNormally) {
             true
         );
 
-    params.useBatchDBSCAN=true;
+    params.useBatchClustering=false;
     params.verbose=true;
 
     std::cout << params.toString() << std::endl;
