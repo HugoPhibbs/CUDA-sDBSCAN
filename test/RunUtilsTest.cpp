@@ -61,6 +61,7 @@ TEST_F(TestMainHelper, TestNormally) {
     auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(params);
 
     std::cout << "Number of clusters: " << numClusters << std::endl;
+
 }
 
 class TestReadMnist : public RunUtilsTest {
