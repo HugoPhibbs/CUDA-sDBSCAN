@@ -6,13 +6,10 @@
 #define SDBSCAN_CLUSTERING_H
 
 #include <unordered_set>
-#include <boost/dynamic_bitset.hpp>
 #include <vector>
-#include <omp.h>
 #include <tuple>
 #include <unordered_set>
-#include <boost/dynamic_bitset.hpp>
-//#include <execution>
+#include "cuda_runtime.h"
 #include "algo_utils.h"
 #include <thrust/device_vector.h>
 #include <thrust/device_ptr.h>
@@ -49,8 +46,9 @@ namespace GsDBSCAN::clustering {
      */
     template<typename T>
     inline int *constructQueryVectorDegreeArrayMatx(matx::tensor_t<T, 2> &distances, const T eps,
-                                                    matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY,
-                                                    const std::string &distanceMetric = "L2") {
+                                                    const std::string &distanceMetric,
+                                                    matx::matxMemorySpace_t memorySpace = matx::MATX_MANAGED_MEMORY
+    ) {
         /**
          * Yes, I know the below isn't very clean, but MatX is a bit of a pain when it comes to types.
          *
@@ -68,11 +66,14 @@ namespace GsDBSCAN::clustering {
             auto closePoints = distances > eps;
             auto closePoints_int = matx::as_type<int>(closePoints);
             (res = matx::sum(closePoints_int, {1})).run();
+
+            std::cout << matx::Shape(res)[0] << std::endl;
+            print(matx::slice(res, {0}, {100}));
+            print(matx::slice(res, {n-100}, {n-1}));
         } else {
             throw std::runtime_error("Invalid distance metric: " + distanceMetric);
         }
         return degArray;
-        // Somehow if i return .Data() it casts the pointer to an unregistered host pointer, so I'm returning the tensor itself
     }
 
     inline int *constructStartIdxArray(int *degArray_d, int n, int initialStartIdx = 0) {
@@ -175,14 +176,14 @@ namespace GsDBSCAN::clustering {
     inline std::tuple<int *, int>
     constructAdjacencyList(const float *distances_d, const int *degArray_d, const int *startIdxArray_d, int *A_d,
                            int *B_d, const int n, const int k,
-                           const int m, const float eps, int blockSize = 256,
-                           const std::string &distanceMetric = "L2", int AStartNIdx = 0) {
+                           const int m, const float eps, int blockSize,
+                           const std::string &distanceMetric, int AStartNIdx = 0) {
         // Assume the arrays aren't stored in managed memory
         int lastDegree = algo_utils::valueAtIdxDeviceToHost(degArray_d, n - 1);
         int lastStartIdx = algo_utils::valueAtIdxDeviceToHost(startIdxArray_d, n - 1);
 
         int adjacencyList_size =
-                lastDegree + lastStartIdx; // This will cause a segfault if deg and/or start idx arrays not on the host
+                lastDegree + lastStartIdx;
 
         int *adjacencyList_d = algo_utils::allocateCudaArray<int>(adjacencyList_size);
 
@@ -205,7 +206,7 @@ namespace GsDBSCAN::clustering {
 
     inline std::tuple<std::vector<std::vector<int>>, boost::dynamic_bitset<>>
     processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int adjacencyList_size,
-                            int minPts, nlohmann::ordered_json *times = nullptr) {
+                            int minPts, nlohmann::ordered_json *times = nullptr, bool timeIt = false) {
         auto neighbourhoodMatrix = std::vector<std::vector<int>>(n, std::vector<int>());
         auto corePoints = boost::dynamic_bitset<>(n);
 
@@ -217,7 +218,7 @@ namespace GsDBSCAN::clustering {
 
         auto timeCopyClusteringArrays = au::duration(timeCopyClusteringArraysStart, au::timeNow());
 
-        if (times != nullptr) {
+        if (times != nullptr && timeIt) {
             (*times)["copyClusteringArrays"] = timeCopyClusteringArrays;
         }
 
@@ -383,7 +384,7 @@ namespace GsDBSCAN::clustering {
 
     inline std::tuple<int *, int *, int>
     formClusters(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, const int n, const int minPts,
-                 const int blockSize = 256) {
+                 const int blockSize) {
         int *clusterLabels = new int[n];
         int *typeLabels = new int[n];
 //            std::fill(std::execution::par, typeLabels, typeLabels + n, -1); // TODO change to parallel, perhaps could use managed memory for the arrays?
@@ -417,7 +418,8 @@ namespace GsDBSCAN::clustering {
     inline std::tuple<int *, int, int *, int *>
     createClusteringArrays(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t,
                            matx::tensor_t<int, 2> &B_t, float eps, int clusterBlockSize,
-                           const std::string &distanceMetric, nlohmann::ordered_json times, int startIdx = 0) {
+                           const std::string &distanceMetric, nlohmann::ordered_json &times, bool timeIt,
+                           int startIdx = 0) {
 
         int thisN = distances.Shape()[0]; // thisN as distances can be processed in batches - don't use A.shape(0)
         int k = A_t.Shape()[1] / 2;
@@ -426,9 +428,8 @@ namespace GsDBSCAN::clustering {
         // Deg array
         auto degArrayStart = au::timeNow();
 
-        auto degArray_d = clustering::constructQueryVectorDegreeArrayMatx(distances, eps,
-                                                                               matx::MATX_DEVICE_MEMORY,
-                                                                               distanceMetric);
+        auto degArray_d = clustering::constructQueryVectorDegreeArrayMatx(distances, eps, distanceMetric,
+                                                                          matx::MATX_DEVICE_MEMORY);
 
         auto degArrayDuration = au::durationSinceStart(degArrayStart);
 
@@ -449,13 +450,19 @@ namespace GsDBSCAN::clustering {
                 B_t.Data(), thisN, k, m, eps,
                 clusterBlockSize, distanceMetric, startIdx);
 
+        std::cout<<"adjlist_size :" << adjacencyListSize << std::endl;
+
         auto adjListDuration = au::durationSinceStart(adjListStart);
 
         // Set times, allows for batching by accommodating for existing times
-        times.contains("degArray") ? times["degArray"] += degArrayDuration : times["degArray"] = degArrayDuration;
-        times.contains("startIdxArray") ? times["startIdxArray"] += startIdxArrayDuration : times["startIdxArray"] = startIdxArrayDuration;
-        times.contains("adjList") ? times["adjList"] += adjListDuration : times["adjList"] = adjListDuration;
-
+        if (timeIt) {
+            times.contains("degArray") ? times["degArray"] = static_cast<int>(times["degArray"]) + degArrayDuration
+                                       : times["degArray"] = degArrayDuration;
+            times.contains("startIdxArray") ? times["startIdxArray"] = static_cast<int>(times["startIdxArray"]) + startIdxArrayDuration
+                                            : times["startIdxArray"] = startIdxArrayDuration;
+            times.contains("adjList") ? times["adjList"] = static_cast<int>(times["adjList"]) + adjListDuration
+                                      : times["adjList"] = adjListDuration;
+        }
         return std::make_tuple(adjacencyList_d, adjacencyListSize, degArray_d, startIdxArray_d);
     }
 
@@ -463,7 +470,7 @@ namespace GsDBSCAN::clustering {
     performClustering(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t,
                       const float eps, const int minPts, const int clusterBlockSize,
                       const std::string &distanceMetric, bool timeIt, nlohmann::ordered_json &times,
-                      bool clusterOnCpu = false) {
+                      bool clusterOnCpu) {
 
         auto startClustering = au::timeNow();
 
@@ -473,7 +480,7 @@ namespace GsDBSCAN::clustering {
                                                                                                         B_t, eps,
                                                                                                         clusterBlockSize,
                                                                                                         distanceMetric,
-                                                                                                        timeIt, times);
+                                                                                                        times, timeIt);
 
         std::tuple<int *, int> result;
 
@@ -482,7 +489,7 @@ namespace GsDBSCAN::clustering {
 
             auto [neighbourhoodMatrix, corePoints] = processAdjacencyListCpu(adjacencyList_d, degArray_d,
                                                                              startIdxArray_d, n,
-                                                                             adjacencyListSize, minPts, &times);
+                                                                             adjacencyListSize, minPts, &times, timeIt);
 
             if (timeIt) times["processAdjacencyList"] = au::duration(startProcessAdjacencyList, au::timeNow());
 

@@ -126,7 +126,7 @@ namespace GsDBSCAN::projections {
 
             if (distanceMetric == "L1") {
                 auto uniform = torch::rand({fourierEmbedDim, d}, torch::TensorOptions().device(X.device()));
-                W = ((1 / 2) * (std * std)) * torch::tan(M_PI * (uniform - 0.5)); // Cauchy ~ Laplace
+                W = ((1 / 2) * (std * std)) * torch::tan(M_PI * (uniform - 0.5)); // Cauchy
             } else { // L2
                 W = std * torch::randn({fourierEmbedDim, d}, torch::TensorOptions().device(X.device())); // Gaussian
             }
@@ -148,7 +148,7 @@ namespace GsDBSCAN::projections {
 
 
     inline std::tuple<torch::Tensor, torch::Tensor>
-    constructABMatricesBatch(torch::Tensor &X, GsDBSCAN::GsDBSCAN_Params params) {
+    constructABMatricesBatch(torch::Tensor &X, GsDBSCAN::GsDBSCAN_Params &params) {
 
         int n = X.size(0);
         auto Y = getRandomVectorsMatrix(X.size(1), params.D, params.distanceMetric, params.fourierEmbedDim,

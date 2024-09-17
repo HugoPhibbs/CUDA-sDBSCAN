@@ -25,7 +25,7 @@ namespace au = GsDBSCAN::algo_utils;
 namespace GsDBSCAN {
 
     inline std::tuple<thrustDVec<int>, thrustDVec<int>, thrustDVec<int>>
-    batchCreateClusteringVecs(torch::Tensor X, torch::Tensor A, torch::Tensor B, nlohmann::ordered_json &times, GsDBSCAN_Params params)  {
+    batchCreateClusteringVecs(torch::Tensor X, torch::Tensor A, torch::Tensor B, nlohmann::ordered_json &times, GsDBSCAN_Params &params)  {
         thrustDVec<int> adjacencyListVec(0);
         thrustDVec<int> degVec(params.n);
         thrustDVec<int> startIdxVec(params.n);
@@ -36,9 +36,6 @@ namespace GsDBSCAN {
         int currAdjacencyListSize = 0;
 
         int totalTimeDistances = 0;
-        int totalTimeDegArray = 0;
-        int totalTimeAdjList = 0;
-        int totalTimeStartIdxArray = 0;
         int totalTimeCopyMerge = 0;
 
         int startIdxArrayInitialValue = 0;
@@ -54,6 +51,10 @@ namespace GsDBSCAN {
 
             auto distancesBatch = distances::findDistancesTorch(X, A, B, params.alpha, params.distancesBatchSize, params.distanceMetric, i,
                                                                 endIdx);
+
+            std::cout<< "Distances mean: " << torch::mean(distancesBatch, 1).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout<<"Distances Batch: "<< distancesBatch.index({torch::indexing::Slice(0, 50), torch::indexing::Slice(0, 50)})<<std::endl;
 
             cudaDeviceSynchronize();
 
@@ -73,7 +74,7 @@ namespace GsDBSCAN {
                   startIdxArrayBatch_d
               ] = clustering::createClusteringArrays(distancesBatchMatx, A_matx, B_matx,
                                                      params.eps, params.clusterBlockSize, params.distanceMetric,
-                                                     times, i);
+                                                     times, params.timeIt, i);
 
             auto copyMergeStart = au::timeNow();
 
@@ -108,18 +109,23 @@ namespace GsDBSCAN {
             cudaFree(degArrayBatch_d);
             cudaFree(startIdxArrayBatch_d);
             cudaFree(adjacencyListBatch_d); // TODO do i also need to remove the distances array?
+
+            if (params.verbose) au::printCUDAMemoryUsage();
+            if (params.verbose) std::cout << "Curr adjacency list size: " << currAdjacencyListSize << std::endl;
+            if (params.verbose) std::cout << "Batch adj list size: " << adjacencyListBatchSize << std::endl;
         }
 
         cudaDeviceSynchronize();
 
-        times["totalTimeDistances"] = totalTimeDistances;
-        times["totalTimeCopyMerge"] = totalTimeCopyMerge;
-
+        if (params.timeIt) {
+            times["totalTimeDistances"] = totalTimeDistances;
+            times["totalTimeCopyMerge"] = totalTimeCopyMerge;
+        }
         return std::make_tuple(adjacencyListVec, degVec, startIdxVec);
     }
 
     inline std::tuple<int *, int>
-    performClusteringBatch(torch::Tensor X, torch::Tensor A, torch::Tensor B, nlohmann::ordered_json &times, GsDBSCAN_Params params) {
+    performClusteringBatch(torch::Tensor X, torch::Tensor A, torch::Tensor B, nlohmann::ordered_json &times, GsDBSCAN_Params &params) {
 
         auto [adjacencyListVec, degVec, startIdxVec] = batchCreateClusteringVecs(X, A, B, times, params);
 
@@ -129,11 +135,13 @@ namespace GsDBSCAN {
 
         auto adjacencyListSize = adjacencyListVec.size();
 
+        if (params.verbose) std::cout << "Adjacency List Size: " << adjacencyListSize << std::endl;
+
         auto processAdjacencyListStart = au::timeNow();
 
         auto [neighbourhoodMatrix, corePoints] = clustering::processAdjacencyListCpu(adjacencyList_d, degArray_d,
                                                                                      startIdxArray_d, params.n,
-                                                                                     adjacencyListSize, params.minPts, &times);
+                                                                                     adjacencyListSize, params.minPts, &times, params.timeIt);
 
         if (params.timeIt)
             times["processAdjacencyList"] = au::duration(processAdjacencyListStart, au::timeNow());
@@ -159,7 +167,7 @@ namespace GsDBSCAN {
     *  A nlohmann json object containing the timing information
     */
     inline std::tuple<int *, int, nlohmann::ordered_json>
-    performGsDbscan(float *X, GsDBSCAN_Params params) {
+    performGsDbscan(float *X, GsDBSCAN_Params &params) {
 
         nlohmann::ordered_json times;
 
@@ -181,32 +189,61 @@ namespace GsDBSCAN {
 
         au::Time startProjections = au::timeNow();
 
+        // Normalise dataset
+
         auto X_torch = au::torchTensorFromDeviceArray<float, torch::kFloat32>(X_d_row_major, params.n, params.d);
-
-        if (params.timeIt)
-            times["projectionsAndNormalize"] = au::duration(startProjections, au::timeNow());
-
-        // AB matrices
-
-        auto startABMatrices = au::timeNow();
-
-        params.ABatchSize = 10000;
-        params.BBatchSize = 128;
 
         if (params.needToNormalise) {
             X_torch = projections::normaliseDatasetTorch(X_torch);
         }
 
-        auto [A_torch, B_torch] = projections::constructABMatricesBatch(X_torch, params);
+        int *clusterLabels = nullptr;
+        int numClusters = -1;
 
-        if (params.timeIt)
-            times["constructABMatrices"] = au::duration(startABMatrices, au::timeNow());
+        // AB matrices
+        if (params.useBatchClustering) {
+            auto startABMatrices = au::timeNow();
 
-        cudaDeviceSynchronize();
+            auto [A_torch, B_torch] = projections::constructABMatricesBatch(X_torch, params);
 
-        // Calculate distances and cluster at the same time
+            if (params.timeIt)
+                times["constructABMatrices"] = au::duration(startABMatrices, au::timeNow());
 
-        auto [clusterLabels, numClusters] = performClusteringBatch(X_torch, A_torch, B_torch, times, params);
+            cudaDeviceSynchronize();
+
+            // Calculate distances and cluster at the same time
+
+            std::tie(clusterLabels, numClusters) = performClusteringBatch(X_torch, A_torch, B_torch, times, params);
+
+        } else {
+            auto [projections_torch, X_torch_norm] = projections::projectTorch(X_torch, params.D);
+
+            if (params.timeIt) times["projections"] = au::duration(startProjections, au::timeNow());
+
+            // AB matrices
+
+            auto startABMatrices = au::timeNow();
+
+            auto [A_torch, B_torch] = projections::constructABMatricesTorch(projections_torch, params.k, params.m, params.distanceMetric);
+
+            if (params.timeIt) times["constructABMatrices"] = au::duration(startABMatrices, au::timeNow());
+
+            // Distances
+
+            auto startDistances = au::timeNow();
+
+            auto distances_torch = distances::findDistancesTorch(X_torch, A_torch, B_torch, params.alpha, params.distancesBatchSize, params.distanceMetric);
+
+            cudaDeviceSynchronize();
+
+            if (params.timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
+
+            auto distances_matx = matx::make_tensor<float>(distances_torch.data_ptr<float>(), {params.n, 2*params.k*params.m}, matx::MATX_DEVICE_MEMORY);
+            auto A_t = matx::make_tensor<int>(A_torch.data_ptr<int>(), {params.n, 2*params.k}, matx::MATX_DEVICE_MEMORY);
+            auto B_t = matx::make_tensor<int>(B_torch.data_ptr<int>(), {2*params.D, params.m}, matx::MATX_DEVICE_MEMORY);
+
+            std::tie(clusterLabels, numClusters) = clustering::performClustering(distances_matx, A_t, B_t, params.eps, params.minPts, params.clusterBlockSize, params.distanceMetric, params.timeIt, times, params.clusterOnCpu);
+        }
 
         if (params.timeIt)
             times["overall"] = au::duration(startOverAll, au::timeNow());
@@ -214,6 +251,8 @@ namespace GsDBSCAN {
         cudaDeviceSynchronize();
 
         cudaFree(X_d_row_major);
+
+        if (params.verbose) std::cout << "Finished" << std::endl;
 
         return std::tie(clusterLabels, numClusters, times);
     }
