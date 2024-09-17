@@ -28,6 +28,10 @@ namespace GsDBSCAN::algo_utils {
         return std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
     }
 
+    inline int durationSinceStart(Time start) {
+        return duration(start, timeNow());
+    }
+
     inline void printStackTrace() {
         void *array[10];
         size_t size;
@@ -42,11 +46,34 @@ namespace GsDBSCAN::algo_utils {
     }
 
     inline void throwCudaError(const std::string &msg, cudaError_t err) {
-        std::cout<<"An error occurred"<<std::endl;
+        std::cout << "An error occurred" << std::endl;
         printStackTrace();
-        std::cout<<"\n"<<std::endl;
+        std::cout << "\n" << std::endl;
         throw std::runtime_error(msg + ": " + std::string(cudaGetErrorString(err)));
     }
+
+    inline void printCUDAMemoryUsage() {
+        // Variables to store free and total memory
+        size_t free_mem = 0;
+        size_t total_mem = 0;
+
+        // Get free and total memory on the current device
+        cudaError_t err = cudaMemGetInfo(&free_mem, &total_mem);
+
+        // Check for errors
+        if (err != cudaSuccess) {
+            std::cerr << "Error retrieving CUDA memory info: " << cudaGetErrorString(err) << std::endl;
+            return;
+        }
+
+        // Print memory usage details
+        std::cout << "CUDA Memory Usage: " << std::endl;
+        std::cout << "Total Memory: " << total_mem / (1024 * 1024) << " MB" << std::endl;
+        std::cout << "Free Memory: " << free_mem / (1024 * 1024) << " MB" << std::endl;
+        std::cout << "Used Memory: " << (total_mem - free_mem) / (1024 * 1024) << " MB" << std::endl;
+        std::cout << "\n" << std::endl;
+    }
+
 
     template<typename T>
     inline T *copyHostToDevice(T *hostData, const size_t numElements, bool managedMemory = false) {
@@ -188,18 +215,28 @@ namespace GsDBSCAN::algo_utils {
         return colMajorMat;
     }
 
-    template <typename T>
-    inline T valueAtIdxDeviceToHost(const T* deviceArray, const int idx) {
+    template<typename T>
+    inline T valueAtIdxDeviceToHost(const T *deviceArray, const int idx) {
         T value;
         cudaMemcpy(&value, deviceArray + idx, sizeof(T), cudaMemcpyDeviceToHost);
         return value;
     }
 
-    template <typename ArrayType, typename torch::Dtype TorchType>
+    template<typename ArrayType, typename torch::Dtype TorchType>
     inline torch::Tensor torchTensorFromDeviceArray(ArrayType *array, int rows, int cols) {
         auto options = torch::TensorOptions().dtype(TorchType).device(torch::kCUDA);
         torch::Tensor tensor = torch::from_blob(array, {rows, cols}, options);
         return tensor;
+    }
+
+    template<typename T>
+    inline auto torchTensorToMatX(torch::Tensor tensor) {
+        int rows = tensor.size(0);
+        int cols = tensor.size(1);
+
+        // TODO not sure what to do here if i have a Torch tensor in f16 and want to convert it to a matx f16
+        return matx::make_tensor<T>(tensor.data_ptr<T>(), {rows, cols},
+                                    matx::MATX_DEVICE_MEMORY);
     }
 }
 

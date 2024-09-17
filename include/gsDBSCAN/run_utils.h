@@ -13,54 +13,12 @@
 #include "../pch.h"
 #include "algo_utils.h"
 #include "GsDBSCAN.h"
+#include "GsDBSCAN_Params.h"
 
 using json = nlohmann::json;
 
 
 namespace GsDBSCAN::run_utils {
-
-    inline json cleanArgs(json args) {
-        json newArgs;
-
-        newArgs["datasetFilename"] = args["--datasetFilename"];
-        newArgs["outFile"] = args["--outFile"];
-
-        newArgs["n"] = std::stoi((std::string) args["--n"]);
-        newArgs["d"] = std::stoi((std::string) args["--d"]);
-
-        newArgs["D"] = std::stoi((std::string) args["--D"]);
-        newArgs["minPts"] = std::stoi((std::string) args["--minPts"]);
-        newArgs["k"] = std::stoi((std::string) args["--k"]);
-        newArgs["m"] = std::stoi((std::string) args["--m"]);
-        newArgs["eps"] = std::stof((std::string) args["--eps"]);
-
-        newArgs["distanceMetric"] = args["--distanceMetric"];
-        newArgs["alpha"] = std::stof((std::string) args["--alpha"]);
-        newArgs["distancesBatchSize"] = std::stoi((std::string) args["--distancesBatchSize"]);
-
-        newArgs["clusterBlockSize"] = std::stoi((std::string) args["--clusterBlockSize"]);
-        newArgs["clusterOnCpu"] = args["--clusterOnCpu"] == "1";
-        newArgs["needToNormalize"] = args["--needToNormalize"] == "1"; // note 'z' in normalize
-
-        return newArgs;
-    }
-
-    inline json parseArgs(int argc, char *argv[]) {
-        json args;
-
-        // Parse arguments
-        for (int i = 1; i < argc; i += 2) {
-            std::string key = argv[i];
-            if (i + 1 < argc) {
-                std::string value = argv[i + 1];
-                args[key] = value;
-            } else {
-                throw std::runtime_error("Error: Missing value for argument: " + key);
-            }
-        }
-
-        return cleanArgs(args);
-    }
 
     template<typename T>
     inline std::vector<T> loadBinFileToVector(const std::string &filePath) {
@@ -91,13 +49,14 @@ namespace GsDBSCAN::run_utils {
         return csvDoc.GetColumn<T>(columnIndex);
     }
 
-    inline void writeResults(json &args, nlohmann::ordered_json &times, int *clusterLabels, int numClusters) {
-        std::ofstream file(args["outFile"]);
+    inline void
+    writeResults(GsDBSCAN_Params params, nlohmann::ordered_json &times, int *clusterLabels, int numClusters) {
+        std::ofstream file(params.outputFilename);
         json combined;
-        combined["args"] = args;
+        combined["args"] = params.toString();
         combined["times"] = times;
 
-        std::vector<int> clusterLabelsVec(clusterLabels, clusterLabels + (size_t) args["n"]);
+        std::vector<int> clusterLabelsVec(clusterLabels, clusterLabels + (size_t) params.n);
         combined["numClusters"] = numClusters;
         combined["clusterLabels"] = clusterLabelsVec;
 
@@ -108,7 +67,7 @@ namespace GsDBSCAN::run_utils {
             file << result.dump(4);
             file.close();
         } else {
-            throw std::runtime_error("Error: Unable to open file: " + (std::string) args["outFile"]);
+            throw std::runtime_error("Error: Unable to open file: " + (std::string) params.outputFilename);
         }
 
         delete[] clusterLabels;
@@ -116,31 +75,13 @@ namespace GsDBSCAN::run_utils {
 
 
     inline std::tuple<int *, int, nlohmann::ordered_json>
-    main_helper(std::string datasetFileName, int n, int d, int D, int minPts, int k, int m, float eps, float alpha,
-                int distancesBatchSize, std::string distanceMetric, int clusterBlockSize, bool clusterOnCpu = false, bool needToNormalize = true) {
-        // TODO write docs
-        auto X = loadBinFileToVector<float>(datasetFileName);
+    main_helper(GsDBSCAN_Params &params) {
+        auto X = loadBinFileToVector<float>(params.dataFilename);
         auto X_h = X.data();
 
-        auto [clusterLabels, numClusters, times] = performGsDbscan(
-                X_h,
-                n,
-                d,
-                D,
-                minPts,
-                k,
-                m,
-                eps,
-                alpha,
-                distancesBatchSize,
-                distanceMetric,
-                clusterBlockSize,
-                true,
-                clusterOnCpu,
-                needToNormalize
-        );
+        auto [clusterLabels, numClusters, times] = performGsDbscan(X_h, params);
 
-//        cudaFree(X_d);
+//        cudaFree(X_h);
 
         return std::tie(clusterLabels, numClusters, times);
     }

@@ -58,28 +58,39 @@ namespace GsDBSCAN::distances {
         return -1; // Should never reach here
     }
 
-    inline torch::Tensor findDistancesTorch(torch::Tensor X, torch::Tensor A, torch::Tensor B, const float alpha = 1.2, int batchSize = -1, const std::string &distanceMetric = "L2") {
+    inline torch::Tensor
+    findDistancesTorch(torch::Tensor &X, torch::Tensor &A, torch::Tensor &B, const float alpha,
+                       int batchSize, const std::string &distanceMetric, int XStartIdx = 0, int XEndIdx = -1) {
+
+
+        if (XEndIdx == -1) {
+            XEndIdx = X.size(0);
+        }
+
         int k = A.size(1) / 2;
         int m = B.size(1);
-        int n = X.size(0);
         int d = X.size(1);
 
-        batchSize = (batchSize != -1) ? batchSize : findDistanceBatchSize(alpha, n, d, k, m);
+        int effectiveN = XEndIdx - XStartIdx;
+        int actualN = X.size(0);
 
-        torch::Tensor distances = torch::empty({n, 2 * k * m}, torch::device(torch::kCUDA).dtype(torch::kFloat32));
+        batchSize = (batchSize != -1) ? batchSize : findDistanceBatchSize(alpha, actualN, d, k, m);
 
-        std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&)> calculate_distance;
+        torch::Tensor distances = torch::empty({effectiveN, 2 * k * m},
+                                               torch::device(torch::kCUDA).dtype(torch::kFloat32));
+
+        std::function<torch::Tensor(const torch::Tensor &, const torch::Tensor &)> calculate_distance;
 
         if (distanceMetric == "L2") {
-            calculate_distance = [](const torch::Tensor& Z_batch_adj, const torch::Tensor& X_batch) {
+            calculate_distance = [](const torch::Tensor &Z_batch_adj, const torch::Tensor &X_batch) {
                 return torch::norm(Z_batch_adj - X_batch, 2, /*dim=*/2);
             };
         } else if (distanceMetric == "L1") {
-            calculate_distance = [](const torch::Tensor& X_subset_adj, const torch::Tensor& X_batch) {
+            calculate_distance = [](const torch::Tensor &X_subset_adj, const torch::Tensor &X_batch) {
                 return torch::norm(X_subset_adj - X_batch, 1, /*dim=*/2);
             };
         } else if (distanceMetric == "COSINE") {
-            calculate_distance = [](const torch::Tensor& Z_batch_adj, const torch::Tensor& X_batch) {
+            calculate_distance = [](const torch::Tensor &Z_batch_adj, const torch::Tensor &X_batch) {
                 torch::Tensor product = Z_batch_adj * X_batch;
                 return torch::sum(product, /*dim=*/2);
             };
@@ -87,16 +98,21 @@ namespace GsDBSCAN::distances {
             throw std::invalid_argument("Unsupported distance metric");
         }
 
-        for (int i = 0; i < n; i += batchSize) {
-            int max_batch_idx = std::min(i + batchSize, n);
+        for (int i = 0; i < effectiveN; i += batchSize) {
+            int maxDistancesIdx = std::min(i + batchSize, effectiveN);
+            int thisBatchSize = maxDistancesIdx - i;
+
+            int thisXStartIdx = i + XStartIdx;
+            int thisXMaxIdx = thisXStartIdx + thisBatchSize;
 
             // Equivalent to X[B[A[i:max_batch_idx]]] in Python
-            torch::Tensor X_subset = X.index_select(0, B.index_select(0, A.slice(0, i, max_batch_idx).flatten()).flatten());
-            torch::Tensor X_subset_adj = X_subset.view({max_batch_idx - i, 2 * k * m, d});
+            torch::Tensor X_subset = X.index_select(0, B.index_select(0, A.slice(0, thisXStartIdx,
+                                                                                 thisXMaxIdx).flatten()).flatten());
+            torch::Tensor X_subset_adj = X_subset.view({thisBatchSize, 2 * k * m, d});
 
-            torch::Tensor X_batch = X.slice(0, i, max_batch_idx).unsqueeze(1);
+            torch::Tensor X_batch = X.slice(0, thisXStartIdx, thisXMaxIdx).unsqueeze(1);
 
-            distances.slice(0, i, max_batch_idx) = calculate_distance(X_subset_adj, X_batch);
+            distances.slice(0, i, maxDistancesIdx) = calculate_distance(X_subset_adj, X_batch);
         }
 
         return distances;
