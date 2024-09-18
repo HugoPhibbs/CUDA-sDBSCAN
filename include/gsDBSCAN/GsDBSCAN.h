@@ -159,15 +159,17 @@ namespace GsDBSCAN {
     /**
     * Performs the gs dbscan algorithm
     *
-    * @param X a float array of size n * d containing the data points
+    * @param X an array of size n * d containing the data points. For f32 use 'float' for f16, use 'uint_16' (this will be reinterpreted by Torch to a f16).
+    * Elements should be in *row* major order
     * @param params a GsDBSCAN_Params object containing the parameters for the algorithm
     * @return a tuple containing:
     *  An integer array of size n containing the cluster labels for each point in the X dataset
     *  An integer array of size n containing the type labels for each point in the X dataset - e.g. Noise, Core, Border // TODO decide on how this will work?
     *  A nlohmann json object containing the timing information
     */
+    template <typename XType, typename torch::Dtype TorchType>
     inline std::tuple<int *, int, nlohmann::ordered_json>
-    performGsDbscan(float *X, GsDBSCAN_Params &params) {
+    performGsDbscan(XType *X, GsDBSCAN_Params &params) {
 
         nlohmann::ordered_json times;
 
@@ -177,34 +179,40 @@ namespace GsDBSCAN {
 
         au::Time startCopyingToDevice = au::timeNow();
 
-        auto X_d_col_major = au::copyHostToDevice(X, params.n * params.d);
-        auto X_d_row_major = au::colMajorToRowMajorMat(X_d_col_major, params.n, params.d);
+        if (params.verbose) std::cout << "Preparing the X tensor" << std::endl;
+
+        torch::TensorOptions XOptions = torch::TensorOptions().dtype(TorchType).device(torch::kCPU);
+        auto XTorchCpu = torch::from_blob(X, {params.n, params.d}, XOptions);
+        auto XTorchGPU = XTorchCpu.to(torch::kCUDA);
 
         cudaDeviceSynchronize();
-
-        cudaFree(X_d_col_major);
 
         if (params.timeIt)
             times["copyingAndConvertData"] = au::duration(startCopyingToDevice, au::timeNow());
 
-        au::Time startProjections = au::timeNow();
-
         // Normalise dataset
 
-        auto X_torch = au::torchTensorFromDeviceArray<float, torch::kFloat32>(X_d_row_major, params.n, params.d);
+        auto startNormalise = au::timeNow();
 
         if (params.needToNormalise) {
-            X_torch = projections::normaliseDatasetTorch(X_torch);
+            if (params.verbose) std::cout << "Normalising dataset" << std::endl;
+            XTorchGPU = projections::normaliseDatasetTorch(XTorchGPU);
         }
+
+        if (params.timeIt) times["normalise"] = au::duration(startNormalise, au::timeNow());
 
         int *clusterLabels = nullptr;
         int numClusters = -1;
 
         // AB matrices
         if (params.useBatchClustering) {
+            if (params.verbose) std::cout << "Using batch clustering" << std::endl;
+
             auto startABMatrices = au::timeNow();
 
-            auto [A_torch, B_torch] = projections::constructABMatricesBatch(X_torch, params);
+            if (params.verbose) std::cout << "Constructing AB matrices (batching)" << std::endl;
+
+            auto [A_torch, B_torch] = projections::constructABMatricesBatch(XTorchGPU, params);
 
             if (params.timeIt)
                 times["constructABMatrices"] = au::duration(startABMatrices, au::timeNow());
@@ -213,16 +221,24 @@ namespace GsDBSCAN {
 
             // Calculate distances and cluster at the same time
 
-            std::tie(clusterLabels, numClusters) = performClusteringBatch(X_torch, A_torch, B_torch, times, params);
+            if (params.verbose) std::cout << "Performing clustering (batching)" << std::endl;
+
+            std::tie(clusterLabels, numClusters) = performClusteringBatch(XTorchGPU, A_torch, B_torch, times, params);
 
         } else {
-            auto [projections_torch, X_torch_norm] = projections::projectTorch(X_torch, params.D);
+            if (params.verbose) std::cout << "Not using batch clustering" << std::endl;
+
+            au::Time startProjections = au::timeNow();
+
+            auto projections_torch = projections::projectTorch(XTorchGPU, params.D);
 
             if (params.timeIt) times["projections"] = au::duration(startProjections, au::timeNow());
 
             // AB matrices
 
             auto startABMatrices = au::timeNow();
+
+            if (params.verbose) std::cout << "Constructing AB matrices" << std::endl;
 
             auto [A_torch, B_torch] = projections::constructABMatricesTorch(projections_torch, params.k, params.m, params.distanceMetric);
 
@@ -232,7 +248,9 @@ namespace GsDBSCAN {
 
             auto startDistances = au::timeNow();
 
-            auto distances_torch = distances::findDistancesTorch(X_torch, A_torch, B_torch, params.alpha, params.distancesBatchSize, params.distanceMetric);
+            if (params.verbose) std::cout << "Calculating distances" << std::endl;
+
+            auto distances_torch = distances::findDistancesTorch(XTorchGPU, A_torch, B_torch, params.alpha, params.distancesBatchSize, params.distanceMetric);
 
             cudaDeviceSynchronize();
 
@@ -242,6 +260,8 @@ namespace GsDBSCAN {
             auto A_t = matx::make_tensor<int>(A_torch.data_ptr<int>(), {params.n, 2*params.k}, matx::MATX_DEVICE_MEMORY);
             auto B_t = matx::make_tensor<int>(B_torch.data_ptr<int>(), {2*params.D, params.m}, matx::MATX_DEVICE_MEMORY);
 
+            if (params.verbose) std::cout << "Performing clustering" << std::endl;
+
             std::tie(clusterLabels, numClusters) = clustering::performClustering(distances_matx, A_t, B_t, params.eps, params.minPts, params.clusterBlockSize, params.distanceMetric, params.timeIt, times, params.clusterOnCpu);
         }
 
@@ -249,8 +269,6 @@ namespace GsDBSCAN {
             times["overall"] = au::duration(startOverAll, au::timeNow());
 
         cudaDeviceSynchronize();
-
-        cudaFree(X_d_row_major);
 
         if (params.verbose) std::cout << "Finished" << std::endl;
 

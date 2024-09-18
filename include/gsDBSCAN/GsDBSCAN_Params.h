@@ -33,6 +33,8 @@ namespace GsDBSCAN {
     inline bool USE_BATCH_CLUSTERING_DEFAULT = false;
     inline bool USE_BATCH_AB_MATRICES_DEFAULT = false;
 
+    inline std::string DATASET_DTYPE_DEFAULT = "f32";
+
     class GsDBSCAN_Params {
     private:
 
@@ -69,6 +71,7 @@ namespace GsDBSCAN {
         bool verbose;
         bool useBatchClustering;
         bool useBatchABMatrices;
+        std::string datasetDType;
 
 
         GsDBSCAN_Params(std::string dataFilename, std::string outputFilename, int n, int d, int D, int minPts, int k,
@@ -83,7 +86,9 @@ namespace GsDBSCAN {
                         int ABatchSize = A_BATCH_SIZE_DEFAULT,
                         int BBatchSize = B_BATCH_SIZE_DEFAULT, int miniBatchSize = MINI_BATCH_SIZE_DEFAULT,
                         bool verbose = VERBOSE_DEFAULT,
-                        bool useBatchClustering = USE_BATCH_CLUSTERING_DEFAULT, bool useBatchABMatrices=USE_BATCH_AB_MATRICES_DEFAULT) {
+                        bool useBatchClustering = USE_BATCH_CLUSTERING_DEFAULT,
+                        bool useBatchABMatrices = USE_BATCH_AB_MATRICES_DEFAULT,
+                        std::string datasetDType = DATASET_DTYPE_DEFAULT) {
 
             this->dataFilename = dataFilename;
             this->outputFilename = outputFilename;
@@ -109,6 +114,12 @@ namespace GsDBSCAN {
             this->verbose = verbose;
             this->useBatchClustering = useBatchClustering;
             this->useBatchABMatrices = useBatchABMatrices;
+
+            if (datasetDType != "f16" && datasetDType != "f32") {
+                throw std::runtime_error("Invalid dataset dtype. Must be either 'f16' or 'f32'");
+            }
+
+            this->datasetDType = datasetDType;
         }
 
         inline std::string toString() const {
@@ -139,7 +150,8 @@ namespace GsDBSCAN {
             oss << "Mini Batch Size: " << miniBatchSize << "\n";
             oss << "Verbose: " << (verbose ? "true" : "false") << "\n";
             oss << "Use Batch Clustering: " << (useBatchClustering ? "true" : "false") << "\n";
-            oss << "Use batch creation of A, B matrices" << (useBatchABMatrices ? "true" : "false") << "\n";
+            oss << "Use batch creation of A, B matrices: " << (useBatchABMatrices ? "true" : "false") << "\n";
+            oss << "Dataset DType: " << datasetDType << "\n";
 
             return oss.str();
         }
@@ -236,6 +248,10 @@ namespace GsDBSCAN {
                 .default_value(false)
                 .implicit_value(true);
 
+        parser.add_argument("--datasetDType", "-ddt")
+                .help("What dtype the dataset is in. Options: 'f16' or 'f32'")
+                .default_value(DATASET_DTYPE_DEFAULT);
+
         return parser;
     }
 
@@ -275,7 +291,8 @@ namespace GsDBSCAN {
                     parser.get<int>("--miniBatchSize"),
                     parser.get<bool>("--verbose"),
                     parser.get<bool>("--useBatchClustering"),
-                    parser.get<bool>("--useBatchABMatrices")
+                    parser.get<bool>("--useBatchABMatrices"),
+                    parser.get<std::string>("--datasetDType")
             );
         } catch (const std::bad_cast &e) {
             std::cerr << "Error: Invalid type in argument conversion. " << e.what() << std::endl;
