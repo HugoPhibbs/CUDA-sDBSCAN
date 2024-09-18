@@ -110,11 +110,13 @@ namespace GsDBSCAN::projections {
         }
     }
 
-    inline std::tuple<torch::Tensor, torch::Tensor>
+    inline torch::Tensor
     projectTorch(torch::Tensor &X, int D, const std::string &distanceMetric = "L2", int fourierEmbedDim = 1024,
                  float sigmaEmbed = 1, opt <torch::Tensor> Y = std::nullopt) {
         int d = X.size(1);
         torch::Tensor projections;
+
+        auto X_f32 = X.to(torch::kFloat32); // Ensure float32, so X can be used with random gen'd Tensors
 
         if (!Y.has_value()) {
             Y = getRandomVectorsMatrix(d, D, distanceMetric, fourierEmbedDim, sigmaEmbed);
@@ -131,19 +133,19 @@ namespace GsDBSCAN::projections {
                 W = std * torch::randn({fourierEmbedDim, d}, torch::TensorOptions().device(X.device())); // Gaussian
             }
 
-            auto WX = torch::matmul(W, X.t()); // Shape (fourierEmbedDim, n)
+            auto WX = torch::matmul(W, X_f32.t()); // Shape (fourierEmbedDim, n)
             auto XEmbed = torch::concat({torch::cos(WX), torch::sin(WX)}, 0); // Shape (2 * fourierEmbedDim, n)
 
             projections = torch::matmul(XEmbed.t(), Y.value());
 
         } else if (distanceMetric == "COSINE") {
-            projections = torch::matmul(X, Y.value());
+            projections = torch::matmul(X_f32, Y.value());
 
         } else {
             throw std::runtime_error("Unknown distanceMetric: '" + distanceMetric + "'");
         }
 
-        return std::make_tuple(std::ref(projections), std::ref(X));
+        return projections;
     }
 
 
@@ -160,7 +162,7 @@ namespace GsDBSCAN::projections {
 
         for (int i = 0; i < n; i += params.ABatchSize) {
             auto thisX = X.slice(0, i, std::min(i + params.ABatchSize, n));
-            auto [thisProjections, _] = projectTorch(thisX, params.D, params.distanceMetric,
+            auto thisProjections = projectTorch(thisX, params.D, params.distanceMetric,
                                                      params.fourierEmbedDim,
                                                      params.sigmaEmbed, Y);
 
@@ -174,7 +176,7 @@ namespace GsDBSCAN::projections {
         for (int j = 0; j < params.D; j += params.BBatchSize) {
             auto thisY = Y.slice(1, j, std::min(j + params.BBatchSize, params.D));
 
-            auto [thisProjections, _] = projectTorch(X, params.D, params.distanceMetric,
+            auto thisProjections = projectTorch(X, params.D, params.distanceMetric,
                                                      params.fourierEmbedDim,
                                                      params.sigmaEmbed, thisY);
 
