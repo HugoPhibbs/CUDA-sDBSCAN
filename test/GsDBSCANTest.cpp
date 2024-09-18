@@ -2,6 +2,7 @@
 // Created by hphi344 on 10/05/24.
 //
 #include "../include/pch.h"
+#include <gtest/gtest.h>
 
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 
