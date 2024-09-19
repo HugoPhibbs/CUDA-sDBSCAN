@@ -3,6 +3,7 @@
 //
 
 #include "../include/pch.h"
+#include <gtest/gtest.h>
 #include "../include/gsDBSCAN/GsDBSCAN.h"
 #include "../include/TestUtils.h"
 #include "../include/gsDBSCAN/run_utils.h"

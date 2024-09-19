@@ -68,8 +68,8 @@ namespace GsDBSCAN::clustering {
             (res = matx::sum(closePoints_int, {1})).run();
 
             std::cout << matx::Shape(res)[0] << std::endl;
-            print(matx::slice(res, {0}, {100}));
-            print(matx::slice(res, {n-100}, {n-1}));
+//            print(matx::slice(res, {0}, {100}));
+//            print(matx::slice(res, {n-100}, {n-1}));
         } else {
             throw std::runtime_error("Invalid distance metric: " + distanceMetric);
         }

@@ -9,6 +9,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #include "../pch.h"
 #include "algo_utils.h"
@@ -75,15 +76,19 @@ namespace GsDBSCAN::run_utils {
 
 
     inline std::tuple<int *, int, nlohmann::ordered_json>
-    main_helper(GsDBSCAN_Params &params) {
-        auto X = loadBinFileToVector<float>(params.dataFilename);
-        auto X_h = X.data();
+    main_helper(GsDBSCAN_Params & params) {
+        assert(params.datasetDType == "f16" || params.datasetDType == "f32");
 
-        auto [clusterLabels, numClusters, times] = performGsDbscan(X_h, params);
-
-//        cudaFree(X_h);
-
-        return std::tie(clusterLabels, numClusters, times);
+        if (params.datasetDType == "f16") {
+            auto X = loadBinFileToVector<uint16_t>(params.dataFilename);
+            auto X_h = X.data();
+            // Use uint16_t for f16, as it can be reinterpreted as float16 by Torch
+            return performGsDbscan<uint16_t, torch::kFloat16>(X_h, params);
+        } else {
+            auto X = loadBinFileToVector<float>(params.dataFilename);
+            auto X_h = X.data();
+            return performGsDbscan<float, torch::kFloat32>(X_h, params);
+        }
     }
 }
 

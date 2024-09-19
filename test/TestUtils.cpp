@@ -4,6 +4,7 @@
 //
 
 #include "../include/pch.h"
+#include <gtest/gtest.h>
 #include "../include/TestUtils.h"
 #include <chrono>
 #include <iostream>
