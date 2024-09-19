@@ -94,8 +94,18 @@ namespace GsDBSCAN::projections {
     }
 
     inline torch::Tensor normaliseDatasetTorch(torch::Tensor &X) {
-        auto rowNorms = torch::sqrt(torch::sum(X * X, 1));
+//        auto rowNorms = torch::sqrt(torch::sum(X * X, 1));
+        auto rowNorms = torch::linalg_vector_norm(X, 2, 1);
         return X / rowNorms.unsqueeze(1);
+    }
+
+    template <typename T>
+    inline matx::tensor_t<T, 2> normaliseDatasetMatX(matx::tensor_t<T, 2> X) {
+        auto rowNorms_op = matx::vector_norm(X, {1}, matx::NormOrder::L2);
+        auto rowNorms_op_2 = matx::clone<2>(rowNorms_op, {X.Shape()[0], X.Shape()[1]});
+        auto res = matx::make_tensor<T>({X.Shape()[0], X.Shape()[1]});
+        (res = X / rowNorms_op_2).run();
+        return res;
     }
 
     inline torch::Tensor
@@ -112,11 +122,37 @@ namespace GsDBSCAN::projections {
 
     inline torch::Tensor
     projectTorch(torch::Tensor &X, int D, const std::string &distanceMetric = "L2", int fourierEmbedDim = 1024,
-                 float sigmaEmbed = 1, opt <torch::Tensor> Y = std::nullopt) {
+                 float sigmaEmbed = 1, opt <torch::Tensor> Y = std::nullopt, bool verbose = false) {
         int d = X.size(1);
         torch::Tensor projections;
 
+        if (verbose) {
+            std::cout << "Average per row of X (first 50)" << std::endl;
+            std::cout << torch::mean(X, 1).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout << "Max per row of X (first 50)" << std::endl;
+            std::cout << std::get<0>(torch::max(X, 1)).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout << "Min per row of X (first 50)" << std::endl;
+            std::cout << std::get<0>(torch::min(X, 1)).index({torch::indexing::Slice(0, 50)}) << std::endl;
+        }
+
+
         auto X_f32 = X.to(torch::kFloat32); // Ensure float32, so X can be used with random gen'd Tensors
+
+        if (verbose) {
+            std::cout << "Average per row of Xf32 (first 50)" << std::endl;
+            std::cout << torch::mean(X_f32, 1).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout << "Max per row of Xf32 (first 50)" << std::endl;
+            std::cout << std::get<0>(torch::max(X_f32, 1)).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout << "Min per row of Xf32 (first 50)" << std::endl;
+            std::cout << std::get<0>(torch::min(X_f32, 1)).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout << "Xf32 is cuda" << std::endl;
+            std::cout << X_f32.is_cuda() << std::endl;
+        }
 
         if (!Y.has_value()) {
             Y = getRandomVectorsMatrix(d, D, distanceMetric, fourierEmbedDim, sigmaEmbed);
@@ -145,6 +181,20 @@ namespace GsDBSCAN::projections {
             throw std::runtime_error("Unknown distanceMetric: '" + distanceMetric + "'");
         }
 
+        if (verbose) {
+            std::cout << "Average per row of projections (first 50)" << std::endl;
+            std::cout << torch::mean(X_f32, 1).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout << "Max per row of projections (first 50)" << std::endl;
+            std::cout << std::get<0>(torch::max(X_f32, 1)).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout << "Min per row of projections (first 50)" << std::endl;
+            std::cout << std::get<0>(torch::min(X_f32, 1)).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout << "Device of projections" << std::endl;
+            std::cout << X_f32.is_cuda() << std::endl;
+        }
+
         return projections;
     }
 
@@ -156,6 +206,7 @@ namespace GsDBSCAN::projections {
         auto Y = getRandomVectorsMatrix(X.size(1), params.D, params.distanceMetric, params.fourierEmbedDim,
                                         params.sigmaEmbed);
 
+        if (params.verbose) std::cout << "Creating A matrix" << std::endl;
         // Construct A matrix
         torch::Tensor A = torch::empty({n, 2 * params.k},
                                        torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA));
@@ -164,10 +215,12 @@ namespace GsDBSCAN::projections {
             auto thisX = X.slice(0, i, std::min(i + params.ABatchSize, n));
             auto thisProjections = projectTorch(thisX, params.D, params.distanceMetric,
                                                      params.fourierEmbedDim,
-                                                     params.sigmaEmbed, Y);
+                                                     params.sigmaEmbed, Y, params.verbose);
 
             constructAMatrix(thisProjections, params.k, getSortDescending(params.distanceMetric), A, i);
         }
+
+        if (params.verbose) std::cout << "Creating B matrix" << std::endl;
 
         // Construct B matrix
         torch::Tensor B = torch::empty({2 * params.D, params.m},

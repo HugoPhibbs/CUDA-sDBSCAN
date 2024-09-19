@@ -185,6 +185,17 @@ namespace GsDBSCAN {
         auto XTorchCpu = torch::from_blob(X, {params.n, params.d}, XOptions);
         auto XTorchGPU = XTorchCpu.to(torch::kCUDA);
 
+        if (params.verbose) {
+            std::cout << "Average per row of X (first 50)" << std::endl;
+            std::cout << torch::mean(XTorchGPU, 1).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout << "Max per row of X (first 50)" << std::endl;
+            std::cout << std::get<0>(torch::max(XTorchGPU, 1)).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+            std::cout << "Min per row of X (first 50)" << std::endl;
+            std::cout << std::get<0>(torch::min(XTorchGPU, 1)).index({torch::indexing::Slice(0, 50)}) << std::endl;
+        }
+
         cudaDeviceSynchronize();
 
         if (params.timeIt)
@@ -204,7 +215,6 @@ namespace GsDBSCAN {
         int *clusterLabels = nullptr;
         int numClusters = -1;
 
-        // AB matrices
         if (params.useBatchClustering) {
             if (params.verbose) std::cout << "Using batch clustering" << std::endl;
 
@@ -212,7 +222,26 @@ namespace GsDBSCAN {
 
             if (params.verbose) std::cout << "Constructing AB matrices (batching)" << std::endl;
 
+            if (params.verbose) {
+                std::cout << "Average per row of X (first 50)" << std::endl;
+                std::cout << torch::mean(XTorchGPU, 1).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+                std::cout << "Max per row of X (first 50)" << std::endl;
+                std::cout << std::get<0>(torch::max(XTorchGPU, 1)).index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+                std::cout << "Min per row of X (first 50)" << std::endl;
+                std::cout << std::get<0>(torch::min(XTorchGPU, 1)).index({torch::indexing::Slice(0, 50)}) << std::endl;
+            }
+
             auto [A_torch, B_torch] = projections::constructABMatricesBatch(XTorchGPU, params);
+
+            if (params.verbose) {
+                std::cout << "A slice: " << std::endl;
+                std::cout << A_torch.index({torch::indexing::Slice(0, 50)}) << std::endl;
+
+                std::cout << "B slice: " << std::endl;
+                std::cout << B_torch.index({torch::indexing::Slice(0, 50), torch::indexing::Slice(0, 50)}) << std::endl;
+            }
 
             if (params.timeIt)
                 times["constructABMatrices"] = au::duration(startABMatrices, au::timeNow());
