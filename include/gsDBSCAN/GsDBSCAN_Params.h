@@ -32,9 +32,8 @@ namespace GsDBSCAN {
 
     inline bool VERBOSE_DEFAULT = false;
     inline bool USE_BATCH_CLUSTERING_DEFAULT = false;
-    inline bool USE_BATCH_NORM = false;
+    inline bool USE_BATCH_NORM_DEFAULT = false;
     inline bool USE_BATCH_AB_MATRICES_DEFAULT = false;
-
 
     inline std::string DATASET_DTYPE_DEFAULT = "f32";
 
@@ -95,7 +94,7 @@ namespace GsDBSCAN {
                         bool verbose = VERBOSE_DEFAULT,
                         bool useBatchClustering = USE_BATCH_CLUSTERING_DEFAULT,
                         bool useBatchABMatrices = USE_BATCH_AB_MATRICES_DEFAULT,
-                        int normBatchSize = NORM_BATCH_SIZE_DEFAULT,
+                        bool useBatchNorm = USE_BATCH_NORM_DEFAULT,
                         std::string datasetDType = DATASET_DTYPE_DEFAULT
         ) {
 
@@ -268,7 +267,7 @@ namespace GsDBSCAN {
         parser.add_argument("--useBatchNorm", "-ubn")
                 .help("Whether to use the batch processing of dataset normalisation")
                 .default_value(false)
-                .implicit_value(true);.
+                .implicit_value(true);
 
         parser.add_argument("--datasetDType", "-ddt")
                 .help("What dtype the dataset is in. Options: 'f16' or 'f32'")
@@ -316,8 +315,7 @@ namespace GsDBSCAN {
                     parser.get<bool>("--useBatchClustering"),
                     parser.get<bool>("--useBatchABMatrices"),
                     parser.get<bool>("--useBatchNorm"),
-                    parser.get<std::string>("--datasetDType"),
-
+                    parser.get<std::string>("--datasetDType")
             );
         } catch (const std::bad_cast &e) {
             std::cerr << "Error: Invalid type in argument conversion. " << e.what() << std::endl;

@@ -47,10 +47,6 @@ namespace GsDBSCAN::projections {
 
         auto closeProjectionsIdx = 2 * dataToRandomIdxSorted.slice(1, 0, k);
         auto farProjectionsIdx = 2 * dataToRandomIdxSorted.slice(1, D - k, D) + 1;
-//
-//        std::cout << "ARowSlice size: " << ARowSlice.sizes() << std::endl;
-//        std::cout << "AColCloseSlice size: " << AColCloseSlice.sizes() << std::endl;
-//        std::cout << "closeProjectionsIdx size: " << closeProjectionsIdx.sizes() << std::endl;
 
         A->index_put_({ARowSlice, AColCloseSlice}, closeProjectionsIdx); // Closest
         A->index_put_({ARowSlice, AColFarSlice}, farProjectionsIdx); // Furthest
@@ -84,7 +80,7 @@ namespace GsDBSCAN::projections {
     }
 
     inline std::tuple<torch::Tensor, torch::Tensor>
-    constructABMatricesTorch(const torch::Tensor &projections, int k, int m, const std::string &distanceMetric = "L2") {
+    constructABMatrices(const torch::Tensor &projections, int k, int m, const std::string &distanceMetric = "L2") {
         bool sortDescending = getSortDescending(distanceMetric);
 
         auto A = constructAMatrix(projections, k, sortDescending);
@@ -93,34 +89,54 @@ namespace GsDBSCAN::projections {
         return std::tie(A, B);
     }
 
-    inline torch::Tensor normaliseDatasetTorch(torch::Tensor &X) {
-//        auto rowNorms = torch::sqrt(torch::sum(X * X, 1));
-        auto rowNorms = torch::linalg_vector_norm(X, 2, 1);
-        return X / rowNorms.unsqueeze(1);
-    }
-
-    inline torch::Tensor
-    getRandomVectorsMatrix(int d, int D, const std::string &distanceMetric = "L2", int fourierEmbedDim = 1024,
-                           float sigmaEmbed = 1) {
-        if (distanceMetric == "L1" || distanceMetric == "L2") {
-            return torch::randn({2 * fourierEmbedDim, D}, torch::TensorOptions().device(torch::kCUDA));
-        } else if (distanceMetric == "COSINE") {
-            return torch::randn({d, D}, torch::TensorOptions().device(torch::kCUDA));
+    inline torch::Tensor normaliseDataset(torch::Tensor &X, GsDBSCAN_Params params) {
+        if (params.useBatchNorm) {
+            int normBatchSize = params.normBatchSize;
+            for (int i = 0; i < X.size(0); i += normBatchSize) {
+                auto thisX = X.slice(0, i, std::min(i + normBatchSize, (int) X.size(0)));
+                auto rowNorms = torch::linalg_vector_norm(thisX, 2, 1);
+                X.index_put_({torch::indexing::Slice(i, i + thisX.size(0)), torch::indexing::Ellipsis},
+                             thisX / rowNorms.unsqueeze(1));
+            }
+            return X;
         } else {
-            throw std::runtime_error("Unknown distanceMetric: '" + distanceMetric + "'");
+            auto rowNorms = torch::linalg_vector_norm(X, 2, 1);
+            return X / rowNorms.unsqueeze(1);
         }
     }
 
     inline torch::Tensor
-    projectTorch(torch::Tensor &X, int D, const std::string &distanceMetric = "L2", int fourierEmbedDim = 1024,
-                 float sigmaEmbed = 1, opt <torch::Tensor> Y = std::nullopt, bool verbose = false) {
+    getRandomVectorsMatrix(int d, int D, const std::string &distanceMetric = "L2", int fourierEmbedDim = 1024,
+                           std::optional<torch::Dtype> castToType = std::nullopt) {
+
+        torch::Tensor Y;
+
+        if (distanceMetric == "L1" || distanceMetric == "L2") {
+            Y = torch::randn({2 * fourierEmbedDim, D}, torch::TensorOptions().device(torch::kCUDA));
+        } else if (distanceMetric == "COSINE") {
+            Y = torch::randn({d, D}, torch::TensorOptions().device(torch::kCUDA));
+        } else {
+            throw std::runtime_error("Unknown distanceMetric: '" + distanceMetric + "'");
+        }
+
+        if (castToType.has_value()) {
+            Y = Y.to(castToType.value());
+        }
+
+        return Y;
+    }
+
+    inline torch::Tensor
+    projectDataset(torch::Tensor &X, int D, const std::string &distanceMetric = "L2", int fourierEmbedDim = 1024,
+                   float sigmaEmbed = 1, opt <torch::Tensor> Y = std::nullopt, bool verbose = false) {
         int d = X.size(1);
         torch::Tensor projections;
 
-        auto X_f32 = X.to(torch::kFloat32); // Ensure float32, so X can be used with random gen'd Tensors
+//        // TODO this will break the code if X is too big (FIXME)
+//        auto X_f32 = X.to(torch::kFloat32); // Ensure float32, so X can be used with random gen'd Tensors
 
         if (!Y.has_value()) {
-            Y = getRandomVectorsMatrix(d, D, distanceMetric, fourierEmbedDim, sigmaEmbed);
+            Y = getRandomVectorsMatrix(d, D, distanceMetric, fourierEmbedDim, X.scalar_type());
         }
 
         if (distanceMetric == "L1" || distanceMetric == "L2") {
@@ -134,13 +150,15 @@ namespace GsDBSCAN::projections {
                 W = std * torch::randn({fourierEmbedDim, d}, torch::TensorOptions().device(X.device())); // Gaussian
             }
 
-            auto WX = torch::matmul(W, X_f32.t()); // Shape (fourierEmbedDim, n)
+            W = W.to(X.scalar_type());
+
+            auto WX = torch::matmul(W, X.t()); // Shape (fourierEmbedDim, n)
             auto XEmbed = torch::concat({torch::cos(WX), torch::sin(WX)}, 0); // Shape (2 * fourierEmbedDim, n)
 
             projections = torch::matmul(XEmbed.t(), Y.value());
 
         } else if (distanceMetric == "COSINE") {
-            projections = torch::matmul(X_f32, Y.value());
+            projections = torch::matmul(X, Y.value());
 
         } else {
             throw std::runtime_error("Unknown distanceMetric: '" + distanceMetric + "'");
@@ -154,8 +172,9 @@ namespace GsDBSCAN::projections {
     constructABMatricesBatch(torch::Tensor &X, GsDBSCAN::GsDBSCAN_Params &params) {
 
         int n = X.size(0);
-        auto Y = getRandomVectorsMatrix(X.size(1), params.D, params.distanceMetric, params.fourierEmbedDim,
-                                        params.sigmaEmbed);
+        auto Y = getRandomVectorsMatrix(X.size(1), params.D, params.distanceMetric, params.fourierEmbedDim, X.scalar_type());
+
+        bool sortDescending = getSortDescending(params.distanceMetric);
 
         if (params.verbose) std::cout << "Creating A matrix" << std::endl;
         // Construct A matrix
@@ -164,12 +183,14 @@ namespace GsDBSCAN::projections {
 
         for (int i = 0; i < n; i += params.ABatchSize) {
             auto thisX = X.slice(0, i, std::min(i + params.ABatchSize, n));
-            auto thisProjections = projectTorch(thisX, params.D, params.distanceMetric,
-                                                     params.fourierEmbedDim,
-                                                     params.sigmaEmbed, Y, params.verbose);
+            auto thisProjections = projectDataset(thisX, params.D, params.distanceMetric,
+                                                  params.fourierEmbedDim,
+                                                  params.sigmaEmbed, Y, params.verbose);
 
-            constructAMatrix(thisProjections, params.k, getSortDescending(params.distanceMetric), A, i);
+            constructAMatrix(thisProjections, params.k, sortDescending, A, i);
         }
+
+        if (params.verbose) std::cout << "A created" << std::endl;
 
         if (params.verbose) std::cout << "Creating B matrix" << std::endl;
 
@@ -180,12 +201,15 @@ namespace GsDBSCAN::projections {
         for (int j = 0; j < params.D; j += params.BBatchSize) {
             auto thisY = Y.slice(1, j, std::min(j + params.BBatchSize, params.D));
 
-            auto thisProjections = projectTorch(X, params.D, params.distanceMetric,
-                                                     params.fourierEmbedDim,
-                                                     params.sigmaEmbed, thisY);
+            // TODO should this be projecting across the entire dataset - why don't we adjust for the batch size? - giving params.D here, not params.BBatchSize
+            auto thisProjections = projectDataset(X, params.D, params.distanceMetric,
+                                                  params.fourierEmbedDim,
+                                                  params.sigmaEmbed, thisY);
 
-            constructBMatrix(thisProjections, params.m, getSortDescending(params.distanceMetric), B, j);
+            constructBMatrix(thisProjections, params.m, sortDescending, B, j);
         }
+
+        if (params.verbose) std::cout << "B created" << std::endl;
 
         return std::make_tuple(std::ref(A), std::ref(B));
     }

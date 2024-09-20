@@ -6,6 +6,7 @@
 #define SDBSCAN_PCH_H
 
 #include <torch/torch.h>
+#include <torch/script.h>
 #include "lib_include/rapidcsv.h"
 #include "lib_include/json.hpp"
 #include "lib_include/argparse.hpp"
