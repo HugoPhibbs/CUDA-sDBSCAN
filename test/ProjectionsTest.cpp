@@ -79,7 +79,7 @@ TEST_F(TestConstructingABMatrices, TestSmallInputTorch) {
 
     cudaCheckError();
 
-    auto [A, B] = GsDBSCAN::projections::constructABMatricesTorch(distances_tensor, 2, 2);
+    auto [A, B] = GsDBSCAN::projections::constructABMatrices(distances_tensor, 2, 2);
 
     auto A_d = A.mutable_data_ptr<int>();
     auto B_d = B.mutable_data_ptr<int>();

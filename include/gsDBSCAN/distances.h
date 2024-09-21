@@ -8,6 +8,9 @@
 #include <cmath>
 #include <chrono>
 #include <iostream>
+#include <vector>
+#include <c10/cuda/CUDAStream.h>
+#include <c10/cuda/CUDAGuard.h>
 #include "../pch.h"
 
 #include <cstdio>
@@ -56,6 +59,87 @@ namespace GsDBSCAN::distances {
         }
 
         return -1; // Should never reach here
+    }
+
+    inline torch::Tensor
+    findDistancesTorchWithScripts(torch::Tensor &X, torch::Tensor &A, torch::Tensor &B, const float alpha,
+                                  int batchSize, const std::string &distanceMetric, int XStartIdx = 0,
+                                  int XEndIdx = -1) {
+        if (XEndIdx == -1) {
+            XEndIdx = X.size(0);
+        }
+
+        int k = A.size(1) / 2;
+        int m = B.size(1);
+        int d = X.size(1);
+
+        int effectiveN = XEndIdx - XStartIdx;
+        int actualN = X.size(0);
+
+        batchSize = (batchSize != -1) ? batchSize : findDistanceBatchSize(alpha, actualN, d, k, m);
+
+        torch::Tensor distances = torch::empty({effectiveN, 2 * k * m},
+                                               torch::device(torch::kCUDA).dtype(torch::kFloat32));
+
+
+        std::string moduleName = "";
+        if (distanceMetric == "L1") {
+            moduleName = "/home/hphi344/Documents/GS-DBSCAN-CPP/torch_scripts/distances_l1.pt";
+        } else if (distanceMetric == "L2") {
+            moduleName = "/home/hphi344/Documents/GS-DBSCAN-CPP/torch_scripts/distances_l2.pt";
+        } else if (distanceMetric == "COSINE") {
+            moduleName = "/home/hphi344/Documents/GS-DBSCAN-CPP/torch_scripts/distances_cosine.pt";
+        } else {
+            throw std::invalid_argument("Unsupported distance metric");
+        }
+
+        torch::jit::script::Module processBatchModule;
+
+        try {
+            processBatchModule = torch::jit::load(moduleName);
+        } catch (const c10::Error &e) {
+            std::cerr << "Error loading the module: " << e.what() << std::endl;
+            std::exit(-1);
+        }
+
+        const int numStreams = 4;
+        std::vector<c10::cuda::CUDAStream> streams;
+        for (int i = 0; i < numStreams; i++) {
+            streams.push_back(c10::cuda::getStreamFromPool(false));
+        }
+
+        for (int i = 0; i < effectiveN; i += batchSize) {
+            int maxDistancesIdx = std::min(i + batchSize, effectiveN);
+            int thisBatchSize = maxDistancesIdx - i;
+
+            int thisXStartIdx = i + XStartIdx;
+            int thisXMaxIdx = thisXStartIdx + thisBatchSize;
+
+            std::vector<torch::jit::IValue> inputs;
+
+            inputs.push_back(X);
+            inputs.push_back(A);
+            inputs.push_back(B);
+            inputs.push_back(distances);
+            inputs.push_back(k);
+            inputs.push_back(m);
+            inputs.push_back(d);
+            inputs.push_back(thisXStartIdx);
+            inputs.push_back(thisXMaxIdx);
+            inputs.push_back(thisBatchSize);
+            inputs.push_back(i);
+            inputs.push_back(maxDistancesIdx);
+
+            c10::cuda::CUDAStreamGuard guard(streams[i % numStreams]);
+
+            processBatchModule.forward(inputs);
+        }
+
+        for (int i = 0; i < numStreams; ++i) {
+            streams[i].synchronize();
+        }
+
+        return distances;
     }
 
     inline torch::Tensor

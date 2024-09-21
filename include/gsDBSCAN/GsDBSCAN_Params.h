@@ -23,6 +23,7 @@ namespace GsDBSCAN {
     inline int CLUSTER_BLOCK_SIZE_DEFAULT = 256;
 
     inline int MINI_BATCH_SIZE_DEFAULT = 10000;
+    inline int NORM_BATCH_SIZE_DEFAULT = 10000;
     inline int A_BATCH_SIZE_DEFAULT = 10000;
     inline int B_BATCH_SIZE_DEFAULT = 128;
 
@@ -31,6 +32,7 @@ namespace GsDBSCAN {
 
     inline bool VERBOSE_DEFAULT = false;
     inline bool USE_BATCH_CLUSTERING_DEFAULT = false;
+    inline bool USE_BATCH_NORM_DEFAULT = false;
     inline bool USE_BATCH_AB_MATRICES_DEFAULT = false;
 
     inline std::string DATASET_DTYPE_DEFAULT = "f32";
@@ -68,8 +70,10 @@ namespace GsDBSCAN {
         int ABatchSize;
         int BBatchSize;
         int miniBatchSize;
+        int normBatchSize;
         bool verbose;
         bool useBatchClustering;
+        bool useBatchNorm;
         bool useBatchABMatrices;
         std::string datasetDType;
 
@@ -84,11 +88,15 @@ namespace GsDBSCAN {
                         int clusterBlockSize = CLUSTER_BLOCK_SIZE_DEFAULT, bool timeIt = TIME_IT_DEFAULT,
                         int fourierEmbedDim = FOURIER_EMBED_DIM_DEFAULT, float sigmaEmbed = SIGMA_EMBED_DEFAULT,
                         int ABatchSize = A_BATCH_SIZE_DEFAULT,
-                        int BBatchSize = B_BATCH_SIZE_DEFAULT, int miniBatchSize = MINI_BATCH_SIZE_DEFAULT,
+                        int BBatchSize = B_BATCH_SIZE_DEFAULT,
+                        int miniBatchSize = MINI_BATCH_SIZE_DEFAULT,
+                        int normBatchSize = NORM_BATCH_SIZE_DEFAULT,
                         bool verbose = VERBOSE_DEFAULT,
                         bool useBatchClustering = USE_BATCH_CLUSTERING_DEFAULT,
                         bool useBatchABMatrices = USE_BATCH_AB_MATRICES_DEFAULT,
-                        std::string datasetDType = DATASET_DTYPE_DEFAULT) {
+                        bool useBatchNorm = USE_BATCH_NORM_DEFAULT,
+                        std::string datasetDType = DATASET_DTYPE_DEFAULT
+        ) {
 
             this->dataFilename = dataFilename;
             this->outputFilename = outputFilename;
@@ -111,6 +119,7 @@ namespace GsDBSCAN {
             this->ABatchSize = ABatchSize;
             this->BBatchSize = BBatchSize;
             this->miniBatchSize = miniBatchSize;
+            this->normBatchSize = normBatchSize;
             this->verbose = verbose;
             this->useBatchClustering = useBatchClustering;
             this->useBatchABMatrices = useBatchABMatrices;
@@ -148,9 +157,11 @@ namespace GsDBSCAN {
             oss << "A Batch Size: " << ABatchSize << "\n";
             oss << "B Batch Size: " << BBatchSize << "\n";
             oss << "Mini Batch Size: " << miniBatchSize << "\n";
+            oss << "Norm Batch Size: " << normBatchSize << "\n";
             oss << "Verbose: " << (verbose ? "true" : "false") << "\n";
             oss << "Use Batch Clustering: " << (useBatchClustering ? "true" : "false") << "\n";
             oss << "Use batch creation of A, B matrices: " << (useBatchABMatrices ? "true" : "false") << "\n";
+            oss << "Use batch normalisation: " << (useBatchNorm ? "true" : "false") << "\n";
             oss << "Dataset DType: " << datasetDType << "\n";
 
             return oss.str();
@@ -218,6 +229,11 @@ namespace GsDBSCAN {
                 .scan<'i', int>()
                 .default_value(B_BATCH_SIZE_DEFAULT);
 
+        parser.add_argument("--normBatchSize", "-nbs")
+                .help("What batch size to use when normalising the dataset")
+                .scan<'i', int>()
+                .default_value(NORM_BATCH_SIZE_DEFAULT);
+
         parser.add_argument("--timeIt", "-t")
                 .help("Whether the algorithm should be timed or not")
                 .default_value(TIME_IT_DEFAULT)
@@ -245,6 +261,11 @@ namespace GsDBSCAN {
 
         parser.add_argument("--useBatchABMatrices", "-ubd")
                 .help("Whether to use the batch creation of the AB matrices (unimplemented)")
+                .default_value(false)
+                .implicit_value(true);
+
+        parser.add_argument("--useBatchNorm", "-ubn")
+                .help("Whether to use the batch processing of dataset normalisation")
                 .default_value(false)
                 .implicit_value(true);
 
@@ -289,9 +310,11 @@ namespace GsDBSCAN {
                     parser.get<int>("--ABatchSize"),
                     parser.get<int>("--BBatchSize"),
                     parser.get<int>("--miniBatchSize"),
+                    parser.get<int>("--normBatchSize"),
                     parser.get<bool>("--verbose"),
                     parser.get<bool>("--useBatchClustering"),
                     parser.get<bool>("--useBatchABMatrices"),
+                    parser.get<bool>("--useBatchNorm"),
                     parser.get<std::string>("--datasetDType")
             );
         } catch (const std::bad_cast &e) {

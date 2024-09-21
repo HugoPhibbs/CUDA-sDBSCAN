@@ -66,10 +66,6 @@ namespace GsDBSCAN::clustering {
             auto closePoints = distances > eps;
             auto closePoints_int = matx::as_type<int>(closePoints);
             (res = matx::sum(closePoints_int, {1})).run();
-
-            std::cout << matx::Shape(res)[0] << std::endl;
-//            print(matx::slice(res, {0}, {100}));
-//            print(matx::slice(res, {n-100}, {n-1}));
         } else {
             throw std::runtime_error("Invalid distance metric: " + distanceMetric);
         }
@@ -449,8 +445,6 @@ namespace GsDBSCAN::clustering {
                 startIdxArray_d, A_t.Data(),
                 B_t.Data(), thisN, k, m, eps,
                 clusterBlockSize, distanceMetric, startIdx);
-
-        std::cout<<"adjlist_size :" << adjacencyListSize << std::endl;
 
         auto adjListDuration = au::durationSinceStart(adjListStart);
 

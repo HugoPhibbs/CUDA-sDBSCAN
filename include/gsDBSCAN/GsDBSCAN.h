@@ -49,9 +49,12 @@ namespace GsDBSCAN {
 
             auto distanceBatchStart = au::timeNow();
 
-            auto distancesBatch = distances::findDistancesTorch(X, A, B, params.alpha, params.distancesBatchSize, params.distanceMetric, i,
-                                                                endIdx);
-            
+//            auto distancesBatch = distances::findDistancesTorch(X, A, B, params.alpha, params.distancesBatchSize, params.distanceMetric, i,
+//                                                                endIdx);
+
+            auto distancesBatch = distances::findDistancesTorchWithScripts(X, A, B, params.alpha, params.distancesBatchSize, params.distanceMetric, i,
+                                                        endIdx);
+
             cudaDeviceSynchronize();
 
             totalTimeDistances += au::duration(distanceBatchStart, au::timeNow());
@@ -123,7 +126,10 @@ namespace GsDBSCAN {
     inline std::tuple<int *, int>
     performClusteringBatch(torch::Tensor X, torch::Tensor A, torch::Tensor B, nlohmann::ordered_json &times, GsDBSCAN_Params &params) {
 
+        if (params.verbose) std::cout << "Creating clustering vecs (batching)" << std::endl;
         auto [adjacencyListVec, degVec, startIdxVec] = batchCreateClusteringVecs(X, A, B, times, params);
+
+        if (params.verbose) std::cout << "Clustering vecs created" << std::endl;
 
         int *adjacencyList_d = thrust::raw_pointer_cast(adjacencyListVec.data());
         int *degArray_d = thrust::raw_pointer_cast(degVec.data());
@@ -135,16 +141,24 @@ namespace GsDBSCAN {
 
         auto processAdjacencyListStart = au::timeNow();
 
+        if (params.verbose) std::cout << "Processing adjacency list" << std::endl;
+
         auto [neighbourhoodMatrix, corePoints] = clustering::processAdjacencyListCpu(adjacencyList_d, degArray_d,
                                                                                      startIdxArray_d, params.n,
                                                                                      adjacencyListSize, params.minPts, &times, params.timeIt);
+
+        if (params.verbose) std::cout << "Adjacency list processed" << std::endl;
 
         if (params.timeIt)
             times["processAdjacencyList"] = au::duration(processAdjacencyListStart, au::timeNow());
 
         auto startFormClusters = au::timeNow();
 
+        if (params.verbose) std::cout << "Forming clusters (CPU)" << std::endl;
+
         auto result = clustering::formClustersCPU(neighbourhoodMatrix, corePoints, params.n);
+
+        if (params.verbose) std::cout << "Clusters formed" << std::endl;
 
         if (params.timeIt)
             times["formClusters"] = au::duration(startFormClusters, au::timeNow());
@@ -192,7 +206,7 @@ namespace GsDBSCAN {
 
         if (params.needToNormalise) {
             if (params.verbose) std::cout << "Normalising dataset" << std::endl;
-            XTorchGPU = projections::normaliseDatasetTorch(XTorchGPU);
+            XTorchGPU = projections::normaliseDataset(XTorchGPU, params);
         }
 
         if (params.timeIt) times["normalise"] = au::duration(startNormalise, au::timeNow());
@@ -223,7 +237,7 @@ namespace GsDBSCAN {
 
             au::Time startProjections = au::timeNow();
 
-            auto projections_torch = projections::projectTorch(XTorchGPU, params.D);
+            auto projections_torch = projections::projectDataset(XTorchGPU, params.D);
 
             if (params.timeIt) times["projections"] = au::duration(startProjections, au::timeNow());
 
@@ -233,7 +247,8 @@ namespace GsDBSCAN {
 
             if (params.verbose) std::cout << "Constructing AB matrices" << std::endl;
 
-            auto [A_torch, B_torch] = projections::constructABMatricesTorch(projections_torch, params.k, params.m, params.distanceMetric);
+            auto [A_torch, B_torch] = projections::constructABMatrices(projections_torch, params.k, params.m,
+                                                                       params.distanceMetric);
 
             if (params.timeIt) times["constructABMatrices"] = au::duration(startABMatrices, au::timeNow());
 
