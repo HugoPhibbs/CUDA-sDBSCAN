@@ -7,6 +7,8 @@
 
 #include <chrono>
 #include <tuple>
+#include <cstdlib>
+#include <cstring>
 
 #include "../pch.h"
 #include "projections.h"
@@ -166,6 +168,20 @@ namespace GsDBSCAN {
         return result;
     }
 
+    inline bool get_boolean_env(const char* var_name) {
+        const char* env_var = std::getenv(var_name);
+        if (env_var) {
+            // Check common true values: "1", "true", "yes" (case-insensitive)
+
+            std::cout << "Env var: " << env_var << std::endl;
+
+            return (strcmp(env_var, "1") == 0 ||
+                    strcasecmp(env_var, "true") == 0 ||
+                    strcasecmp(env_var, "yes") == 0);
+        }
+        return false; // Default to false if not set or invalid
+    }
+
     /**
     * Performs the gs dbscan algorithm
     *
@@ -258,19 +274,47 @@ namespace GsDBSCAN {
 
             if (params.verbose) std::cout << "Calculating distances" << std::endl;
 
-            auto distances_torch = distances::findDistancesTorch(XTorchGPU, A_torch, B_torch, params.alpha, params.distancesBatchSize, params.distanceMetric);
+            auto XMatx = au::torchTensorToMatX<float>(XTorchGPU);
+            auto AMatx = au::torchTensorToMatX<int>(A_torch);
+            auto BMatx = au::torchTensorToMatX<int>(B_torch);
 
-            cudaDeviceSynchronize();
+//            bool useMatXDistances = std::getenv("USE_MATX_DISTANCES");
 
-            if (params.timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
+            bool useMatXDistances = true;
 
-            auto distances_matx = matx::make_tensor<float>(distances_torch.data_ptr<float>(), {params.n, 2*params.k*params.m}, matx::MATX_DEVICE_MEMORY);
-            auto A_t = matx::make_tensor<int>(A_torch.data_ptr<int>(), {params.n, 2*params.k}, matx::MATX_DEVICE_MEMORY);
-            auto B_t = matx::make_tensor<int>(B_torch.data_ptr<int>(), {2*params.D, params.m}, matx::MATX_DEVICE_MEMORY);
+            std::cout << "useMatXDistances: " << useMatXDistances << std::endl;
 
-            if (params.verbose) std::cout << "Performing clustering" << std::endl;
+            if (useMatXDistances) {
+                auto distances_matx = distances::findDistancesMatX(XMatx, AMatx, BMatx, params.alpha, params.distancesBatchSize, params.distanceMetric);
 
-            std::tie(clusterLabels, numClusters) = clustering::performClustering(distances_matx, A_t, B_t, params.eps, params.minPts, params.clusterBlockSize, params.distanceMetric, params.timeIt, times, params.clusterOnCpu);
+                cudaDeviceSynchronize();
+
+                if (params.timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
+
+                auto A_t = au::torchTensorToMatX<int>(A_torch); // matx::make_tensor<int>(A_torch.data_ptr<int>(), {params.n, 2*params.k}, matx::MATX_DEVICE_MEMORY);
+                auto B_t = au::torchTensorToMatX<int>(B_torch); // matx::make_tensor<int>(B_torch.data_ptr<int>(), {2*params.D, params.m}, matx::MATX_DEVICE_MEMORY);
+
+                if (params.verbose) std::cout << "Performing clustering" << std::endl;
+
+                std::tie(clusterLabels, numClusters) = clustering::performClustering(distances_matx, A_t, B_t, params.eps, params.minPts, params.clusterBlockSize, params.distanceMetric, params.timeIt, times, params.clusterOnCpu);
+            } else {
+                auto distances_torch = distances::findDistancesTorch(XTorchGPU, A_torch, B_torch, params.alpha, params.distancesBatchSize, params.distanceMetric);
+                auto distances_matx = au::torchTensorToMatX<float>(distances_torch);
+
+                cudaDeviceSynchronize();
+
+                if (params.timeIt) times["distances"] = au::duration(startDistances, au::timeNow());
+
+                auto A_t = au::torchTensorToMatX<int>(A_torch); // matx::make_tensor<int>(A_torch.data_ptr<int>(), {params.n, 2*params.k}, matx::MATX_DEVICE_MEMORY);
+                auto B_t = au::torchTensorToMatX<int>(B_torch); // matx::make_tensor<int>(B_torch.data_ptr<int>(), {2*params.D, params.m}, matx::MATX_DEVICE_MEMORY);
+
+                if (params.verbose) std::cout << "Performing clustering" << std::endl;
+
+                std::tie(clusterLabels, numClusters) = clustering::performClustering(distances_matx, A_t, B_t, params.eps, params.minPts, params.clusterBlockSize, params.distanceMetric, params.timeIt, times, params.clusterOnCpu);
+
+            }
+
+//            auto distances_torch = distances::findDistancesTorch(XTorchGPU, A_torch, B_torch, params.alpha, params.distancesBatchSize, params.distanceMetric);
         }
 
         if (params.timeIt)
