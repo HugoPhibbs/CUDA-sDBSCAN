@@ -18,3 +18,4 @@ bin
 repro*
 build*
 *.nsys-rep
+results.json
