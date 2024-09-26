@@ -122,6 +122,37 @@ TEST_F(TestMainHelper, TestMnist8m1MF16) {
     ASSERT_TRUE(numClusters > 3);
 }
 
+TEST_F(TestMainHelper, TestPortoF32) {
+    GsDBSCAN::GsDBSCAN_Params params = GsDBSCAN::GsDBSCAN_Params(
+            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/spatial_datasets/porto_s8_f32.bin",
+            "",
+            10427415,
+            2,
+            1024,
+            8,
+            6,
+            160,
+            0.008,
+            "L2",
+            true,
+            false
+    );
+
+    params.useBatchNorm = true;
+    params.useBatchClustering = true;
+    params.verbose = true;
+    params.datasetDType = "f32";
+    params.ABatchSize = 100000;
+    params.BBatchSize = 32;
+    params.miniBatchSize = 100000;
+
+    std::cout << params.toString() << std::endl;
+
+    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(params);
+
+    std::cout << "Number of clusters: " << numClusters << std::endl;
+}
+
 class TestReadMnist : public RunUtilsTest {
 
 };
@@ -135,3 +166,4 @@ TEST_F(TestReadMnist, TestBinNormally) {
 
     tu::printDurationSinceStart(start, "Reading MNIST via binary");
 }
+
