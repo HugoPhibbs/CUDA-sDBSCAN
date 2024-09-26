@@ -49,11 +49,11 @@ namespace GsDBSCAN {
 
             auto distanceBatchStart = au::timeNow();
 
-//            auto distancesBatch = distances::findDistancesTorch(X, A, B, params.alpha, params.distancesBatchSize, params.distanceMetric, i,
-//                                                                endIdx);
+            auto distancesBatch = distances::findDistancesTorch(X, A, B, params.alpha, params.distancesBatchSize, params.distanceMetric, i,
+                                                                endIdx);
 
-            auto distancesBatch = distances::findDistancesTorchWithScripts(X, A, B, params.alpha, params.distancesBatchSize, params.distanceMetric, i,
-                                                        endIdx);
+//            auto distancesBatch = distances::findDistancesTorchWithScripts(X, A, B, params.alpha, params.distancesBatchSize, params.distanceMetric, i,
+//                                                        endIdx);
 
             cudaDeviceSynchronize();
 
@@ -237,7 +237,9 @@ namespace GsDBSCAN {
 
             au::Time startProjections = au::timeNow();
 
-            auto projections_torch = projections::projectDataset(XTorchGPU, params.D);
+            if (params.verbose) std::cout << "Performing projections" << std::endl;
+
+            auto projections_torch = projections::projectDataset(XTorchGPU, params.D, params.distanceMetric, params.fourierEmbedDim, params.sigmaEmbed);
 
             if (params.timeIt) times["projections"] = au::duration(startProjections, au::timeNow());
 
