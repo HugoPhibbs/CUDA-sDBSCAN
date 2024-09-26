@@ -102,7 +102,7 @@ namespace GsDBSCAN::distances {
             std::exit(-1);
         }
 
-        const int numStreams = 4;
+        const int numStreams = 8;
         std::vector<c10::cuda::CUDAStream> streams;
         for (int i = 0; i < numStreams; i++) {
             streams.push_back(c10::cuda::getStreamFromPool(false));
@@ -130,7 +130,10 @@ namespace GsDBSCAN::distances {
             inputs.push_back(i);
             inputs.push_back(maxDistancesIdx);
 
-            c10::cuda::CUDAStreamGuard guard(streams[i % numStreams]);
+            auto stream = streams[i % numStreams];
+
+            c10::cuda::CUDAStreamGuard guard(stream);
+            at::cuda::setCurrentCUDAStream(stream);
 
             processBatchModule.forward(inputs);
         }
