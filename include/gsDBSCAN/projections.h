@@ -132,26 +132,28 @@ namespace GsDBSCAN::projections {
         int d = X.size(1);
         torch::Tensor projections;
 
-//        // TODO this will break the code if X is too big (FIXME)
-//        auto X_f32 = X.to(torch::kFloat32); // Ensure float32, so X can be used with random gen'd Tensors
-
         if (!Y.has_value()) {
             Y = getRandomVectorsMatrix(d, D, distanceMetric, fourierEmbedDim, X.scalar_type());
         }
 
         if (distanceMetric == "L1" || distanceMetric == "L2") {
+            if (verbose) std::cout << "Embedding vectors" << std::endl;
+
             torch::Tensor W;
             float std = 1 / sigmaEmbed;
 
             if (distanceMetric == "L1") {
+                if (verbose) std::cout << "Using Cauchy distribution" << std::endl;
                 auto uniform = torch::rand({fourierEmbedDim, d}, torch::TensorOptions().device(X.device()));
                 W = ((1 / 2) * (std * std)) * torch::tan(M_PI * (uniform - 0.5)); // Cauchy
             } else { // L2
+                if (verbose) std::cout << "Using Gaussian distribution" << std::endl;
                 W = std * torch::randn({fourierEmbedDim, d}, torch::TensorOptions().device(X.device())); // Gaussian
             }
 
             W = W.to(X.scalar_type());
 
+            // TODO this line fails for very large N~10^7
             auto WX = torch::matmul(W, X.t()); // Shape (fourierEmbedDim, n)
             auto XEmbed = torch::concat({torch::cos(WX), torch::sin(WX)}, 0); // Shape (2 * fourierEmbedDim, n)
 
@@ -202,7 +204,7 @@ namespace GsDBSCAN::projections {
             auto thisY = Y.slice(1, j, std::min(j + params.BBatchSize, params.D));
 
             // TODO should this be projecting across the entire dataset - why don't we adjust for the batch size? - giving params.D here, not params.BBatchSize
-            auto thisProjections = projectDataset(X, params.D, params.distanceMetric,
+            auto thisProjections = projectDataset(X, params.BBatchSize, params.distanceMetric,
                                                   params.fourierEmbedDim,
                                                   params.sigmaEmbed, thisY);
 
