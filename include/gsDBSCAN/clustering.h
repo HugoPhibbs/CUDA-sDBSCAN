@@ -21,6 +21,7 @@
 #include <cuda/std/atomic>
 #include "algo_utils.h"
 #include "../pch.h"
+#include <mutex>
 
 namespace au = GsDBSCAN::algo_utils;
 
@@ -220,6 +221,8 @@ namespace GsDBSCAN::clustering {
 
         std::function<void(int i, int j)> addToNeighbourhoodMatrix;
 
+        std::vector<std::mutex> rowLocks(params.n);
+
         if (params.ignoreAdjListSymmetry) {
             if (params.verbose) std::cout << "Not ensuring adj list symmetry" << std::endl;
             addToNeighbourhoodMatrix = [&](int i, int j) {
@@ -228,8 +231,9 @@ namespace GsDBSCAN::clustering {
         } else{
             if (params.verbose) std::cout << "Ensuring adj list symmetry" << std::endl;
             addToNeighbourhoodMatrix= [&](int i, int j) {
-                #pragma omp critical
                 {
+                    std::lock_guard<std::mutex> lock_i(rowLocks[i]);
+                    std::lock_guard<std::mutex> lock_j(rowLocks[j]);
                     neighbourhoodMatrix[i].push_back(j);
                     neighbourhoodMatrix[j].push_back(i);
                 }
