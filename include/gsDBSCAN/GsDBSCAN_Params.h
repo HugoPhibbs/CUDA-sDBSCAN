@@ -127,7 +127,7 @@ namespace GsDBSCAN {
             this->useBatchClustering = useBatchClustering;
             this->useBatchABMatrices = useBatchABMatrices;
             this->useBatchNorm = useBatchNorm;
-            this->ignoreAdjListSymmetry = ignoreAdjacencyListSymmetry;
+            this->ignoreAdjListSymmetry = ignoreAdjListSymmetry;
 
             if (datasetDType != "f16" && datasetDType != "f32") {
                 throw std::runtime_error("Invalid dataset dtype. Must be either 'f16' or 'f32'");
