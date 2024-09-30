@@ -34,6 +34,7 @@ namespace GsDBSCAN {
     inline bool USE_BATCH_CLUSTERING_DEFAULT = false;
     inline bool USE_BATCH_NORM_DEFAULT = false;
     inline bool USE_BATCH_AB_MATRICES_DEFAULT = false;
+    inline bool IGNORE_ADJACENCY_LIST_SYMMETRY_DEFAULT = false;
 
     inline std::string DATASET_DTYPE_DEFAULT = "f32";
 
@@ -75,6 +76,7 @@ namespace GsDBSCAN {
         bool useBatchClustering;
         bool useBatchNorm;
         bool useBatchABMatrices;
+        bool ignoreAdjListSymmetry;
         std::string datasetDType;
 
 
@@ -95,7 +97,8 @@ namespace GsDBSCAN {
                         bool useBatchClustering = USE_BATCH_CLUSTERING_DEFAULT,
                         bool useBatchABMatrices = USE_BATCH_AB_MATRICES_DEFAULT,
                         bool useBatchNorm = USE_BATCH_NORM_DEFAULT,
-                        std::string datasetDType = DATASET_DTYPE_DEFAULT
+                        std::string datasetDType = DATASET_DTYPE_DEFAULT,
+                        bool ignoreAdjListSymmetry = IGNORE_ADJACENCY_LIST_SYMMETRY_DEFAULT
         ) {
 
             this->dataFilename = dataFilename;
@@ -124,6 +127,7 @@ namespace GsDBSCAN {
             this->useBatchClustering = useBatchClustering;
             this->useBatchABMatrices = useBatchABMatrices;
             this->useBatchNorm = useBatchNorm;
+            this->ignoreAdjListSymmetry = ignoreAdjListSymmetry;
 
             if (datasetDType != "f16" && datasetDType != "f32") {
                 throw std::runtime_error("Invalid dataset dtype. Must be either 'f16' or 'f32'");
@@ -163,6 +167,7 @@ namespace GsDBSCAN {
             oss << "Use Batch Clustering: " << (useBatchClustering ? "true" : "false") << "\n";
             oss << "Use batch creation of A, B matrices: " << (useBatchABMatrices ? "true" : "false") << "\n";
             oss << "Use batch normalisation: " << (useBatchNorm ? "true" : "false") << "\n";
+            oss << "Ignore Adjacency List Symmetry: " << (ignoreAdjListSymmetry ? "true" : "false") << "\n";
             oss << "Dataset DType: " << datasetDType << "\n";
 
             return oss.str();
@@ -270,6 +275,11 @@ namespace GsDBSCAN {
                 .default_value(false)
                 .implicit_value(true);
 
+        parser.add_argument("--ignoreAdjListSymmetry", "-ias")
+                .help("Whether to ignore the symmetry of the adjacency list")
+                .default_value(false)
+                .implicit_value(true);
+
         parser.add_argument("--datasetDType", "-ddt")
                 .help("What dtype the dataset is in. Options: 'f16' or 'f32'")
                 .default_value(DATASET_DTYPE_DEFAULT);
@@ -316,7 +326,8 @@ namespace GsDBSCAN {
                     parser.get<bool>("--useBatchClustering"),
                     parser.get<bool>("--useBatchABMatrices"),
                     parser.get<bool>("--useBatchNorm"),
-                    parser.get<std::string>("--datasetDType")
+                    parser.get<std::string>("--datasetDType"),
+                    parser.get<bool>("--ignoreAdjListSymmetry")
             );
         } catch (const std::bad_cast &e) {
             std::cerr << "Error: Invalid type in argument conversion. " << e.what() << std::endl;

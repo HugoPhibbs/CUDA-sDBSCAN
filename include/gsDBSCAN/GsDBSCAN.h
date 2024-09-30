@@ -144,8 +144,8 @@ namespace GsDBSCAN {
         if (params.verbose) std::cout << "Processing adjacency list" << std::endl;
 
         auto [neighbourhoodMatrix, corePoints] = clustering::processAdjacencyListCpu(adjacencyList_d, degArray_d,
-                                                                                     startIdxArray_d, params.n,
-                                                                                     adjacencyListSize, params.minPts, &times, params.timeIt);
+                                                                                     startIdxArray_d, params,
+                                                                                     adjacencyListSize, &times);
 
         if (params.verbose) std::cout << "Adjacency list processed" << std::endl;
 
@@ -272,7 +272,7 @@ namespace GsDBSCAN {
 
             if (params.verbose) std::cout << "Performing clustering" << std::endl;
 
-            std::tie(clusterLabels, numClusters) = clustering::performClustering(distances_matx, A_t, B_t, params.eps, params.minPts, params.clusterBlockSize, params.distanceMetric, params.timeIt, times, params.clusterOnCpu);
+            std::tie(clusterLabels, numClusters) = clustering::performClustering(distances_matx, A_t, B_t, params, times);
         }
 
         if (params.timeIt)

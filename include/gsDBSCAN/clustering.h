@@ -20,7 +20,9 @@
 #include <cub/cub.cuh>
 #include <cuda/std/atomic>
 #include "algo_utils.h"
+#include "GsDBSCAN_Params.h"
 #include "../pch.h"
+#include <mutex>
 
 namespace au = GsDBSCAN::algo_utils;
 
@@ -200,44 +202,73 @@ namespace GsDBSCAN::clustering {
     }
 
 
+
     inline std::tuple<std::vector<std::vector<int>>, boost::dynamic_bitset<>>
-    processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, int n, int adjacencyList_size,
-                            int minPts, nlohmann::ordered_json *times = nullptr, bool timeIt = false) {
-        auto neighbourhoodMatrix = std::vector<std::vector<int>>(n, std::vector<int>());
-        auto corePoints = boost::dynamic_bitset<>(n);
+    processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, GsDBSCAN::GsDBSCAN_Params &params, int adjacencyList_size, nlohmann::ordered_json *times = nullptr) {
+        if (params.verbose) std::cout << "Processing the adj list(CPU)" << std::endl;
+
+        auto neighbourhoodMatrix = std::vector<std::vector<int>>(params.n, std::vector<int>());
+        auto corePoints = boost::dynamic_bitset<>(params.n);
 
         auto timeCopyClusteringArraysStart = au::timeNow();
 
         auto adjacencyList_h = algo_utils::copyDeviceToHost(adjacencyList_d, adjacencyList_size);
-        auto startIdxArray_h = algo_utils::copyDeviceToHost(startIdxArray_d, n);
-        auto degArray_h = algo_utils::copyDeviceToHost(degArray_d, n);
+        auto startIdxArray_h = algo_utils::copyDeviceToHost(startIdxArray_d, params.n);
+        auto degArray_h = algo_utils::copyDeviceToHost(degArray_d, params.n);
 
         auto timeCopyClusteringArrays = au::duration(timeCopyClusteringArraysStart, au::timeNow());
 
-        if (times != nullptr && timeIt) {
+        if (times != nullptr && params.timeIt) {
             (*times)["copyClusteringArrays"] = timeCopyClusteringArrays;
         }
 
+        std::function<void(int i, int j)> addToNeighbourhoodMatrix;
+
+        std::vector<std::mutex> rowLocks(params.n);
+
+        if (params.ignoreAdjListSymmetry) {
+            if (params.verbose) std::cout << "Not ensuring adj list symmetry" << std::endl;
+            addToNeighbourhoodMatrix = [&](int i, int j) {
+                neighbourhoodMatrix[i].push_back(j);
+            };
+        } else{
+            if (params.verbose) std::cout << "Ensuring adj list symmetry" << std::endl;
+            addToNeighbourhoodMatrix= [&](int i, int j) {
+                {
+                    std::lock_guard<std::mutex> lock_i(rowLocks[i]);
+                    neighbourhoodMatrix[i].push_back(j);
+                }
+                {
+                    std::lock_guard<std::mutex> lock_j(rowLocks[j]);
+                    neighbourhoodMatrix[j].push_back(i);
+                }
+            };
+        }
+
         #pragma omp parallel for
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < params.n; i++) {
             for (int j = startIdxArray_h[i]; j < startIdxArray_h[i] + degArray_h[i]; j++) {
                 int candidateIdx = adjacencyList_h[j];
-                #pragma omp critical
-                {
-                    neighbourhoodMatrix[i].push_back(candidateIdx);
-                    neighbourhoodMatrix[candidateIdx].push_back(i);
-                }
+                addToNeighbourhoodMatrix(i, candidateIdx);
             }
         }
 
         #pragma omp parallel for
-        for (int i = 0; i < n; i++) {
-            std::unordered_set<int> neighbourhoodSet(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
-            neighbourhoodMatrix[i].clear();
-            if ((int) neighbourhoodSet.size() >= minPts) { // TODO why did Ninh's code have minPts - 1?
+        for (int i = 0; i < params.n; i++) {
+//            std::unordered_set<int> neighbourhoodSet(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
+//            neighbourhoodMatrix[i].clear();
+//            if ((int) neighbourhoodSet.size() >= params.minPts) { // TODO why did Ninh's code have minPts - 1?
+//                corePoints[i] = true;
+//                neighbourhoodMatrix[i].insert(neighbourhoodMatrix[i].end(), neighbourhoodSet.begin(),
+//                                              neighbourhoodSet.end()); // TODO is this line wrong?, why use .end() of neighbourhoodMatrix
+//            }
+
+            // Slightly different code, is equivalent, but (should be) faster
+            std::sort(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
+            auto last_iter = std::unique(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
+            neighbourhoodMatrix[i].erase(last_iter, neighbourhoodMatrix[i].end());
+            if ((int) neighbourhoodMatrix[i].size() >= params.minPts - 1 ) {
                 corePoints[i] = true;
-                neighbourhoodMatrix[i].insert(neighbourhoodMatrix[i].end(), neighbourhoodSet.begin(),
-                                              neighbourhoodSet.end()); // TODO is this line wrong?, why use .end() of neighbourhoodMatrix
             }
         }
 
@@ -462,45 +493,41 @@ namespace GsDBSCAN::clustering {
 
     inline std::tuple<int *, int>
     performClustering(matx::tensor_t<float, 2> &distances, matx::tensor_t<int, 2> &A_t, matx::tensor_t<int, 2> &B_t,
-                      const float eps, const int minPts, const int clusterBlockSize,
-                      const std::string &distanceMetric, bool timeIt, nlohmann::ordered_json &times,
-                      bool clusterOnCpu) {
+                      GsDBSCAN::GsDBSCAN_Params &params, nlohmann::ordered_json &times) {
 
         auto startClustering = au::timeNow();
 
-        int n = distances.Shape()[0];
-
         auto [adjacencyList_d, adjacencyListSize, degArray_d, startIdxArray_d] = createClusteringArrays(distances, A_t,
-                                                                                                        B_t, eps,
-                                                                                                        clusterBlockSize,
-                                                                                                        distanceMetric,
-                                                                                                        times, timeIt);
+                                                                                                        B_t, params.eps,
+                                                                                                        params.clusterBlockSize,
+                                                                                                        params.distanceMetric,
+                                                                                                        times, params.timeIt);
 
         std::tuple<int *, int> result;
 
-        if (clusterOnCpu) {
+        if (params.clusterOnCpu) {
             auto startProcessAdjacencyList = au::timeNow();
 
             auto [neighbourhoodMatrix, corePoints] = processAdjacencyListCpu(adjacencyList_d, degArray_d,
-                                                                             startIdxArray_d, n,
-                                                                             adjacencyListSize, minPts, &times, timeIt);
+                                                                             startIdxArray_d, params,
+                                                                             adjacencyListSize, &times);
 
-            if (timeIt) times["processAdjacencyList"] = au::duration(startProcessAdjacencyList, au::timeNow());
+            if (params.timeIt) times["processAdjacencyList"] = au::duration(startProcessAdjacencyList, au::timeNow());
 
             auto startFormClusters = au::timeNow();
 
-            result = formClustersCPU(neighbourhoodMatrix, corePoints, n);
+            result = formClustersCPU(neighbourhoodMatrix, corePoints, params.n);
 
-            if (timeIt) times["formClusters"] = au::duration(startFormClusters, au::timeNow());
+            if (params.timeIt) times["formClusters"] = au::duration(startFormClusters, au::timeNow());
         } else {
             auto startFormClusters = au::timeNow();
 
             auto tup = clustering::formClusters(adjacencyList_d, degArray_d,
-                                                startIdxArray_d, n,
-                                                minPts, clusterBlockSize);
+                                                startIdxArray_d, params.n,
+                                                params.minPts, params.clusterBlockSize);
 
 
-            if (timeIt) times["formClusters"] = au::duration(startFormClusters, au::timeNow());
+            if (params.timeIt) times["formClusters"] = au::duration(startFormClusters, au::timeNow());
 
             result = std::make_tuple(std::get<0>(tup), std::get<2>(tup));
         }
@@ -509,7 +536,7 @@ namespace GsDBSCAN::clustering {
         cudaFree(degArray_d);
         cudaFree(startIdxArray_d);
 
-        if (timeIt) times["clusteringOverall"] = au::duration(startClustering, au::timeNow());
+        if (params.timeIt) times["clusteringOverall"] = au::duration(startClustering, au::timeNow());
 
         return result;
     }
