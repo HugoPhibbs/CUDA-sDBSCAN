@@ -272,7 +272,7 @@ namespace GsDBSCAN {
 
             if (params.verbose) std::cout << "Performing clustering" << std::endl;
 
-            std::tie(clusterLabels, numClusters) = clustering::performClustering(distances_matx, A_t, B_t, params.eps, params.minPts, params.clusterBlockSize, params.distanceMetric, params.timeIt, times, params.clusterOnCpu);
+            std::tie(clusterLabels, numClusters) = clustering::performClustering(distances_matx, A_t, B_t, params);
         }
 
         if (params.timeIt)
