@@ -231,7 +231,7 @@ namespace GsDBSCAN::clustering {
             if (params.verbose) std::cout << "Not ensuring adj list symmetry" << std::endl;
             processPoint = [&](int i) {
                 neighbourhoodMatrix[i] = std::vector<int>(adjacencyList_h + startIdxArray_h[i],
-                                                          (adjacencyList_h + +startIdxArray_h[i]) + degArray_h[i] / sizeof(int)
+                                                          (adjacencyList_h + startIdxArray_h[i]) + degArray_h[i] / sizeof(int)
                 );
             };
         } else {
