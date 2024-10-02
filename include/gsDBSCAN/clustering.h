@@ -223,8 +223,6 @@ namespace GsDBSCAN::clustering {
             (*times)["copyClusteringArrays"] = timeCopyClusteringArrays;
         }
 
-        std::function<void(int i, int j)> addToNeighbourhoodMatrix;
-
         std::vector<std::mutex> rowLocks(params.n);
 
         std::function<void(int i)> processPoint;
@@ -253,25 +251,6 @@ namespace GsDBSCAN::clustering {
             };
         }
 
-//        if (params.ignoreAdjListSymmetry) {
-//            if (params.verbose) std::cout << "Not ensuring adj list symmetry" << std::endl;
-//            addToNeighbourhoodMatrix = [&](int i, int j) {
-//                neighbourhoodMatrix[i].push_back(j);
-//            };
-//        } else {
-//            if (params.verbose) std::cout << "Ensuring adj list symmetry" << std::endl;
-//            addToNeighbourhoodMatrix = [&](int i, int j) {
-//                {
-//                    std::lock_guard<std::mutex> lock_i(rowLocks[i]);
-//                    neighbourhoodMatrix[i].push_back(j);
-//                }
-//                {
-//                    std::lock_guard<std::mutex> lock_j(rowLocks[j]);
-//                    neighbourhoodMatrix[j].push_back(i);
-//                }
-//            };
-//        }
-
         #pragma omp parallel for
         for (int i = 0; i < params.n; i++) {
             processPoint(i);
@@ -279,15 +258,6 @@ namespace GsDBSCAN::clustering {
 
         #pragma omp parallel for
         for (int i = 0; i < params.n; i++) {
-//            std::unordered_set<int> neighbourhoodSet(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
-//            neighbourhoodMatrix[i].clear();
-//            if ((int) neighbourhoodSet.size() >= params.minPts) { // TODO why did Ninh's code have minPts - 1?
-//                corePoints[i] = true;
-//                neighbourhoodMatrix[i].insert(neighbourhoodMatrix[i].end(), neighbourhoodSet.begin(),
-//                                              neighbourhoodSet.end()); // TODO is this line wrong?, why use .end() of neighbourhoodMatrix
-//            }
-
-            // Slightly different code, is equivalent, but (should be) faster
             std::sort(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
             auto last_iter = std::unique(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
             neighbourhoodMatrix[i].erase(last_iter, neighbourhoodMatrix[i].end());
