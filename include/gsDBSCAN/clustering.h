@@ -202,9 +202,10 @@ namespace GsDBSCAN::clustering {
     }
 
 
-
     inline std::tuple<std::vector<std::vector<int>>, boost::dynamic_bitset<>>
-    processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d, GsDBSCAN::GsDBSCAN_Params &params, int adjacencyList_size, nlohmann::ordered_json *times = nullptr) {
+    processAdjacencyListCpu(int *adjacencyList_d, int *degArray_d, int *startIdxArray_d,
+                            GsDBSCAN::GsDBSCAN_Params &params, int adjacencyList_size,
+                            nlohmann::ordered_json *times = nullptr) {
         if (params.verbose) std::cout << "Processing the adj list(CPU)" << std::endl;
 
         auto neighbourhoodMatrix = std::vector<std::vector<int>>(params.n, std::vector<int>());
@@ -226,31 +227,54 @@ namespace GsDBSCAN::clustering {
 
         std::vector<std::mutex> rowLocks(params.n);
 
+        std::function<void(int i)> processPoint;
+
         if (params.ignoreAdjListSymmetry) {
             if (params.verbose) std::cout << "Not ensuring adj list symmetry" << std::endl;
-            addToNeighbourhoodMatrix = [&](int i, int j) {
-                neighbourhoodMatrix[i].push_back(j);
+            processPoint = [&](int i) {
+                neighbourhoodMatrix[i] = std::vector<int>(adjacencyList_h + startIdxArray_h[i],
+                                                          (adjacencyList_h + +startIdxArray_h[i]) + degArray_h[i] / sizeof(int)
+                );
             };
-        } else{
+        } else {
             if (params.verbose) std::cout << "Ensuring adj list symmetry" << std::endl;
-            addToNeighbourhoodMatrix= [&](int i, int j) {
-                {
-                    std::lock_guard<std::mutex> lock_i(rowLocks[i]);
-                    neighbourhoodMatrix[i].push_back(j);
-                }
-                {
-                    std::lock_guard<std::mutex> lock_j(rowLocks[j]);
-                    neighbourhoodMatrix[j].push_back(i);
+            processPoint = [&](int i) {
+                for (int j = startIdxArray_h[i]; j < startIdxArray_h[i] + degArray_h[i]; j++) {
+                    int candidateIdx = adjacencyList_h[j];
+                    {
+                        std::lock_guard<std::mutex> lock_i(rowLocks[i]);
+                        neighbourhoodMatrix[i].push_back(candidateIdx);
+                    }
+                    {
+                        std::lock_guard<std::mutex> lock_j(rowLocks[candidateIdx]);
+                        neighbourhoodMatrix[candidateIdx].push_back(i);
+                    }
                 }
             };
         }
 
+//        if (params.ignoreAdjListSymmetry) {
+//            if (params.verbose) std::cout << "Not ensuring adj list symmetry" << std::endl;
+//            addToNeighbourhoodMatrix = [&](int i, int j) {
+//                neighbourhoodMatrix[i].push_back(j);
+//            };
+//        } else {
+//            if (params.verbose) std::cout << "Ensuring adj list symmetry" << std::endl;
+//            addToNeighbourhoodMatrix = [&](int i, int j) {
+//                {
+//                    std::lock_guard<std::mutex> lock_i(rowLocks[i]);
+//                    neighbourhoodMatrix[i].push_back(j);
+//                }
+//                {
+//                    std::lock_guard<std::mutex> lock_j(rowLocks[j]);
+//                    neighbourhoodMatrix[j].push_back(i);
+//                }
+//            };
+//        }
+
         #pragma omp parallel for
         for (int i = 0; i < params.n; i++) {
-            for (int j = startIdxArray_h[i]; j < startIdxArray_h[i] + degArray_h[i]; j++) {
-                int candidateIdx = adjacencyList_h[j];
-                addToNeighbourhoodMatrix(i, candidateIdx);
-            }
+            processPoint(i);
         }
 
         #pragma omp parallel for
@@ -267,7 +291,7 @@ namespace GsDBSCAN::clustering {
             std::sort(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
             auto last_iter = std::unique(neighbourhoodMatrix[i].begin(), neighbourhoodMatrix[i].end());
             neighbourhoodMatrix[i].erase(last_iter, neighbourhoodMatrix[i].end());
-            if ((int) neighbourhoodMatrix[i].size() >= params.minPts - 1 ) {
+            if ((int) neighbourhoodMatrix[i].size() >= params.minPts - 1) {
                 corePoints[i] = true;
             }
         }
@@ -483,7 +507,8 @@ namespace GsDBSCAN::clustering {
         if (timeIt) {
             times.contains("degArray") ? times["degArray"] = static_cast<int>(times["degArray"]) + degArrayDuration
                                        : times["degArray"] = degArrayDuration;
-            times.contains("startIdxArray") ? times["startIdxArray"] = static_cast<int>(times["startIdxArray"]) + startIdxArrayDuration
+            times.contains("startIdxArray") ? times["startIdxArray"] =
+                                                      static_cast<int>(times["startIdxArray"]) + startIdxArrayDuration
                                             : times["startIdxArray"] = startIdxArrayDuration;
             times.contains("adjList") ? times["adjList"] = static_cast<int>(times["adjList"]) + adjListDuration
                                       : times["adjList"] = adjListDuration;
@@ -501,7 +526,8 @@ namespace GsDBSCAN::clustering {
                                                                                                         B_t, params.eps,
                                                                                                         params.clusterBlockSize,
                                                                                                         params.distanceMetric,
-                                                                                                        times, params.timeIt);
+                                                                                                        times,
+                                                                                                        params.timeIt);
 
         std::tuple<int *, int> result;
 
