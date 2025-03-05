@@ -195,6 +195,12 @@ namespace GsDBSCAN {
         auto XTorchCpu = torch::from_blob(X, {params.n, params.d}, XOptions);
         auto XTorchGPU = XTorchCpu.to(torch::kCUDA);
 
+        if (params.shuffleDataset) {
+            std:: cout << "Shuffling dataset" << std::endl;
+            auto shuffleIndices = torch::randperm(params.n, torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA));
+            XTorchGPU = XTorchGPU.index_select(0, shuffleIndices);
+        }
+
         cudaDeviceSynchronize();
 
         if (params.timeIt)

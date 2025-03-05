@@ -132,6 +132,8 @@ namespace GsDBSCAN::projections {
         int d = X.size(1);
         torch::Tensor projections;
 
+        if (verbose) std::cout << "Projecting dataset" << std::endl;
+
         if (!Y.has_value()) {
             Y = getRandomVectorsMatrix(d, D, distanceMetric, fourierEmbedDim, X.scalar_type());
         }
@@ -154,7 +156,7 @@ namespace GsDBSCAN::projections {
             W = W.to(X.scalar_type());
 
             // TODO this line fails for very large N~10^7
-            auto WX = torch::matmul(W, X.t()); // Shape (fourierEmbedDim, n)
+            auto WX = torch::matmul(W, X.t()); // Shape (fourierEmbedDim, n) very large, bigger than MNIST8M
             auto XEmbed = torch::concat({torch::cos(WX), torch::sin(WX)}, 0); // Shape (2 * fourierEmbedDim, n)
 
             projections = torch::matmul(XEmbed.t(), Y.value());
@@ -194,11 +196,16 @@ namespace GsDBSCAN::projections {
 
         if (params.verbose) std::cout << "A created" << std::endl;
 
-        if (params.verbose) std::cout << "Creating B matrix" << std::endl;
+        if (params.verbose)  std::cout << "Creating B matrix" << std::endl;
 
         // Construct B matrix
         torch::Tensor B = torch::empty({2 * params.D, params.m},
                                        torch::TensorOptions().dtype(torch::kInt32).device(torch::kCUDA));
+
+        if (params.verbose) {
+            cudaDeviceSynchronize();
+            std::cout << "B allocated" << std::endl;
+        }
 
         for (int j = 0; j < params.D; j += params.BBatchSize) {
             auto thisY = Y.slice(1, j, std::min(j + params.BBatchSize, params.D));

@@ -38,6 +38,8 @@ namespace GsDBSCAN {
 
     inline std::string DATASET_DTYPE_DEFAULT = "f32";
 
+    inline bool SHUFFLE_DEFAULT = false;
+
     class GsDBSCAN_Params {
     private:
 
@@ -78,6 +80,7 @@ namespace GsDBSCAN {
         bool useBatchABMatrices;
         bool ignoreAdjListSymmetry;
         std::string datasetDType;
+        bool shuffleDataset;
 
 
         GsDBSCAN_Params(std::string dataFilename, std::string outputFilename, int n, int d, int D, int minPts, int k,
@@ -98,7 +101,8 @@ namespace GsDBSCAN {
                         bool useBatchABMatrices = USE_BATCH_AB_MATRICES_DEFAULT,
                         bool useBatchNorm = USE_BATCH_NORM_DEFAULT,
                         std::string datasetDType = DATASET_DTYPE_DEFAULT,
-                        bool ignoreAdjListSymmetry = IGNORE_ADJACENCY_LIST_SYMMETRY_DEFAULT
+                        bool ignoreAdjListSymmetry = IGNORE_ADJACENCY_LIST_SYMMETRY_DEFAULT,
+                        bool shuffleDataset = SHUFFLE_DEFAULT
         ) {
 
             this->dataFilename = dataFilename;
@@ -128,6 +132,7 @@ namespace GsDBSCAN {
             this->useBatchABMatrices = useBatchABMatrices;
             this->useBatchNorm = useBatchNorm;
             this->ignoreAdjListSymmetry = ignoreAdjListSymmetry;
+            this->shuffleDataset = shuffleDataset;
 
             if (datasetDType != "f16" && datasetDType != "f32") {
                 throw std::runtime_error("Invalid dataset dtype. Must be either 'f16' or 'f32'");
@@ -169,6 +174,7 @@ namespace GsDBSCAN {
             oss << "Use batch normalisation: " << (useBatchNorm ? "true" : "false") << "\n";
             oss << "Ignore Adjacency List Symmetry: " << (ignoreAdjListSymmetry ? "true" : "false") << "\n";
             oss << "Dataset DType: " << datasetDType << "\n";
+            oss << "Shuffle Dataset: " << (shuffleDataset ? "true" : "false") << "\n";
 
             return oss.str();
         }
@@ -284,6 +290,11 @@ namespace GsDBSCAN {
                 .help("What dtype the dataset is in. Options: 'f16' or 'f32'")
                 .default_value(DATASET_DTYPE_DEFAULT);
 
+        parser.add_argument("--shuffleDataset", "-sd")
+                .help("Whether to shuffle the dataset before processing")
+                .default_value(SHUFFLE_DEFAULT)
+                .implicit_value(true);
+
         return parser;
     }
 
@@ -327,7 +338,8 @@ namespace GsDBSCAN {
                     parser.get<bool>("--useBatchABMatrices"),
                     parser.get<bool>("--useBatchNorm"),
                     parser.get<std::string>("--datasetDType"),
-                    parser.get<bool>("--ignoreAdjListSymmetry")
+                    parser.get<bool>("--ignoreAdjListSymmetry"),
+                    parser.get<bool>("--shuffleDataset")
             );
         } catch (const std::bad_cast &e) {
             std::cerr << "Error: Invalid type in argument conversion. " << e.what() << std::endl;

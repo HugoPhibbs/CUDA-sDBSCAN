@@ -153,6 +153,37 @@ TEST_F(TestMainHelper, TestPortoF32) {
     std::cout << "Number of clusters: " << numClusters << std::endl;
 }
 
+TEST_F(TestMainHelper, TestMnist8M3M) {
+    GsDBSCAN::GsDBSCAN_Params params = GsDBSCAN::GsDBSCAN_Params(
+            "/home/hphi344/Documents/GS-DBSCAN-Analysis/data/mnist8m/samples/f16/mnist8m_sample_n3000000_f16.bin",
+            "",
+            3000000,
+            784,
+            1024,
+            50,
+            10,
+            50,
+            5.3,
+            "L2",
+            true,
+            false
+    );
+
+    params.useBatchClustering = true;
+    params.verbose = true;
+    params.datasetDType = "f16";
+    params.ABatchSize = 10000;
+    params.BBatchSize = 28;
+    params.miniBatchSize = 10000;
+
+    std::cout << params.toString() << std::endl;
+
+    auto [clusterLabels, numClusters, times] = GsDBSCAN::run_utils::main_helper(params);
+
+    std::cout << "Number of clusters: " << numClusters << std::endl;
+}
+
+
 class TestReadMnist : public RunUtilsTest {
 
 };
